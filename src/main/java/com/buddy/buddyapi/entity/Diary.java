@@ -14,7 +14,7 @@ import java.util.List;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "diaries")
+@Table(name = "diary")
 public class Diary {
 
     @Id
@@ -33,18 +33,18 @@ public class Diary {
     private String imageUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_seq", nullable = false)
-    private User user;
+    @JoinColumn(name = "member_seq", nullable = false)
+    private Member member;
 
     @OneToMany(mappedBy = "diary", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<DiaryTag> diaryTags = new ArrayList<>();
 
     @Builder
-    public Diary(String title, String content, String imageUrl, User user) {
+    public Diary(String title, String content, String imageUrl, Member member) {
         this.title = title;
         this.content = content;
         this.imageUrl = imageUrl;
-        this.user = user;
+        this.member = member;
     }
 
     public void updateDiary(String title, String content, String imageUrl) {
