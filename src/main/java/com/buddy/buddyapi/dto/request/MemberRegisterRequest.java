@@ -1,4 +1,4 @@
-package com.buddy.buddyapi.dto;
+package com.buddy.buddyapi.dto.request;
 
 
 import jakarta.validation.constraints.Email;
@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
-public class UserRegisterRequest {
+public class MemberRegisterRequest {
     
     @NotBlank(message = "이메일은 필수 입력 항목입니다.")
     @Email(message = "이메일 형식이 유효하지 않습니다.")

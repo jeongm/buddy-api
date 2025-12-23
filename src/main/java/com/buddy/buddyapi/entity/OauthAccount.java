@@ -27,14 +27,14 @@ public class OauthAccount {
     private String oauthId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_seq", nullable = false)
-    private User user;
+    @JoinColumn(name = "member_seq", nullable = false)
+    private Member member;
 
     @Builder
-    public OauthAccount(Provider provider, String oauthId, User user) {
+    public OauthAccount(Provider provider, String oauthId, Member member) {
         this.provider = provider;
         this.oauthId = oauthId;
-        this.user = user;
+        this.member = member;
     }
 
 

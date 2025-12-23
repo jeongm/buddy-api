@@ -8,6 +8,6 @@ import java.util.Optional;
 
 public interface OauthAccountRepository extends JpaRepository<OauthAccount, Long> {
     Optional<OauthAccount> findByProviderAndOauthId(Provider provider, String oauthId);
-//    boolean existsByUser_UserSeqAndOauthProvider(Long userSeq, Provider provider);
+//    boolean existsByMember_MemberSeqAndOauthProvider(Long memberSeq, Provider provider);
 
 }

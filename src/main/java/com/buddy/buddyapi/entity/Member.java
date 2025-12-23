@@ -6,19 +6,23 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name="users")
+@Table(name="member")
 @Entity
-public class User {
+public class Member implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long userSeq;
+    private Long memberSeq;
 
     @Column(unique = true, nullable = false, length = 255)
     private String email;
@@ -36,14 +40,14 @@ public class User {
     @JoinColumn(name = "character_seq",nullable = false)
     private BuddyCharacter buddyCharacter;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<OauthAccount> oauthAccounts = new ArrayList<>();
     
-    @OneToMany(mappedBy = "user")
+    @OneToMany(mappedBy = "member")
     private final List<Diary> diaries = new ArrayList<>();
 
     @Builder
-    public User(String email, String password, String nickname, BuddyCharacter buddyCharacter) {
+    public Member(String email, String password, String nickname, BuddyCharacter buddyCharacter) {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
@@ -63,4 +67,40 @@ public class User {
     }
 
 
+    // --- UserDetails 인터페이스 구현 메서드
+
+    @Override
+    public Collection<? extends GrantedAuthority> getAuthorities() {
+        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
+    }
+
+    @Override
+    public String getPassword() {
+        return this.password;
+    }
+
+    @Override
+    public String getUsername() {
+        return this.email;
+    }
+
+    @Override
+    public boolean isAccountNonExpired() {
+        return true; // 계정 만료 여부 (true: 만료 안됨)
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return true; // 계정 잠김 여부 (true: 잠기지 않음)
+    }
+
+    @Override
+    public boolean isCredentialsNonExpired() {
+        return true; // 비밀번호 만료 여부 (true: 만료 안됨)
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true; // 계정 활성화 여부 (true: 활성화)
+    }
 }

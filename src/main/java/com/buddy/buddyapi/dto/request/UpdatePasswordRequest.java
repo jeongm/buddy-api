@@ -1,4 +1,4 @@
-package com.buddy.buddyapi.dto;
+package com.buddy.buddyapi.dto.request;
 
 
 import lombok.Getter;
