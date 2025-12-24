@@ -5,10 +5,10 @@ import lombok.*;
 
 import java.io.Serializable;
 
+@Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "diary_tag")
-@Entity
 public class DiaryTag {
 
     @EmbeddedId

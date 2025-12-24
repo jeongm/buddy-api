@@ -49,7 +49,7 @@ public class MemberServiceImpl implements MemberService {
         String encodedPassword = passwordEncoder.encode(request.getPassword());
 
         // 3. 초기 캐릭터 조회 및 유효성 검사
-        Integer charSeq = request.getCharacterSeq() != null ? request.getCharacterSeq() : 1;
+        Long charSeq = request.getCharacterSeq() != null ? request.getCharacterSeq() : 1;
 
         BuddyCharacter selectedCharacter = characterRepository.findById(charSeq)
                 .orElseThrow(()-> new BaseException(ResultCode.CHARACTER_NOT_FOUND));
@@ -115,7 +115,7 @@ public class MemberServiceImpl implements MemberService {
 //        }
 
         // 3. 변경 (Dirty Checking에 의해 자동 반영)
-        member.updateNickname(request.getNickname());
+        member.updateNickname(request.nickname());
 
         return new UpdateNicknameResponse(member.getNickname());
     }
@@ -128,12 +128,12 @@ public class MemberServiceImpl implements MemberService {
                 .orElseThrow(() ->  new BaseException(ResultCode.USER_NOT_FOUND));
 
         // 2. 기존 비밀번호 확인 (Spring Security의 matches 사용)
-        if (!passwordEncoder.matches(request.getCurrentPassword(), member.getPassword())) {
+        if (!passwordEncoder.matches(request.currentPassword(), member.getPassword())) {
             throw new BaseException(ResultCode.CURRENT_PASSWORD_MISMATCH);
         }
 
         // 3. 새 비밀번호 암호화 및 저장
-        String encodedNewPassword = passwordEncoder.encode(request.getNewPassword());
+        String encodedNewPassword = passwordEncoder.encode(request.newPassword());
         member.updatePassword(encodedNewPassword);
     }
 

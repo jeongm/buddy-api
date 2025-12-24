@@ -15,7 +15,7 @@ public class BuddyCharacter {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "character_seq")
-    private Integer characterSeq;
+    private Long characterSeq;
 
     @Column(unique = true, nullable = false, length = 100)
     private String name;

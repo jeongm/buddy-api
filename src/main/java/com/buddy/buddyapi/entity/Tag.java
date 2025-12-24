@@ -6,21 +6,19 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+@Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "tag")
-@Entity
 public class Tag {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long tagSeq;
 
-    @Column(unique = true, nullable = false, length = 30)
+    @Column(unique = true, nullable = false, length = 20)
     private String name;
 
-
-    @Builder
     public Tag(String name) {
         this.name = name;
     }
