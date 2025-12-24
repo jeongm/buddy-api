@@ -34,6 +34,10 @@ public class Member implements UserDetails {
     @Column(name = "joined_at", nullable = false, updatable = false)
     private LocalDateTime joinedAt;
 
+    // 사용자는 직접 캐릭터의 별명을 지어줄 수 있음
+    @Column(name = "character_nickname", length = 20)
+    private String characterNickname;
+
     // -------- relation --------
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -64,6 +68,14 @@ public class Member implements UserDetails {
     }
     public void updateNickname(String nickname) {
         this.nickname = nickname;
+    }
+    public void changeCharacter(BuddyCharacter character) {
+        this.buddyCharacter = character;
+    }
+
+    // 캐릭터 별명 변경 메서드
+    public void updateCharacterNickname(String newNickname) {
+        this.characterNickname = newNickname;
     }
 
 

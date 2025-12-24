@@ -54,8 +54,20 @@ public class Diary {
     }
 
     // addTag, removeTag 추가 생각중
+    public void addTags(List<Tag> tags) {
+        tags.forEach(tag -> {
+            DiaryTag diaryTag = new DiaryTag(this, tag);
+            this.diaryTags.add(diaryTag);
+        });
+    }
 
+    public void updateTags(List<Tag> newTags) {
+        // 1. 기존 태그 리스트를 비움(orphanRemoval = true 설정 덕분에 DB에서도 삭제됨)
+        this.diaryTags.clear();
 
+        // 2. 새로운 태그들 추가
+        addTags(newTags);
+    }
 
 
 }

@@ -21,8 +21,9 @@ public enum ResultCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "존재하지 않는 사용자입니다."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "이메일 또는 비밀번호가 불일치합니다."),
     CURRENT_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST,"CURRENT_PASSWORD_MISMATCH", "현재 비밀번호가 일치하지 않습니다."),
-    INVALID_PASSWORD_FORMAT(HttpStatus.BAD_REQUEST, "INVALID_PASSWORD_FORMAT", "비밀번호 형식이 올바르지 않습니다.");
-
+    INVALID_PASSWORD_FORMAT(HttpStatus.BAD_REQUEST, "INVALID_PASSWORD_FORMAT", "비밀번호 형식이 올바르지 않습니다."),
+    TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "TAG_NOT_FOUND","태그를 찾을 수 없습니다."),
+    DIARY_NOT_FOUND(HttpStatus.NOT_FOUND, "DIARY_NOT_FOUND", "존재하지 않는 일기입니다.");
     private final HttpStatus httpStatus;
     private final String code;
     private final String message;
