@@ -7,10 +7,12 @@ import com.buddy.buddyapi.dto.response.MemberResponse;
 import com.buddy.buddyapi.dto.response.UpdateNicknameResponse;
 import com.buddy.buddyapi.entity.Member;
 import com.buddy.buddyapi.service.MemberService;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+@Tag(name = "Member", description = "맴버 API")
 @RestController
 @RequestMapping("/api/v1/members")
 @RequiredArgsConstructor

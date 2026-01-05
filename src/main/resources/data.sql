@@ -14,3 +14,5 @@ INSERT INTO tag (name) VALUES ('기쁨');
 INSERT INTO tag (name) VALUES ('슬픔');
 INSERT INTO tag (name) VALUES ('회사');
 INSERT INTO tag (name) VALUES ('위로');
+
+-- 테스트 맴버
