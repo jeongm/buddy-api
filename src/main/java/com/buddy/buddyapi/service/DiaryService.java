@@ -1,9 +1,12 @@
 package com.buddy.buddyapi.service;
 
 import com.buddy.buddyapi.dto.request.DiaryCreateRequest;
+import com.buddy.buddyapi.dto.request.DiaryGenerateRequest;
 import com.buddy.buddyapi.dto.request.DiaryUpdateRequest;
 import com.buddy.buddyapi.dto.response.DiaryDetailResponse;
 import com.buddy.buddyapi.dto.response.DiaryListResponse;
+import com.buddy.buddyapi.dto.response.DiaryPreviewResponse;
+import com.buddy.buddyapi.dto.response.TagResponse;
 import com.buddy.buddyapi.entity.Diary;
 import com.buddy.buddyapi.entity.Member;
 import com.buddy.buddyapi.entity.Tag;
@@ -26,6 +29,26 @@ public class DiaryService {
 
     private final DiaryRepository diaryRepository;
     private final TagRepository tagRepository;
+
+    // TODO 다 아님 다 고쳐야함
+    @Transactional(readOnly = true)
+    public DiaryPreviewResponse generateDiaryFromChat(Member member, DiaryGenerateRequest request) {
+        // 1. 세션 ID로 채팅 내역 조회 (나중에 ChatService 연동)
+        // TODO: chatRepository.findAllBySessionId(request.sessionId())
+
+        // 2. AI에게 요약 요청 (나중에 OpenAI/LangChain 연동)
+        // 지금은 가짜(Mock) 데이터를 반환합니다.
+        String mockTitle = "오늘의 따뜻한 기록";
+        String mockContent = "오늘은 버디와 대화하며 하루를 정리했다. 마음이 한결 가벼워진 것 같다.";
+
+        // 3. AI가 추천해준 태그 후보 (임시)
+        List<TagResponse> mockTags = List.of(
+                new TagResponse(1L, "위로"),
+                new TagResponse(4L, "일상")
+        );
+
+        return new DiaryPreviewResponse(mockTitle, mockContent, mockTags);
+    }
 
     // 특정 날짜의 일기 목록 조회
     public List<DiaryListResponse> getDiariesByDate(Member member, LocalDate date) {

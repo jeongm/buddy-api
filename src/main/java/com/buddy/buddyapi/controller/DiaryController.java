@@ -2,9 +2,11 @@ package com.buddy.buddyapi.controller;
 
 import com.buddy.buddyapi.dto.common.ApiResponse;
 import com.buddy.buddyapi.dto.request.DiaryCreateRequest;
+import com.buddy.buddyapi.dto.request.DiaryGenerateRequest;
 import com.buddy.buddyapi.dto.request.DiaryUpdateRequest;
 import com.buddy.buddyapi.dto.response.DiaryDetailResponse;
 import com.buddy.buddyapi.dto.response.DiaryListResponse;
+import com.buddy.buddyapi.dto.response.DiaryPreviewResponse;
 import com.buddy.buddyapi.entity.Member;
 import com.buddy.buddyapi.service.DiaryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,6 +26,15 @@ import java.util.List;
 public class DiaryController {
 
     private final DiaryService diaryService;
+
+    // TODO AI 관련 바탕임 전체 수정 해야함
+    @Operation(summary = "대화 기반 AI 일기 생성", description = "대화 세션을 기반으로 AI가 일기 초안과 태그를 생성합니다.")
+    @PostMapping("/from-chat")
+    public ApiResponse<DiaryPreviewResponse> generateDiaryFromChat(
+            @AuthenticationPrincipal Member member,
+            @RequestBody DiaryGenerateRequest request) {
+        return ApiResponse.success(diaryService.generateDiaryFromChat(member, request));
+    }
 
     @Operation(summary = "일기 생성", description = "새로운 일기를 저장합니다.")
     @PostMapping
