@@ -7,47 +7,103 @@ import com.buddy.buddyapi.dto.response.DiaryDetailResponse;
 import com.buddy.buddyapi.dto.response.DiaryListResponse;
 import com.buddy.buddyapi.dto.response.DiaryPreviewResponse;
 import com.buddy.buddyapi.dto.response.TagResponse;
-import com.buddy.buddyapi.entity.Diary;
-import com.buddy.buddyapi.entity.Member;
-import com.buddy.buddyapi.entity.Tag;
+import com.buddy.buddyapi.entity.*;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
+import com.buddy.buddyapi.repository.ChatMessageRepository;
+import com.buddy.buddyapi.repository.ChatSessionRepository;
 import com.buddy.buddyapi.repository.DiaryRepository;
 import com.buddy.buddyapi.repository.TagRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class DiaryService {
 
     private final DiaryRepository diaryRepository;
     private final TagRepository tagRepository;
+    private final ChatSessionRepository chatSessionRepository;
+    private final ChatMessageRepository chatMessageRepository;
+    private final AiService aiService;
+    private final ObjectMapper objectMapper;
 
-    // TODO 다 아님 다 고쳐야함
-    @Transactional(readOnly = true)
-    public DiaryPreviewResponse generateDiaryFromChat(Member member, DiaryGenerateRequest request) {
-        // 1. 세션 ID로 채팅 내역 조회 (나중에 ChatService 연동)
-        // TODO: chatRepository.findAllBySessionId(request.sessionId())
+    @Transactional
+    public DiaryPreviewResponse generateDiaryFromChat(Member member, DiaryGenerateRequest request) throws JsonProcessingException {
+        // 1. 세션 조회 (내 세션인지, 종료된 세션인지 확인)
+        ChatSession session = chatSessionRepository.findBySessionSeqAndMember(request.sessionId(), member)
+                .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
-        // 2. AI에게 요약 요청 (나중에 OpenAI/LangChain 연동)
-        // 지금은 가짜(Mock) 데이터를 반환합니다.
-        String mockTitle = "오늘의 따뜻한 기록";
-        String mockContent = "오늘은 버디와 대화하며 하루를 정리했다. 마음이 한결 가벼워진 것 같다.";
+        // 2. 해당 세션의 모든 메시지 시간순 조회
+        List<ChatMessage> messages = chatMessageRepository.findAllByChatSessionOrderByCreatedAtAsc(session);
 
-        // 3. AI가 추천해준 태그 후보 (임시)
-        List<TagResponse> mockTags = List.of(
-                new TagResponse(1L, "위로"),
-                new TagResponse(4L, "일상")
+        if (messages.isEmpty()) {
+            throw new BaseException(ResultCode.EMPTY_CHAT_HISTORY); // 대화가 없으면 일기 생성 불가
+        }
+
+        // 3. AI에게 전달할 대화 텍스트 포맷팅
+        // 예: "USER: 오늘 힘들어 / ASSISTANT: 무슨 일이야? / USER: 상사한테 깨졌어"
+        String fullConversation = messages.stream()
+                .map(m -> String.format("%s: %s", m.getRole(), m.getContent()))
+                .collect(Collectors.joining("\n"));
+
+        // 4. AI 서비스 호출 (페르소나와 대화 내용 전달)
+        log.info("AI에게 보낼 텍스트:\n{}", fullConversation);
+
+        String rawResponse = aiService.getDiaryDraft(
+                fullConversation
         );
 
-        return new DiaryPreviewResponse(mockTitle, mockContent, mockTags);
+        log.info("일기 작성 : \n{}",rawResponse);
+
+        // 5. AI 응답(JSON 문자열)을 DTO로 변환 (파싱 로직은 아래에서 구현)
+        return parseAiResponse(rawResponse);
+    }
+
+    private DiaryPreviewResponse parseAiResponse(String jsonString) {
+        try {
+            // AI가 가끔 ```json ... ``` 이런 식으로 답을 줄 때를 대비해 앞뒤 정리
+            String cleanedJson = jsonString.substring(jsonString.indexOf("{"), jsonString.lastIndexOf("}") + 1);
+
+            // AI가 주는 JSON 필드에 맞춰 임시 클래스로 먼저 받거나 직접 매핑
+            JsonNode root = objectMapper.readTree(cleanedJson);
+
+            String title = root.path("title").asText();
+            String content = root.path("content").asText();
+
+            // 태그는 우선 이름(String) 리스트로 받아옵니다.
+            List<String> tagNames = new ArrayList<>();
+            root.path("tags").forEach(t -> tagNames.add(t.asText()));
+
+            List<TagResponse> tags = tagNames.stream()
+                    .map(name -> {
+                        // DB에 태그가 있으면 가져오고, 없으면 새로 생성(Optional 활용)
+                        Tag tag = tagRepository.findByName(name)
+                                .orElseGet(() -> tagRepository.save(new Tag(name)));
+                        return new TagResponse(tag.getTagSeq(), tag.getName());
+                    })
+                    .toList();
+
+            return new DiaryPreviewResponse(title, content, tags);
+
+        } catch (Exception e) {
+            // 파싱 실패 시 기본 응답을 주거나 예외 처리
+            log.error("AI 응답 파싱 에러. 원본 데이터: {}", jsonString, e);
+            throw new BaseException(ResultCode.AI_PARSE_ERROR);
+        }
     }
 
     // 특정 날짜의 일기 목록 조회

@@ -43,6 +43,6 @@ public class ChatController {
             @AuthenticationPrincipal Member member,
             @PathVariable Long sessionId) {
         chatService.endChatSession(member, sessionId);
-        return ApiResponse.success("대화가 성공적으로 종료되었습니다. 일기를 확인해보세요!");
+        return ApiResponse.success("대화가 성공적으로 종료되었습니다.");
     }
 }

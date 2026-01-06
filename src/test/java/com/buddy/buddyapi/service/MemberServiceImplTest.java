@@ -45,7 +45,7 @@ class MemberServiceImplTest {
     @DisplayName("회원가입_성공")
     void registerMember() {
         // 1. 준비 (given)
-        MemberRegisterRequest request = new MemberRegisterRequest("test@test.com", "password", "nickname", 1);
+        MemberRegisterRequest request = new MemberRegisterRequest("test@test.com", "password", "nickname", 1L);
         BuddyCharacter character = new BuddyCharacter("buddy", "기본버디", "설명","/");
 
         // 중요: save가 호출될 때 반환할 가짜 멤버 객체 생성 (ID값이 들어있어야 함)
@@ -60,7 +60,7 @@ class MemberServiceImplTest {
 
         // Mock 객체 행동 정의
         given(memberRepository.existsByEmail(anyString())).willReturn(false);
-        given(characterRepository.findById(anyInt())).willReturn(Optional.of(character));
+        given(characterRepository.findById(anyLong())).willReturn(Optional.of(character));
         given(passwordEncoder.encode(anyString())).willReturn("encoded_password");
         given(memberRepository.save(any(Member.class))).willReturn(member);
 
@@ -68,8 +68,8 @@ class MemberServiceImplTest {
         MemberResponse response = memberService.registerMember(request);
 
         // 3. 검증 (then)
-        assertThat(response.getEmail()).isEqualTo("test@test.com");
-        assertThat(response.getMemberSeq()).isEqualTo(1L);
+        assertThat(response.email()).isEqualTo("test@test.com");
+        assertThat(response.memberSeq()).isEqualTo(1L);
     }
 
     @Test
@@ -97,8 +97,8 @@ class MemberServiceImplTest {
         LoginResponse response = memberService.localLoginMember(new MemberLoginRequest(email, password));
 
         // then
-        assertThat(response.getAccessToken()).isEqualTo("fake-access-token");
-        assertThat(response.getMember().getEmail()).isEqualTo(email);
+        assertThat(response.accessToken()).isEqualTo("fake-access-token");
+        assertThat(response.member().email()).isEqualTo(email);
     }
 
     @Test

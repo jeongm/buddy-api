@@ -27,7 +27,14 @@ public class ChatService {
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final BuddyCharacterRepository buddyCharacterRepository;
+    private final AiService aiService;
 
+    /**
+     * buddy와 대화
+     * @param member
+     * @param request
+     * @return
+     */
     @Transactional
     public ChatResponse sendMessage(Member member, ChatRequest request) {
         // 1. 세션 조회 또는 생성 (세션 ID가 없거나 종료된 세션이면 새로 생성)
@@ -36,7 +43,7 @@ public class ChatService {
         // 2. 사용자 메시지 저장
         saveMessage(session, SenderRole.USER, request.content());
 
-        // 3. AI 답변 생성 (지금은 Mock 데이터, 나중에 AI 연동)
+        // 3. AI 답변 생성
         String aiContent = generateAiResponse(session, request.content());
 
         // 4. AI 메시지 저장
@@ -46,6 +53,12 @@ public class ChatService {
 
     }
 
+    /**
+     * 대화 세션 가져오기
+     * @param member
+     * @param sessionId
+     * @return
+     */
     private ChatSession getOrCreateSession(Member member, Long sessionId) {
         if(sessionId != null) {
             return chatSessionRepository.findBySessionSeqAndMember(sessionId, member)
@@ -55,6 +68,11 @@ public class ChatService {
         return createNewSession(member);
     }
 
+    /**
+     * 세션 생성
+     * @param member
+     * @return
+     */
     private ChatSession createNewSession(Member member) {
 
         Long characterSeq = member.getBuddyCharacter().getCharacterSeq();
@@ -71,6 +89,13 @@ public class ChatService {
         return  chatSessionRepository.save(session);
     }
 
+    /**
+     * 메시지 저장 user, ai
+     * @param session
+     * @param role
+     * @param content
+     * @return
+     */
     private ChatMessage saveMessage(ChatSession session, SenderRole role, String content) {
         ChatMessage message = ChatMessage.builder()
                 .chatSession(session)
@@ -80,12 +105,16 @@ public class ChatService {
         return chatMessageRepository.save(message);
     }
 
+    /**
+     * openai 연동 대화
+     * @param session
+     * @param userContent
+     * @return
+     */
     private String generateAiResponse(ChatSession session, String userContent) {
-        // TODO: OpenAI API 연동 지점
-        // 지금은 캐릭터 이르을 불러주는 가짜 답변 반환
-        String characterName = session.getBuddyCharacter().getName();
-        return String.format("안녕! 나는 '%s'야. 네가 '%s'라고 말해줘서 정말 기뻐. 임시 답변생성임",
-                characterName, userContent);
+        // OpenAI API 연동 지점
+        String characterPersonality = session.getBuddyCharacter().getName();
+        return aiService.getChatResponse(userContent, characterPersonality);
     }
 
     public List<ChatResponse> getChatHistory(Member member, Long sessionId) {
@@ -100,6 +129,11 @@ public class ChatService {
                 .toList();
     }
 
+    /**
+     * 채팅 및 세션 종료
+     * @param member
+     * @param sessionId
+     */
     @Transactional
     public void endChatSession(Member member, Long sessionId){
         ChatSession session = chatSessionRepository.findBySessionSeqAndMember(sessionId, member)
@@ -116,26 +150,6 @@ public class ChatService {
         chatSessionRepository.save(session);
     }
 
-    @Transactional
-    public DiaryPreviewResponse generateDiaryFromChat(Member member, Long sessionId) {
-        // 1. 세션 존재 확인
-        ChatSession session = chatSessionRepository.findBySessionSeqAndMember(sessionId, member)
-                .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
-
-        // 2. 해당 세션의 모든 메시지 순서대로 가져오기
-        List<ChatMessage> messages = chatMessageRepository.findAllByChatSessionOrderByCreatedAtAsc(session);
-
-        // 3. AI에게 전달할 대화 텍스트 생성
-        String fullConversation = messages.stream()
-                .map(m -> m.getRole() + ": " + m.getContent())
-                .collect(Collectors.joining("\n"));
-
-        // 4. TODO: fullConversation을 OpenAI API에 전달하여 요약/태그 추출
-        // 지금은 텍스트가 잘 합쳐졌는지 로그로 확인해봅시다.
-        System.out.println("AI에게 보낼 텍스트:\n" + fullConversation);
-
-        return new DiaryPreviewResponse("AI가 요약한 제목", "AI가 작성한 본문", List.of());
-    }
 
 
 }
