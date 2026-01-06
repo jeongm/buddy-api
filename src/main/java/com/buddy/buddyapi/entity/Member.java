@@ -22,6 +22,7 @@ import java.util.List;
 public class Member implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "member_seq")
     private Long memberSeq;
 
     @Column(unique = true, nullable = false, length = 255)

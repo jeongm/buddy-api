@@ -18,7 +18,7 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
 
     // 3. 특정 회원의 특정 세션 조회 (내 세션이 맞는지 검증 포함)
     @Query( "SELECT s FROM ChatSession s " +
-            "JOIN FETCH s.buddyCharacter " +
+//            "JOIN FETCH s.buddyCharacter " +
             "WHERE s.sessionSeq = :sessionSeq AND s.member = :member")
     Optional<ChatSession> findBySessionSeqAndMember(Long sessionSeq, Member member);
 }

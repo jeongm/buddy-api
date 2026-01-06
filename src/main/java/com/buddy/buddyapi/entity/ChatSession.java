@@ -17,6 +17,7 @@ public class ChatSession {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "session_seq")
     private Long sessionSeq;
 
     @ManyToOne(fetch = FetchType.LAZY)

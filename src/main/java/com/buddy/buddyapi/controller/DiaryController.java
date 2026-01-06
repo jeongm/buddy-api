@@ -9,6 +9,7 @@ import com.buddy.buddyapi.dto.response.DiaryListResponse;
 import com.buddy.buddyapi.dto.response.DiaryPreviewResponse;
 import com.buddy.buddyapi.entity.Member;
 import com.buddy.buddyapi.service.DiaryService;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -32,7 +33,7 @@ public class DiaryController {
     @PostMapping("/from-chat")
     public ApiResponse<DiaryPreviewResponse> generateDiaryFromChat(
             @AuthenticationPrincipal Member member,
-            @RequestBody DiaryGenerateRequest request) {
+            @RequestBody DiaryGenerateRequest request) throws JsonProcessingException {
         return ApiResponse.success(diaryService.generateDiaryFromChat(member, request));
     }
 
