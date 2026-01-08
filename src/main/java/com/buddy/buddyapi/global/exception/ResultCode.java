@@ -8,28 +8,36 @@ import org.springframework.http.HttpStatus;
 @RequiredArgsConstructor
 public enum ResultCode {
 
-    // 성공
-    SUCCESS(HttpStatus.OK, "SUCCESS", "요청 성공"),
+    // --- 성공 (S) ---
+    SUCCESS(HttpStatus.OK, "S000", "요청 성공"),
 
-    // 공통 에러
-    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "잘못된 요청입니다."),
-    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "인증되지 않은 사용자입니다."),
+    // --- 공통 에러 (G) ---
+    INVALID_INPUT(HttpStatus.BAD_REQUEST, "G001", "입력 값이 올바르지 않습니다."),
+    INVALID_REQUEST(HttpStatus.BAD_REQUEST, "G002", "잘못된 요청입니다."),
+    UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "G003", "인증되지 않은 사용자입니다."),
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "G500", "서버 내부 에러가 발생했습니다."),
 
-    // 유저 관련 에러 (명세서 기준)
-    EMAIL_DUPLICATED(HttpStatus.BAD_REQUEST, "EMAIL_DUPLICATED", "이미 존재하는 이메일입니다."),
-    CHARACTER_NOT_FOUND(HttpStatus.NOT_FOUND, "CHARACTER_NOT_FOUND", "존재하지 않는 캐릭터입니다."),
-    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_NOT_FOUND", "존재하지 않는 사용자입니다."),
-    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "이메일 또는 비밀번호가 불일치합니다."),
-    CURRENT_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST,"CURRENT_PASSWORD_MISMATCH", "현재 비밀번호가 일치하지 않습니다."),
-    INVALID_PASSWORD_FORMAT(HttpStatus.BAD_REQUEST, "INVALID_PASSWORD_FORMAT", "비밀번호 형식이 올바르지 않습니다."),
-    TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "TAG_NOT_FOUND","태그를 찾을 수 없습니다."),
-    DIARY_NOT_FOUND(HttpStatus.NOT_FOUND, "DIARY_NOT_FOUND", "존재하지 않는 일기입니다."),
-    SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "SESSION_NOT_FOUND", "특정 세션을 찾을 수 없습니다."),
-    EMPTY_CHAT_HISTORY(HttpStatus.NOT_FOUND, "EMPTY_CHAT_HISTORY","대화 내역이 없어 일기를 생성할 수 없습니다."),
-    AI_PARSE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR,"AI_PARSE_ERROR", "AI 응답을 처리하는 중 오류가 발생했습니다.");
+    // --- 회원/캐릭터 관련 (M) ---
+    EMAIL_DUPLICATED(HttpStatus.BAD_REQUEST, "M001", "이미 존재하는 이메일입니다."),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "M002", "존재하지 않는 사용자입니다."),
+    INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "M003", "이메일 또는 비밀번호가 불일치합니다."),
+    CURRENT_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "M004", "현재 비밀번호가 일치하지 않습니다."),
+    INVALID_PASSWORD_FORMAT(HttpStatus.BAD_REQUEST, "M005", "비밀번호 형식이 올바르지 않습니다."),
+    CHARACTER_NOT_FOUND(HttpStatus.NOT_FOUND, "M006", "존재하지 않는 캐릭터입니다."),
+
+    // --- 일기 관련 (D) ---
+    DIARY_NOT_FOUND(HttpStatus.NOT_FOUND, "D001", "존재하지 않는 일기입니다."),
+    TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "D002", "태그를 찾을 수 없습니다."),
+
+    // --- 채팅 관련 (C) ---
+    SESSION_NOT_FOUND(HttpStatus.NOT_FOUND, "C001", "특정 세션을 찾을 수 없습니다."),
+    SESSION_ALREADY_ENDED(HttpStatus.BAD_REQUEST, "C002", "이미 종료된 세션입니다."),
+    EMPTY_CHAT_HISTORY(HttpStatus.NOT_FOUND, "C003", "대화 내역이 없어 일기를 생성할 수 없습니다."),
+
+    // --- AI 서비스 관련 (A) ---
+    AI_PARSE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "A001", "AI 응답을 처리하는 중 오류가 발생했습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;
     private final String message;
-
 }

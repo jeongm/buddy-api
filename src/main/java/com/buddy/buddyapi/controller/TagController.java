@@ -22,6 +22,6 @@ public class TagController {
     @Operation(summary = "태그 목록 조회", description = "서비스에서 제공하는 모든 태그 목록을 조회합니다.")
     @GetMapping
     public ApiResponse<List<TagResponse>> getTags() {
-        return ApiResponse.success(tagService.getAllTags());
+        return ApiResponse.ok(tagService.getAllTags());
     }
 }

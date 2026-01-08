@@ -9,6 +9,6 @@ public record DiaryCreateRequest(
         @NotBlank(message = "일기 내용은 필수입니다.")
         String content,
         String imageUrl,
-        List<Long> tagSeqs
+        List<String> tags
 ) {
 }

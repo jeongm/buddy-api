@@ -3,7 +3,6 @@ package com.buddy.buddyapi.dto.response;
 import com.buddy.buddyapi.entity.BuddyCharacter;
 import com.buddy.buddyapi.entity.Member;
 import lombok.Builder;
-import lombok.Getter;
 
 @Builder
 public record MemberResponse(
@@ -13,7 +12,7 @@ public record MemberResponse(
 
         // TODO 캐릭터에 관한거는 수정
         Long characterSeq,
-        String characterName,
+        String characterNickname,
         String avatarUrl
 ) {
 
@@ -30,7 +29,7 @@ public record MemberResponse(
                 .email(member.getEmail())
                 .nickname(member.getNickname())
                 .characterSeq(member.getBuddyCharacter() != null ? member.getBuddyCharacter().getCharacterSeq() : null)
-                .characterName(member.getBuddyCharacter() != null ? member.getBuddyCharacter().getName() : null)
+                .characterNickname(member.getCharacterNickname() != null ? member.getCharacterNickname(): member.getBuddyCharacter().getName())
                 .avatarUrl(member.getBuddyCharacter() != null ? member.getBuddyCharacter().getAvatarUrl() : null)
                 .build();
     }

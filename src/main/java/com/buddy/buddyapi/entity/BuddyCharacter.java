@@ -25,7 +25,7 @@ public class BuddyCharacter {
     private String description;
 
     @Column(name = "avatar_url", nullable = false, columnDefinition = "TEXT")
-    private String avatarUrl; // TODO 기본값 있이할까 없이할까
+    private String avatarUrl = "/";
 
     @Builder
     public BuddyCharacter(String name, String personality, String description, String avatarUrl) {
