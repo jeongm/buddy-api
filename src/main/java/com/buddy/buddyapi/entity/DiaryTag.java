@@ -12,7 +12,7 @@ import java.io.Serializable;
 public class DiaryTag {
 
     @EmbeddedId
-    private DiaryTagPK diaryTagPK;
+    private DiaryTagPK diaryTagPK = new DiaryTagPK();
 
     @MapsId("diarySeq")
     @ManyToOne(fetch = FetchType.LAZY)
@@ -25,6 +25,7 @@ public class DiaryTag {
     private Tag tag;
 
     @Getter
+    @Setter
     @NoArgsConstructor
     @AllArgsConstructor
     @Embeddable
@@ -38,7 +39,7 @@ public class DiaryTag {
     public DiaryTag(Diary diary, Tag tag) {
         this.diary = diary;
         this.tag = tag;
-        this.diaryTagPK = new DiaryTagPK(diary.getDiarySeq(), tag.getTagSeq());
+        this.diaryTagPK = new DiaryTagPK();
     }
 
 

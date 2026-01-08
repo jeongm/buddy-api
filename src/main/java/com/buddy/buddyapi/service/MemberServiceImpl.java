@@ -13,7 +13,6 @@ import com.buddy.buddyapi.global.config.JwtTokenProvider;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.repository.BuddyCharacterRepository;
-import com.buddy.buddyapi.repository.OauthAccountRepository;
 import com.buddy.buddyapi.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,16 +25,16 @@ public class MemberServiceImpl implements MemberService {
 
     private final MemberRepository memberRepository;
     private final BuddyCharacterRepository characterRepository;
-    private final OauthAccountRepository oauthAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
     //  -- auth관련 로직 --
 
     /**
-     * 일반회원가입
-     * @param request 회원가입 요청 DTO
-     * @return memberResponse
+     * 일반 회원가입 처리
+     * @param request 회원가입 정보 (이메일, 비밀번호, 닉네임, 캐릭터 번호 등)
+     * @return memberResponse 가입 완료된 회원의 정보 DTO
+     * @throws BaseException 이미 존재하는 이메일이거나 캐릭터가 없을 경우 발생
      */
     @Override
     @Transactional
@@ -70,9 +69,11 @@ public class MemberServiceImpl implements MemberService {
     }
 
     /**
-     * 일반 로그인
-     * @param request 로그인 요청 DTO
-     * @return
+     * 이메일과 비밀번호를 기반으로 로그인을 처리하고 JWT 토큰을 발급합니다.
+     *
+     * @param request 로그인 요청 정보 (이메일, 비밀번호)
+     * @return 액세스 토큰, 리프레시 토큰 및 회원 정보를 포함한 응답 DTO
+     * @throws BaseException 유저를 찾을 수 없거나 비밀번호가 일치하지 않을 경우 발생
      */
     @Override
     @Transactional(readOnly = true)
@@ -101,25 +102,31 @@ public class MemberServiceImpl implements MemberService {
 
     // -- member관련 로직 --
 
+    /**
+     * 회원의 닉네임을 변경합니다.
+     * @param memberSeq 변경할 회원의 고유 식별자
+     * @param request 새로운 닉네임 정보를 담은 DTO
+     * @return 변경된 닉네임 결과 DTO
+     * @throws BaseException 해당 회원이 존재하지 않을 경우 발생
+     */
     @Override
     @Transactional
     public UpdateNicknameResponse updateNickName(Long memberSeq, UpdateNicknameRequest request) {
 
-        // 2. 유저 조회
         Member member = memberRepository.findById(memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
 
-        // 2. 닉네임 중복 체크 (중복체크할필요없음)
-//        if (memberRepository.existsByNickname(nickname)) {
-//            throw new IllegalArgumentException("이미 사용 중인 닉네임입니다.");
-//        }
-
-        // 3. 변경 (Dirty Checking에 의해 자동 반영)
         member.updateNickname(request.nickname());
 
         return new UpdateNicknameResponse(member.getNickname());
     }
 
+    /**
+     * 회원의 비밀번호를 변경합니다.
+     * @param memberSeq 비밀번호를 변경할 회원의 고유 식별자
+     * @param request 현재비밀번호 및 새 비밀번호를 담은 DTO
+     * @throws BaseException 기존 비밀번호가 일치하지 않거나 유저가 없을 경우 발생
+     */
     @Override
     @Transactional
     public void updateMemberPassword(Long memberSeq, UpdatePasswordRequest request) {
@@ -138,9 +145,11 @@ public class MemberServiceImpl implements MemberService {
     }
 
     /**
-     * 내 정보 조회
-     * @param memberSeq 사용자 식별자
-     * @return
+     * 내 정보(상세 프로필)를 조회합니다.
+     *
+     * @param memberSeq 조회할 회원의 고유 식별자
+     * @return 회원의 이메일, 닉네임, 캐릭터 정보 등을 포함한 DTO
+     * @throws BaseException 해당 회원이 존재하지 않을 경우 발생
      */
     @Override
     @Transactional(readOnly = true)

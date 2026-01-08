@@ -7,6 +7,7 @@ import com.buddy.buddyapi.entity.Member;
 import com.buddy.buddyapi.service.ChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -24,8 +25,8 @@ public class ChatController {
     @PostMapping
     public ApiResponse<ChatResponse> sendMessage(
             @AuthenticationPrincipal Member member,
-            @RequestBody ChatRequest request) {
-        return ApiResponse.success(chatService.sendMessage(member, request));
+            @Valid @RequestBody ChatRequest request) {
+        return ApiResponse.ok(chatService.sendMessage(member, request));
     }
 
     @Operation(summary = "대화 내역 조회", description = "특정 세션의 모든 대화 내역을 조회합니다.")
@@ -34,7 +35,7 @@ public class ChatController {
             @AuthenticationPrincipal Member member,
             @PathVariable Long sessionId
     ) {
-        return ApiResponse.success(chatService.getChatHistory(member,sessionId));
+        return ApiResponse.ok(chatService.getChatHistory(member,sessionId));
     }
 
     @Operation(summary = "대화 세션 종료", description = "대화를 종료하고 해당 세션을 일기 생성 가능 상태로 변경합니다.")
@@ -43,6 +44,6 @@ public class ChatController {
             @AuthenticationPrincipal Member member,
             @PathVariable Long sessionId) {
         chatService.endChatSession(member, sessionId);
-        return ApiResponse.success("대화가 성공적으로 종료되었습니다.");
+        return ApiResponse.ok("대화가 성공적으로 종료되었습니다.");
     }
 }

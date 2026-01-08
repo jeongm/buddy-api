@@ -7,7 +7,9 @@ import com.buddy.buddyapi.dto.response.MemberResponse;
 import com.buddy.buddyapi.dto.response.UpdateNicknameResponse;
 import com.buddy.buddyapi.entity.Member;
 import com.buddy.buddyapi.service.MemberService;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -20,26 +22,29 @@ public class MemberController {
 
     private final MemberService memberService;
 
+    @Operation(summary = "내 정보 조회", description = "현재 로그인한 사용자의 프로필 정보를 조회합니다.")
     @GetMapping("/me")
     public ApiResponse<MemberResponse> getMyInfo(@AuthenticationPrincipal Member member) {
-        return ApiResponse.success("내 정보 조회 성공", memberService.getUserDetails(member.getMemberSeq()));
+        return ApiResponse.ok("내 정보 조회 성공", memberService.getUserDetails(member.getMemberSeq()));
     }
 
+    @Operation(summary = "닉네임 수정", description = "사용자의 닉네임을 변경합니다.")
     @PatchMapping("/me/nickname")
     public ApiResponse<UpdateNicknameResponse> updateNickname(
             @AuthenticationPrincipal Member member,
-            @RequestBody UpdateNicknameRequest request
+            @Valid @RequestBody UpdateNicknameRequest request
             ) {
-        return ApiResponse.success("닉네임이 변경되었습니다",
+        return ApiResponse.ok("닉네임이 변경되었습니다",
                 memberService.updateNickName(member.getMemberSeq(), request));
     }
 
+    @Operation(summary = "비밀번호 수정", description = "현재 비밀번호를 확인한 후 새로운 비밀번호로 변경합니다.")
     @PatchMapping("/me/password")
     public ApiResponse<Void> updatePassword(
             @AuthenticationPrincipal Member member,
-            @RequestBody UpdatePasswordRequest request) {
+            @Valid @RequestBody UpdatePasswordRequest request) {
         memberService.updateMemberPassword(member.getMemberSeq(), request);
-        return ApiResponse.success("비밀번호가 변경되었습니다.", null);
+        return ApiResponse.ok("비밀번호가 변경되었습니다.", null);
     }
 
 }

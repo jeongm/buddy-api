@@ -53,12 +53,19 @@ public class Diary {
         this.imageUrl = imageUrl;
     }
 
-    // addTag, removeTag 추가 생각중
+    public void addTag(Tag tag) {
+        DiaryTag diaryTag = DiaryTag.builder()
+                .diary(this)
+                .tag(tag)
+                .build();
+        this.diaryTags.add(diaryTag);
+    }
+
+    // 다중 추가 메서드 (리스트를 받아서 단일 메서드들을 호출)
     public void addTags(List<Tag> tags) {
-        tags.forEach(tag -> {
-            DiaryTag diaryTag = new DiaryTag(this, tag);
-            this.diaryTags.add(diaryTag);
-        });
+        if (tags != null) {
+            tags.forEach(this::addTag); // 위에서 만든 addTag를 재사용
+        }
     }
 
     public void updateTags(List<Tag> newTags) {
@@ -68,6 +75,7 @@ public class Diary {
         // 2. 새로운 태그들 추가
         addTags(newTags);
     }
+
 
 
 }
