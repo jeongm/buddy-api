@@ -124,4 +124,10 @@ public class AuthService {
                 .member(MemberResponse.from(member))
                 .build();
     }
+
+    @Transactional
+    public void logout(Long memberSeq) {
+        refreshTokenRepository.deleteById(memberSeq);
+    }
+
 }

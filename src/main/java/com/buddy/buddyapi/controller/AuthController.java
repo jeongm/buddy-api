@@ -6,6 +6,7 @@ import com.buddy.buddyapi.dto.request.MemberLoginRequest;
 import com.buddy.buddyapi.dto.request.MemberRegisterRequest;
 import com.buddy.buddyapi.dto.response.MemberResponse;
 import com.buddy.buddyapi.dto.common.ApiResponse;
+import com.buddy.buddyapi.entity.Member;
 import com.buddy.buddyapi.service.AuthService;
 import com.buddy.buddyapi.service.MemberService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,6 +15,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -52,6 +55,15 @@ public class AuthController {
             @Valid@RequestBody TokenRefreshRequest request) {
         LoginResponse newAuthToken = authService.refreshToken(request.refreshToken());
         return ResponseEntity.ok(ApiResponse.ok("토큰 재발급 성공", newAuthToken));
+    }
+
+    @Operation(summary = "로그아웃")
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @AuthenticationPrincipal Member member) {
+        authService.logout(member.getMemberSeq());
+
+        return ResponseEntity.ok(ApiResponse.ok("로그아웃 성공", null));
     }
 
 
