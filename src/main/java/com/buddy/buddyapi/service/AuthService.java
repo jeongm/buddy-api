@@ -2,33 +2,31 @@ package com.buddy.buddyapi.service;
 
 import com.buddy.buddyapi.dto.request.MemberLoginRequest;
 import com.buddy.buddyapi.dto.request.MemberRegisterRequest;
-import com.buddy.buddyapi.dto.request.UpdateNicknameRequest;
-import com.buddy.buddyapi.dto.request.UpdatePasswordRequest;
 import com.buddy.buddyapi.dto.response.LoginResponse;
 import com.buddy.buddyapi.dto.response.MemberResponse;
-import com.buddy.buddyapi.dto.response.UpdateNicknameResponse;
 import com.buddy.buddyapi.entity.BuddyCharacter;
 import com.buddy.buddyapi.entity.Member;
+import com.buddy.buddyapi.entity.RefreshToken;
 import com.buddy.buddyapi.global.config.JwtTokenProvider;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.repository.BuddyCharacterRepository;
 import com.buddy.buddyapi.repository.MemberRepository;
+import com.buddy.buddyapi.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@RequiredArgsConstructor
 @Service
-public class MemberServiceImpl implements MemberService {
+@RequiredArgsConstructor
+public class AuthService {
 
-    private final MemberRepository memberRepository;
-    private final BuddyCharacterRepository characterRepository;
-    private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
-
-    //  -- auth관련 로직 --
+    private final RefreshTokenRepository refreshTokenRepository;
+    private final MemberRepository memberRepository;
+    private final PasswordEncoder passwordEncoder;
+    private final BuddyCharacterRepository characterRepository;
 
     /**
      * 일반 회원가입 처리
@@ -36,7 +34,6 @@ public class MemberServiceImpl implements MemberService {
      * @return memberResponse 가입 완료된 회원의 정보 DTO
      * @throws BaseException 이미 존재하는 이메일이거나 캐릭터가 없을 경우 발생
      */
-    @Override
     @Transactional
     public MemberResponse registerMember(MemberRegisterRequest request) {
         // 1. 중복 검사 (이메일, 닉네임)
@@ -75,88 +72,56 @@ public class MemberServiceImpl implements MemberService {
      * @return 액세스 토큰, 리프레시 토큰 및 회원 정보를 포함한 응답 DTO
      * @throws BaseException 유저를 찾을 수 없거나 비밀번호가 일치하지 않을 경우 발생
      */
-    @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public LoginResponse localLoginMember(MemberLoginRequest request) {
-        // 1. userRepository.findByEmail()
         Member member = memberRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
-        // 2. 암호화된 비밀번호 매칭 검사
+
         if(!passwordEncoder.matches(request.getPassword(), member.getPassword())){
             throw new BaseException(ResultCode.INVALID_CREDENTIALS);
         }
 
-        // 3. JWT 토큰 생성 (JwtTokenProvider 사용)
-        String accessToken = jwtTokenProvider.createAccessToken(member.getEmail());
-        String refreshToken = jwtTokenProvider.createRefreshToken(member.getEmail());
+        // 메서드 추출 적용
+        return generateTokenSet(member);
+    }
 
-        // TODO 3-2 Refresh Token을 DB나 Redis에 저장하여 로그아웃/재발급에 대비
+    @Transactional
+    public LoginResponse refreshToken(String refreshToken) {
+        // 1. 토큰 자체의 유효성 검사 (만료 여부, 서명 등)
+        if(!jwtTokenProvider.validateToken(refreshToken)) {
+            throw new BaseException(ResultCode.INVALID_TOKEN);
+        }
 
-        // 4. 성공 시 LoginResponse 반환
+        // 2. Redis에서 해당 토큰 존재 여부 확인
+        RefreshToken savedToken = refreshTokenRepository.findByRefreshToken(refreshToken)
+                .orElseThrow(() -> new BaseException(ResultCode.REFRESH_TOKEN_NOT_FOUND));
+
+        // 3. 토큰의 주인(Member)이 실제 존재하는지 확인
+        Member member = memberRepository.findByIdOrThrow(savedToken.getMemberSeq());
+
+        // 5. 기존 Redis 토큰 삭제 (createRefreshToken에서 save를 하므로 여기서는 기존 것만 삭제)
+        // 만약 RefreshToken 객체의 memberSeq가 @Id라면,
+        // 새로운 save 시 덮어쓰기가 되므로 별도의 delete가 필요없을 수 있음
+        refreshTokenRepository.delete(savedToken);
+
+        return generateTokenSet(member);
+    }
+
+    /**
+     * 공통 토큰 생성 및 응답 빌드 로직
+     */
+    private LoginResponse generateTokenSet(Member member) {
+        Long memberSeq = member.getMemberSeq();
+
+        // 1. 토큰 생성 (JwtTokenProvider 내부에서 RefreshToken Redis 저장까지 처리됨)
+        String accessToken = jwtTokenProvider.createAccessToken(memberSeq);
+        String refreshToken = jwtTokenProvider.createRefreshToken(memberSeq);
+
+        // 2. 응답 생성
         return LoginResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .member(MemberResponse.from(member))
                 .build();
     }
-
-    // -- member관련 로직 --
-
-    /**
-     * 회원의 닉네임을 변경합니다.
-     * @param memberSeq 변경할 회원의 고유 식별자
-     * @param request 새로운 닉네임 정보를 담은 DTO
-     * @return 변경된 닉네임 결과 DTO
-     * @throws BaseException 해당 회원이 존재하지 않을 경우 발생
-     */
-    @Override
-    @Transactional
-    public UpdateNicknameResponse updateNickName(Long memberSeq, UpdateNicknameRequest request) {
-
-        Member member = memberRepository.findById(memberSeq)
-                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
-
-        member.updateNickname(request.nickname());
-
-        return new UpdateNicknameResponse(member.getNickname());
-    }
-
-    /**
-     * 회원의 비밀번호를 변경합니다.
-     * @param memberSeq 비밀번호를 변경할 회원의 고유 식별자
-     * @param request 현재비밀번호 및 새 비밀번호를 담은 DTO
-     * @throws BaseException 기존 비밀번호가 일치하지 않거나 유저가 없을 경우 발생
-     */
-    @Override
-    @Transactional
-    public void updateMemberPassword(Long memberSeq, UpdatePasswordRequest request) {
-        // 1. 유저 조회
-        Member member = memberRepository.findById(memberSeq)
-                .orElseThrow(() ->  new BaseException(ResultCode.USER_NOT_FOUND));
-
-        // 2. 기존 비밀번호 확인 (Spring Security의 matches 사용)
-        if (!passwordEncoder.matches(request.currentPassword(), member.getPassword())) {
-            throw new BaseException(ResultCode.CURRENT_PASSWORD_MISMATCH);
-        }
-
-        // 3. 새 비밀번호 암호화 및 저장
-        String encodedNewPassword = passwordEncoder.encode(request.newPassword());
-        member.updatePassword(encodedNewPassword);
-    }
-
-    /**
-     * 내 정보(상세 프로필)를 조회합니다.
-     *
-     * @param memberSeq 조회할 회원의 고유 식별자
-     * @return 회원의 이메일, 닉네임, 캐릭터 정보 등을 포함한 DTO
-     * @throws BaseException 해당 회원이 존재하지 않을 경우 발생
-     */
-    @Override
-    @Transactional(readOnly = true)
-    public MemberResponse getUserDetails(Long memberSeq) {
-        Member member = memberRepository.findById(memberSeq)
-                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
-        return MemberResponse.from(member);
-    }
-
 }

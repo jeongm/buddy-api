@@ -38,8 +38,11 @@ class MemberServiceImplTest {
     @Mock
     private JwtTokenProvider jwtTokenProvider;
 
+    @Mock
+    private AuthService authService;
+
     @InjectMocks
-    private MemberServiceImpl memberService;
+    private MemberService memberService;
 
     @Test
     @DisplayName("회원가입_성공")
@@ -65,7 +68,7 @@ class MemberServiceImplTest {
         given(memberRepository.save(any(Member.class))).willReturn(member);
 
         // 2. 실행 (when)
-        MemberResponse response = memberService.registerMember(request);
+        MemberResponse response = authService.registerMember(request);
 
         // 3. 검증 (then)
         assertThat(response.email()).isEqualTo("test@test.com");
@@ -90,11 +93,11 @@ class MemberServiceImplTest {
         // 평문 비번과 암호화 비번이 일치한다고 가정
         given(passwordEncoder.matches(password, encodedPassword)).willReturn(true);
         // 가짜 토큰 반환 설정
-        given(jwtTokenProvider.createAccessToken(email)).willReturn("fake-access-token");
-        given(jwtTokenProvider.createRefreshToken(email)).willReturn("fake-refresh-token");
+        given(jwtTokenProvider.createAccessToken(member.getMemberSeq())).willReturn("fake-access-token");
+        given(jwtTokenProvider.createRefreshToken(member.getMemberSeq())).willReturn("fake-refresh-token");
 
         // when
-        LoginResponse response = memberService.localLoginMember(new MemberLoginRequest(email, password));
+        LoginResponse response = authService.localLoginMember(new MemberLoginRequest(email, password));
 
         // then
         assertThat(response.accessToken()).isEqualTo("fake-access-token");

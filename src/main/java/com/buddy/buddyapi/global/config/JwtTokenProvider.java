@@ -1,5 +1,7 @@
 package com.buddy.buddyapi.global.config;
 
+import com.buddy.buddyapi.entity.RefreshToken;
+import com.buddy.buddyapi.repository.RefreshTokenRepository;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
@@ -21,34 +23,47 @@ public class JwtTokenProvider {
     private final long accessTokenValidity;
     private final long refreshTokenValidity;
     private final UserDetailsService userDetailsService;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-token-validity}") long accessTokenValidity,
-            @Value("${jwt.refresh-token-validity}") long refreshTokenValidity, UserDetailsService userDetailsService
+            @Value("${jwt.refresh-token-validity}") long refreshTokenValidity,
+            UserDetailsService userDetailsService,
+            RefreshTokenRepository refreshTokenRepository
     ) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
         this.accessTokenValidity = accessTokenValidity;
         this.refreshTokenValidity = refreshTokenValidity;
         this.userDetailsService = userDetailsService;
+        this.refreshTokenRepository = refreshTokenRepository;
     }
 
     // Access Token 생성
-    public String createAccessToken(String email) {
-        return createToken(email, accessTokenValidity);
+    public String createAccessToken(Long memberSeq) {
+        return createToken(memberSeq, accessTokenValidity);
     }
 
     // Refresh Token 생성
-    public String createRefreshToken(String email) {
-        return createToken(email, refreshTokenValidity);
+    public String createRefreshToken(Long memberSeq) {
+        String token = createToken(memberSeq, refreshTokenValidity);
+
+        // Redis에 저장
+        RefreshToken refreshToken = RefreshToken.builder()
+                .memberSeq(memberSeq)
+                .refreshToken(token)
+                .build();
+
+        refreshTokenRepository.save(refreshToken);
+        return token;
     }
 
-    private String createToken(String email, long validity) {
+    private String createToken(Long memberSeq, long validity) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + validity);
 
         return Jwts.builder()
-                .setSubject(email)
+                .setSubject(String.valueOf(memberSeq))
                 .setIssuedAt(now)
                 .setExpiration(expiration)
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -64,12 +79,11 @@ public class JwtTokenProvider {
                 .getBody();
 
         // 이전에 구현한 UserServiceImpl의 loadUserByUsername을 호츌하여 유저 정보를 가져옵니다.
-        // 여기서는 간단하게 이메일(Subject)만 추출하여 사용하거나
+        // 여기서는 간단하게 memberSeq(Subject)만 추출하여 사용하거나
         // UserDetailsService를 주입받아 사용하도록 구성할 수 있습니다.
-        String email = claims.getSubject();
-        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+        String memberSeqStr = claims.getSubject();
+        UserDetails userDetails = userDetailsService.loadUserByUsername(memberSeqStr);
         // UserDetailsService를 주입받아 처리
-
 
         return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
     }

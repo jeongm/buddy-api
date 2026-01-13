@@ -7,47 +7,75 @@ import com.buddy.buddyapi.dto.request.UpdatePasswordRequest;
 import com.buddy.buddyapi.dto.response.LoginResponse;
 import com.buddy.buddyapi.dto.response.MemberResponse;
 import com.buddy.buddyapi.dto.response.UpdateNicknameResponse;
+import com.buddy.buddyapi.entity.BuddyCharacter;
+import com.buddy.buddyapi.entity.Member;
+import com.buddy.buddyapi.global.config.JwtTokenProvider;
+import com.buddy.buddyapi.global.exception.BaseException;
+import com.buddy.buddyapi.global.exception.ResultCode;
+import com.buddy.buddyapi.repository.BuddyCharacterRepository;
+import com.buddy.buddyapi.repository.MemberRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-public interface MemberService {
+@RequiredArgsConstructor
+@Service
+public class MemberService {
+
+    private final MemberRepository memberRepository;
+    private final PasswordEncoder passwordEncoder;
+
 
     /**
-    * 신규 사용자를 등록 및 초기 캐릭터 설정(회원가입)
-    * @param request 회원가입 요청 DTO
-    * @return 등록된 사용자 정보 DTO
-    */
-    MemberResponse registerMember(MemberRegisterRequest request);
-
-    /**
-     * 이메일과 비밀번호를 검증하여 사용자를 인증(로그인)
-     * @param request 로그인 요청 DTO
-     * @return 인증된 사용자 정보 DTO 
+     * 회원의 닉네임을 변경합니다.
+     * @param memberSeq 변경할 회원의 고유 식별자
+     * @param request 새로운 닉네임 정보를 담은 DTO
+     * @return 변경된 닉네임 결과 DTO
+     * @throws BaseException 해당 회원이 존재하지 않을 경우 발생
      */
-    LoginResponse localLoginMember(MemberLoginRequest request);
+    @Transactional
+    public UpdateNicknameResponse updateNickName(Long memberSeq, UpdateNicknameRequest request) {
 
-    //    boolean isNicknameDuplicate(String nickname);
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
 
-    /**
-     * 사용자 닉네임 변경
-     * @param nickname 변경할 닉네임
-     */
-    UpdateNicknameResponse updateNickName(Long memberSeq, UpdateNicknameRequest nickname);
+        member.updateNickname(request.nickname());
 
-    /**
-     * 비밀번호 변경
-     * @param request 현재비밀번호 및 새 비밀번호
-     */
-    void updateMemberPassword(Long memberSeq, UpdatePasswordRequest request);
-
+        return new UpdateNicknameResponse(member.getNickname());
+    }
 
     /**
-     * 특정 사용자 식별자(memberSeq)를 통해 사용자 정보 조회
-     * @param memberSeq 사용자 식별자
-     * @return 사용자 정보 DTO
+     * 회원의 비밀번호를 변경합니다.
+     * @param memberSeq 비밀번호를 변경할 회원의 고유 식별자
+     * @param request 현재비밀번호 및 새 비밀번호를 담은 DTO
+     * @throws BaseException 기존 비밀번호가 일치하지 않거나 유저가 없을 경우 발생
      */
-    MemberResponse getUserDetails(Long memberSeq);
+    @Transactional
+    public void updateMemberPassword(Long memberSeq, UpdatePasswordRequest request) {
+        // 1. 유저 조회
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
 
+        // 2. 기존 비밀번호 확인 (Spring Security의 matches 사용)
+        if (!passwordEncoder.matches(request.currentPassword(), member.getPassword())) {
+            throw new BaseException(ResultCode.CURRENT_PASSWORD_MISMATCH);
+        }
 
+        // 3. 새 비밀번호 암호화 및 저장
+        String encodedNewPassword = passwordEncoder.encode(request.newPassword());
+        member.updatePassword(encodedNewPassword);
+    }
 
-
+    /**
+     * 내 정보(상세 프로필)를 조회합니다.
+     *
+     * @param memberSeq 조회할 회원의 고유 식별자
+     * @return 회원의 이메일, 닉네임, 캐릭터 정보 등을 포함한 DTO
+     * @throws BaseException 해당 회원이 존재하지 않을 경우 발생
+     */
+    @Transactional(readOnly = true)
+    public MemberResponse getUserDetails(Long memberSeq) {
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        return MemberResponse.from(member);
+    }
 
 }
