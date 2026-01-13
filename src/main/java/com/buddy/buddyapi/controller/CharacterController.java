@@ -34,7 +34,7 @@ public class CharacterController {
     public ApiResponse<MemberResponse> changeCharacter(
             @AuthenticationPrincipal Member member,
             @Valid @RequestBody CharacterChangeRequest request) {
-        return ApiResponse.ok(characterService.changeMyCharacter(member, request));
+        return ApiResponse.ok(characterService.changeMyCharacter(member.getMemberSeq(), request));
     }
 
     @Operation(summary = "캐릭터 별명 변경", description = "캐릭터에게 지어준 별명을 수정합니다.")
@@ -42,7 +42,7 @@ public class CharacterController {
     public ApiResponse<String> updateCharacterName(
             @AuthenticationPrincipal Member member,
             @Valid @RequestBody CharacterNameRequest request) {
-        characterService.updateCharacterNickname(member, request.characterName());
+        characterService.updateCharacterNickname(member.getMemberSeq(), request.characterName());
         return ApiResponse.ok("캐릭터 이름이 변경되었습니다.");
     }
 }

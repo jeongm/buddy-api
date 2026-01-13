@@ -33,7 +33,7 @@ public class DiaryController {
     public ApiResponse<DiaryPreviewResponse> generateDiaryFromChat(
             @AuthenticationPrincipal Member member,
             @Valid @RequestBody DiaryGenerateRequest request) {
-        return ApiResponse.ok(diaryService.generateDiaryFromChat(member, request));
+        return ApiResponse.ok(diaryService.generateDiaryFromChat(member.getMemberSeq(), request));
     }
 
     @Operation(summary = "일기 생성", description = "새로운 일기를 저장합니다.")
@@ -41,7 +41,7 @@ public class DiaryController {
     public ApiResponse<Long> createDiary(
             @AuthenticationPrincipal Member member,
             @Valid @RequestBody DiaryCreateRequest request) {
-        return ApiResponse.ok(diaryService.createDiary(member, request));
+        return ApiResponse.ok(diaryService.createDiary(member.getMemberSeq(), request));
     }
 
     @Operation(summary = "날짜별 일기 목록 조회", description = "특정 날짜의 일기 리스트를 가져옵니다.")
@@ -49,7 +49,7 @@ public class DiaryController {
     public ApiResponse<List<DiaryListResponse>> getDiariesByDate(
             @AuthenticationPrincipal Member member,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
-        return ApiResponse.ok(diaryService.getDiariesByDate(member, date));
+        return ApiResponse.ok(diaryService.getDiariesByDate(member.getMemberSeq(), date));
     }
 
     @Operation(summary = "일기 상세 조회", description = "특정 일기의 상세 내용을 조회합니다.")
@@ -57,7 +57,7 @@ public class DiaryController {
     public ApiResponse<DiaryDetailResponse> getDiaryDetail(
             @AuthenticationPrincipal Member member,
             @PathVariable Long diarySeq) {
-        return ApiResponse.ok(diaryService.getDiaryDetail(member, diarySeq));
+        return ApiResponse.ok(diaryService.getDiaryDetail(member.getMemberSeq(), diarySeq));
     }
 
     @Operation(summary = "일기 수정", description = "기존 일기의 내용 및 태그를 수정합니다.")
@@ -66,7 +66,7 @@ public class DiaryController {
             @AuthenticationPrincipal Member member,
             @PathVariable Long diarySeq,
             @Valid @RequestBody DiaryUpdateRequest request) {
-        diaryService.updateDiary(member, diarySeq, request);
+        diaryService.updateDiary(member.getMemberSeq(), diarySeq, request);
         return ApiResponse.ok(diarySeq);
     }
 
@@ -75,7 +75,7 @@ public class DiaryController {
     public ApiResponse<Void> deleteDiary(
             @AuthenticationPrincipal Member member,
             @PathVariable Long diarySeq) {
-        diaryService.deleteDiary(member, diarySeq);
+        diaryService.deleteDiary(member.getMemberSeq(), diarySeq);
         return ApiResponse.ok();
     }
 

@@ -10,10 +10,7 @@ import com.buddy.buddyapi.dto.response.TagResponse;
 import com.buddy.buddyapi.entity.*;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
-import com.buddy.buddyapi.repository.ChatMessageRepository;
-import com.buddy.buddyapi.repository.ChatSessionRepository;
-import com.buddy.buddyapi.repository.DiaryRepository;
-import com.buddy.buddyapi.repository.TagRepository;
+import com.buddy.buddyapi.repository.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -35,6 +32,7 @@ public class DiaryService {
 
     private final DiaryRepository diaryRepository;
     private final TagRepository tagRepository;
+    private final MemberRepository memberRepository;
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final AiService aiService;
@@ -43,12 +41,15 @@ public class DiaryService {
     /**
      * 채팅 내역을 기반으로 AI 일기 초안을 생성합니다. (DB 저장 안 함)
      *
-     * @param member  현재 로그인한 회원 정보
+     * @param memberSeq  현재 로그인한 회원 정보
      * @param request 일기 생성을 위한 세션 ID가 포함된 요청 DTO
      * @return AI가 생성한 일기 제목, 본문, 추천 태그 정보를 담은 프리뷰 응답 DTO
      * @throws BaseException 세션을 찾을 수 없거나 대화 내역이 비어있을 경우 발생
      */
-    public DiaryPreviewResponse generateDiaryFromChat(Member member, DiaryGenerateRequest request) {
+    public DiaryPreviewResponse generateDiaryFromChat(Long memberSeq, DiaryGenerateRequest request) {
+
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
+
         // 1. 세션 조회 (내 세션인지, 종료된 세션인지 확인)
         ChatSession session = chatSessionRepository.findBySessionSeqAndMember(request.sessionId(), member)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
@@ -119,15 +120,17 @@ public class DiaryService {
     /**
      * 특정 날짜에 작성된 일기 목록을 조회합니다.
      *
-     * @param member 현재 로그인한 회원 정보
+     * @param memberSeq 현재 로그인한 회원 정보
      * @param date   조회하고자 하는 날짜 (yyyy-MM-dd)
      * @return 해당 날짜에 작성된 일기 리스트 (최신순)
      */
-    public List<DiaryListResponse> getDiariesByDate(Member member, LocalDate date) {
+    public List<DiaryListResponse> getDiariesByDate(Long memberSeq, LocalDate date) {
         // 해당 날짜의 00:00:00 ~ 23:59:59.999999
         // 인덱스 활용을 위해 범위를 직접 지정 (Index Range Scan 유도)
         LocalDateTime start = date.atStartOfDay();
         LocalDateTime end = date.atTime(LocalTime.MAX);
+
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
 
         return diaryRepository.findAllByMemberAndCreatedAtBetweenOrderByCreatedAtDesc(member, start, end)
                 .stream()
@@ -138,13 +141,15 @@ public class DiaryService {
     /**
      * 사용자가 최종 확정한 일기 데이터를 DB에 저장합니다.
      *
-     * @param member  현재 로그인한 회원 정보
+     * @param memberSeq  현재 로그인한 회원 정보
      * @param request 저장할 일기 제목, 내용, 이미지, 태그 ID 리스트 등을 담은 DTO
      * @return 생성된 일기의 고유 식별자 (ID)
      * @throws BaseException 요청한 태그 ID가 존재하지 않을 경우 발생
      */
     @Transactional
-    public Long createDiary(Member member, DiaryCreateRequest request) {
+    public Long createDiary(Long memberSeq, DiaryCreateRequest request) {
+
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
 
         // 1. 일기 엔티티 생성
         Diary diary = Diary.builder()
@@ -176,13 +181,15 @@ public class DiaryService {
     /**
      * 기존에 작성된 일기 내용을 수정합니다.
      *
-     * @param member   현재 로그인한 회원 정보
+     * @param memberSeq   현재 로그인한 회원 정보
      * @param diarySeq 수정할 일기의 고유 식별자
      * @param request  수정할 제목, 내용, 이미지, 태그 리스트 등을 담은 DTO
      * @throws BaseException 일기를 찾을 수 없거나 본인 일기가 아닐 경우 발생
      */
     @Transactional
-    public void updateDiary(Member member, Long diarySeq, DiaryUpdateRequest request) {
+    public void updateDiary(Long memberSeq, Long diarySeq, DiaryUpdateRequest request) {
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
+
         // 1. 본인의 일기인지 확인하며 조회
         Diary diary = diaryRepository.findByDiarySeqAndMember(diarySeq, member)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
@@ -198,7 +205,9 @@ public class DiaryService {
     }
 
     @Transactional
-    public void deleteDiary(Member member, Long diarySeq) {
+    public void deleteDiary(Long memberSeq, Long diarySeq) {
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
+
         Diary diary = diaryRepository.findByDiarySeqAndMember(diarySeq, member)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
@@ -209,13 +218,14 @@ public class DiaryService {
     /**
      * 일기의 상세 내용을 조회합니다.
      *
-     * @param member   현재 로그인한 회원 정보
+     * @param memberSeq   현재 로그인한 회원 정보
      * @param diarySeq 조회할 일기의 고유 식별자
      * @return 일기 상세 정보 및 연관된 태그 정보를 포함한 DTO
      * @throws BaseException 일기를 찾을 수 없거나 본인 일기가 아닐 경우 발생
      */
     @Transactional(readOnly = true)
-    public DiaryDetailResponse getDiaryDetail(Member member, Long diarySeq) {
+    public DiaryDetailResponse getDiaryDetail(Long memberSeq, Long diarySeq) {
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
         Diary diary = diaryRepository.findByDiarySeqAndMember(diarySeq, member)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
