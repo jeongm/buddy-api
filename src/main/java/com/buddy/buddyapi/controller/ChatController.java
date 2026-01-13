@@ -26,7 +26,7 @@ public class ChatController {
     public ApiResponse<ChatResponse> sendMessage(
             @AuthenticationPrincipal Member member,
             @Valid @RequestBody ChatRequest request) {
-        return ApiResponse.ok(chatService.sendMessage(member, request));
+        return ApiResponse.ok(chatService.sendMessage(member.getMemberSeq(), request));
     }
 
     @Operation(summary = "대화 내역 조회", description = "특정 세션의 모든 대화 내역을 조회합니다.")
@@ -35,7 +35,7 @@ public class ChatController {
             @AuthenticationPrincipal Member member,
             @PathVariable Long sessionId
     ) {
-        return ApiResponse.ok(chatService.getChatHistory(member,sessionId));
+        return ApiResponse.ok(chatService.getChatHistory(member.getMemberSeq(),sessionId));
     }
 
     @Operation(summary = "대화 세션 종료", description = "대화를 종료하고 해당 세션을 일기 생성 가능 상태로 변경합니다.")
@@ -43,7 +43,7 @@ public class ChatController {
     public ApiResponse<String> endSession(
             @AuthenticationPrincipal Member member,
             @PathVariable Long sessionId) {
-        chatService.endChatSession(member, sessionId);
+        chatService.endChatSession(member.getMemberSeq(), sessionId);
         return ApiResponse.ok("대화가 성공적으로 종료되었습니다.");
     }
 }

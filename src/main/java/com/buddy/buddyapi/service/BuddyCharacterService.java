@@ -36,18 +36,17 @@ public class BuddyCharacterService {
     /**
      * 회원이 사용할 버디 캐릭터를 변경합니다.
      *
-     * @param authMember 현재 로그인한 회원 정보
+     * @param memberSeq 현재 로그인한 회원 정보
      * @param request    변경하고자 하는 캐릭터의 식별자가 담긴 DTO
      * @return 캐릭터가 변경된 후의 회원 정보 응답 DTO
      * @throws BaseException 존재하지 않는 캐릭터 ID이거나 회원을 찾을 수 없을 경우 발생
      */
     @Transactional
-    public MemberResponse changeMyCharacter(Member authMember, CharacterChangeRequest request) {
+    public MemberResponse changeMyCharacter(Long memberSeq, CharacterChangeRequest request) {
         BuddyCharacter newCharacter = characterRepository.findById(request.characterSeq())
                 .orElseThrow(() -> new BaseException(ResultCode.CHARACTER_NOT_FOUND));
 
-        Member member = memberRepository.findById(authMember.getMemberSeq())
-                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
 
         member.changeCharacter(newCharacter);
 
@@ -57,13 +56,15 @@ public class BuddyCharacterService {
     /**
      * 현재 사용 중인 버디 캐릭터의 별명(애칭)을 변경합니다.
      *
-     * @param member  현재 로그인한 회원 정보
+     * @param memberSeq  현재 로그인한 회원 정보
      * @param newName 새로 설정할 캐릭터의 별명
      * @throws BaseException 회원을 찾을 수 없을 경우 발생
      */
     @Transactional
-    public void updateCharacterNickname(Member member, String newName) {
+    public void updateCharacterNickname(Long memberSeq, String newName) {
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
         member.updateCharacterNickname(newName);
         memberRepository.save(member);
     }
+
 }
