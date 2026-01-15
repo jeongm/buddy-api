@@ -17,6 +17,13 @@ public enum ResultCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "G003", "인증되지 않은 사용자입니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "G500", "서버 내부 에러가 발생했습니다."),
 
+    // --- 인증 및 토큰 관련 (T) ---
+    INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "T001", "유효하지 않은 토큰입니다."),
+    EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "T002", "만료된 토큰입니다."),
+    REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "T003", "리프레시 토큰이 존재하지 않거나 만료되었습니다."),
+    TOKEN_SIGNATURE_ERROR(HttpStatus.UNAUTHORIZED, "T004", "토큰 서명이 올바르지 않습니다."),
+    UNSUPPORTED_TOKEN(HttpStatus.UNAUTHORIZED, "T005", "지원되지 않는 토큰 형식입니다."),
+
     // --- 회원/캐릭터 관련 (M) ---
     EMAIL_DUPLICATED(HttpStatus.BAD_REQUEST, "M001", "이미 존재하는 이메일입니다."),
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "M002", "존재하지 않는 사용자입니다."),
@@ -36,6 +43,8 @@ public enum ResultCode {
 
     // --- AI 서비스 관련 (A) ---
     AI_PARSE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "A001", "AI 응답을 처리하는 중 오류가 발생했습니다.");
+
+
 
     private final HttpStatus httpStatus;
     private final String code;

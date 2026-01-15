@@ -22,8 +22,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable()) // CSRF 비활성화(JWT사용시 필수)
-                .cors(cors -> cors.configure(http))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션 미사용
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll() // 명세서의 auth 경로는 모두 허용
@@ -58,7 +58,8 @@ public class SecurityConfig {
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
 
         // 프론트에서 보낼 헤더 허용 (Authorization 포함)
-        configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type", "Cache-Control"));
+//        configuration.setAllowedHeaders(java.util.List.of("Authorization", "Content-Type", "Cache-Control"));
+        configuration.setAllowedHeaders(java.util.List.of("*"));
 
         // 프론트가 내 응답에서 Authorization 헤더(JWT를 읽을 수 있게 노출)
         configuration.setExposedHeaders(java.util.List.of("Authorization"));
