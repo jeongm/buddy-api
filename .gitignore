@@ -42,7 +42,7 @@ build/
 *.mv.db
 
 ### ENV / SECURITY ###
-application.properties
+#application.properties
 application-dev.properties
 application-prod.properties
 .env
