@@ -33,7 +33,3 @@ VALUES (
 
 -- 2. 태그
 INSERT INTO tag (name) VALUES ('기쁨'), ('슬픔'), ('회사'), ('위로');
-
--- 3. 멤버 (이메일 형식을 제대로 갖추고, character_seq 대신 character_id 등 컬럼명을 확인하세요)
-INSERT INTO member (email, nickname, password, character_seq, joined_at)
-VALUES ('test1@test.com', 'test', '1', 1, NOW());

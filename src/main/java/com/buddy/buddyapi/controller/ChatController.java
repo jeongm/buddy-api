@@ -3,7 +3,7 @@ package com.buddy.buddyapi.controller;
 import com.buddy.buddyapi.dto.common.ApiResponse;
 import com.buddy.buddyapi.dto.request.ChatRequest;
 import com.buddy.buddyapi.dto.response.ChatResponse;
-import com.buddy.buddyapi.entity.Member;
+import com.buddy.buddyapi.global.config.CustomUserDetails;
 import com.buddy.buddyapi.service.ChatService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,26 +24,26 @@ public class ChatController {
     @Operation(summary = "메시지 전송", description = "사용자가 메시지를 보내고 AI의 답변을 받습니다.")
     @PostMapping
     public ApiResponse<ChatResponse> sendMessage(
-            @AuthenticationPrincipal Member member,
+            @AuthenticationPrincipal CustomUserDetails member,
             @Valid @RequestBody ChatRequest request) {
-        return ApiResponse.ok(chatService.sendMessage(member.getMemberSeq(), request));
+        return ApiResponse.ok(chatService.sendMessage(member.memberSeq(), request));
     }
 
     @Operation(summary = "대화 내역 조회", description = "특정 세션의 모든 대화 내역을 조회합니다.")
     @GetMapping("/{sessionId}")
     public ApiResponse<List<ChatResponse>> getChatHistory(
-            @AuthenticationPrincipal Member member,
+            @AuthenticationPrincipal CustomUserDetails member,
             @PathVariable Long sessionId
     ) {
-        return ApiResponse.ok(chatService.getChatHistory(member.getMemberSeq(),sessionId));
+        return ApiResponse.ok(chatService.getChatHistory(member.memberSeq(),sessionId));
     }
 
     @Operation(summary = "대화 세션 종료", description = "대화를 종료하고 해당 세션을 일기 생성 가능 상태로 변경합니다.")
     @PatchMapping("/{sessionId}/end")
     public ApiResponse<String> endSession(
-            @AuthenticationPrincipal Member member,
+            @AuthenticationPrincipal CustomUserDetails member,
             @PathVariable Long sessionId) {
-        chatService.endChatSession(member.getMemberSeq(), sessionId);
+        chatService.endChatSession(member.memberSeq(), sessionId);
         return ApiResponse.ok("대화가 성공적으로 종료되었습니다.");
     }
 }

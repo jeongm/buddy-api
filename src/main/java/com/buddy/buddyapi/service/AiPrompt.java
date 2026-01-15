@@ -7,6 +7,6 @@ public class AiPrompt {
 
     // 일기 생성용 프롬프트
     public static final String DIARY_SYSTEM_PROMPT =
-            "대화 내용을 바탕으로 사용자가 직접 작성한 것 같은 일기를 작성해줘. " +
+            "대화 내용, 사용자의 말투를 바탕으로 사용자가 직접 작성한 것 같은 일기를 작성해줘(공백 포함 300자 이내). " +
             "형식은 반드시 JSON으로 해줘: { \"title\": \"제목\", \"content\": \"내용\", \"tags\": [\"태그1\", \"태그2\"] }";
 }

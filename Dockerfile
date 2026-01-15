@@ -1,10 +1,24 @@
-# 1. 자바 실행 환경(JDK) 가져오기
-FROM openjdk:17-jdk-slim
+# 1. 빌드 스테이지
+FROM maven:3.9.6-eclipse-temurin-17 AS build
+WORKDIR /app
+# 의존성만 먼저 복사해서 캐싱 활용 (빌드 속도 향상)
+COPY pom.xml .
+RUN mvn dependency:go-offline
 
-# 2. 빌드된 jar 파일을 컨테이너 내부로 복사
-# (빌드 결과물 위치는 프로젝트 설정에 따라 다를 수 있음)
-ARG JAR_FILE=build/libs/*.jar
-COPY ${JAR_FILE} app.jar
+COPY src ./src
+RUN mvn clean package -DskipTests
 
-# 3. 서버 실행 명령
-ENTRYPOINT ["java", "-jar", "/app.jar"]
+# 2. 실행 스테이지
+FROM eclipse-temurin:17-jdk-jammy
+WORKDIR /app
+
+# 타임존 설정 (로그 시간이 한국 시간으로 나오게 함)
+ENV TZ=Asia/Seoul
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+COPY --from=build /app/target/*.jar app.jar
+
+# JVM 옵션 추가 (메모리 효율화)
+ENTRYPOINT ["java", "-Xmx400M", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
+
+EXPOSE 8080

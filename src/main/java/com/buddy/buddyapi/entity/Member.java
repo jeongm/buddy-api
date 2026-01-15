@@ -6,20 +6,16 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name="member")
 @Entity
-public class Member implements UserDetails {
+public class Member {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "member_seq")
@@ -80,40 +76,4 @@ public class Member implements UserDetails {
     }
 
 
-    // --- UserDetails 인터페이스 구현 메서드
-
-    @Override
-    public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority("ROLE_USER"));
-    }
-
-    @Override
-    public String getPassword() {
-        return this.password;
-    }
-
-    @Override
-    public String getUsername() {
-        return this.email;
-    }
-
-    @Override
-    public boolean isAccountNonExpired() {
-        return true; // 계정 만료 여부 (true: 만료 안됨)
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return true; // 계정 잠김 여부 (true: 잠기지 않음)
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true; // 비밀번호 만료 여부 (true: 만료 안됨)
-    }
-
-    @Override
-    public boolean isEnabled() {
-        return true; // 계정 활성화 여부 (true: 활성화)
-    }
 }

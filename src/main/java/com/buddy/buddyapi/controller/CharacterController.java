@@ -5,7 +5,7 @@ import com.buddy.buddyapi.dto.request.CharacterChangeRequest;
 import com.buddy.buddyapi.dto.request.CharacterNameRequest;
 import com.buddy.buddyapi.dto.response.CharacterResponse;
 import com.buddy.buddyapi.dto.response.MemberResponse;
-import com.buddy.buddyapi.entity.Member;
+import com.buddy.buddyapi.global.config.CustomUserDetails;
 import com.buddy.buddyapi.service.BuddyCharacterService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,17 +32,17 @@ public class CharacterController {
     @Operation(summary = "내 캐릭터 변경", description = "현재 사용자의 버디 캐릭터를 변경합니다.")
     @PatchMapping("/users/me/character")
     public ApiResponse<MemberResponse> changeCharacter(
-            @AuthenticationPrincipal Member member,
+            @AuthenticationPrincipal CustomUserDetails member ,
             @Valid @RequestBody CharacterChangeRequest request) {
-        return ApiResponse.ok(characterService.changeMyCharacter(member.getMemberSeq(), request));
+        return ApiResponse.ok(characterService.changeMyCharacter(member.memberSeq(), request));
     }
 
     @Operation(summary = "캐릭터 별명 변경", description = "캐릭터에게 지어준 별명을 수정합니다.")
     @PatchMapping("/users/me/character-name")
     public ApiResponse<String> updateCharacterName(
-            @AuthenticationPrincipal Member member,
+            @AuthenticationPrincipal CustomUserDetails member,
             @Valid @RequestBody CharacterNameRequest request) {
-        characterService.updateCharacterNickname(member.getMemberSeq(), request.characterName());
+        characterService.updateCharacterNickname(member.memberSeq(), request.characterName());
         return ApiResponse.ok("캐릭터 이름이 변경되었습니다.");
     }
 }

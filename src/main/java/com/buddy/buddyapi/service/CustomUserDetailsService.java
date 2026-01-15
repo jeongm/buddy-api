@@ -1,5 +1,7 @@
 package com.buddy.buddyapi.service;
 
+import com.buddy.buddyapi.entity.Member;
+import com.buddy.buddyapi.global.config.CustomUserDetails;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.repository.MemberRepository;
@@ -18,7 +20,9 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String memberSeqStr) throws UsernameNotFoundException {
         Long memberSeq = Long.parseLong(memberSeqStr);
-        return memberRepository.findById(memberSeq)
+        Member member = memberRepository.findById(memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+
+        return CustomUserDetails.from(member);
     }
 }
