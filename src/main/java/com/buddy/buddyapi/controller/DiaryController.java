@@ -64,19 +64,19 @@ public class DiaryController {
     @Operation(summary = "일기 수정", description = "기존 일기의 내용 및 태그를 수정합니다.")
     @PatchMapping("/{diarySeq}")
     public ApiResponse<Long> updateDiary(
-            @AuthenticationPrincipal Member member,
+            @AuthenticationPrincipal CustomUserDetails member,
             @PathVariable Long diarySeq,
             @Valid @RequestBody DiaryUpdateRequest request) {
-        diaryService.updateDiary(member.getMemberSeq(), diarySeq, request);
+        diaryService.updateDiary(member.memberSeq(), diarySeq, request);
         return ApiResponse.ok(diarySeq);
     }
 
     @Operation(summary = "일기 삭제", description = "일기를 삭제합니다.")
     @DeleteMapping("/{diarySeq}")
     public ApiResponse<Void> deleteDiary(
-            @AuthenticationPrincipal Member member,
+            @AuthenticationPrincipal CustomUserDetails member,
             @PathVariable Long diarySeq) {
-        diaryService.deleteDiary(member.getMemberSeq(), diarySeq);
+        diaryService.deleteDiary(member.memberSeq(), diarySeq);
         return ApiResponse.ok();
     }
 
