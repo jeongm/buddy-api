@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +27,8 @@ public class Diary {
     private String title;
     @Column(columnDefinition = "TEXT")
     private String content;
+    @Column(name = "diary_date", nullable = false)
+    private LocalDate diaryDate;
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -40,16 +43,18 @@ public class Diary {
     private final List<DiaryTag> diaryTags = new ArrayList<>();
 
     @Builder
-    public Diary(String title, String content, String imageUrl, Member member) {
+    public Diary(String title, String content, LocalDate diaryDate, String imageUrl, Member member) {
         this.title = title;
         this.content = content;
+        this.diaryDate = diaryDate;
         this.imageUrl = imageUrl;
         this.member = member;
     }
 
-    public void updateDiary(String title, String content, String imageUrl) {
+    public void updateDiary(String title, String content, LocalDate diaryDate, String imageUrl) {
         this.title = title;
         this.content = content;
+        this.diaryDate = diaryDate;
         this.imageUrl = imageUrl;
     }
 

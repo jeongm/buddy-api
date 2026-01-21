@@ -8,6 +8,7 @@ import com.buddy.buddyapi.dto.response.DiaryListResponse;
 import com.buddy.buddyapi.dto.response.DiaryPreviewResponse;
 import com.buddy.buddyapi.dto.response.TagResponse;
 import com.buddy.buddyapi.entity.*;
+import com.buddy.buddyapi.global.config.AppConfig;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.repository.*;
@@ -17,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -37,6 +39,7 @@ public class DiaryService {
     private final ChatMessageRepository chatMessageRepository;
     private final AiService aiService;
     private final ObjectMapper objectMapper;
+    private final ImageService imageService;
 
     /**
      * 채팅 내역을 기반으로 AI 일기 초안을 생성합니다. (DB 저장 안 함)
@@ -125,16 +128,12 @@ public class DiaryService {
      * @return 해당 날짜에 작성된 일기 리스트 (최신순)
      */
     public List<DiaryListResponse> getDiariesByDate(Long memberSeq, LocalDate date) {
-        // 해당 날짜의 00:00:00 ~ 23:59:59.999999
-        // 인덱스 활용을 위해 범위를 직접 지정 (Index Range Scan 유도)
-        LocalDateTime start = date.atStartOfDay();
-        LocalDateTime end = date.atTime(LocalTime.MAX);
 
         Member member = memberRepository.findByIdOrThrow(memberSeq);
 
-        return diaryRepository.findAllByMemberAndCreatedAtBetweenOrderByCreatedAtDesc(member, start, end)
+        return diaryRepository.findAllByMemberAndDiaryDate(member, date)
                 .stream()
-                .map(DiaryListResponse::from) // DTO에 만든 from 메서드 활용
+                .map(DiaryListResponse::from)
                 .toList();
     }
 
@@ -147,15 +146,22 @@ public class DiaryService {
      * @throws BaseException 요청한 태그 ID가 존재하지 않을 경우 발생
      */
     @Transactional
-    public Long createDiary(Long memberSeq, DiaryCreateRequest request) {
+    public Long createDiary(Long memberSeq, DiaryCreateRequest request, MultipartFile image) {
 
         Member member = memberRepository.findByIdOrThrow(memberSeq);
+
+        // 이미지 파일이 있으면 저장하고 경로 반환받기
+        String savedImageUrl = null;
+        if(image != null && !image.isEmpty()) {
+            savedImageUrl = imageService.uploadLocal(image);
+        }
 
         // 1. 일기 엔티티 생성
         Diary diary = Diary.builder()
                 .title(request.title())
                 .content(request.content())
-                .imageUrl(request.imageUrl())
+                .diaryDate(request.diaryDate())
+                .imageUrl(savedImageUrl)
                 .member(member)
                 .build();
 
@@ -169,6 +175,41 @@ public class DiaryService {
     }
 
     /**
+     * 기존에 작성된 일기 내용을 수정합니다.
+     *
+     * @param memberSeq   현재 로그인한 회원 정보
+     * @param diarySeq 수정할 일기의 고유 식별자
+     * @param request  수정할 제목, 내용, 이미지, 태그 리스트 등을 담은 DTO
+     * @throws BaseException 일기를 찾을 수 없거나 본인 일기가 아닐 경우 발생
+     */
+    @Transactional
+    public void updateDiary(Long memberSeq, Long diarySeq, DiaryUpdateRequest request, MultipartFile image) {
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
+
+        // 1. 본인의 일기인지 확인하며 조회
+        Diary diary = diaryRepository.findByDiarySeqAndMember(diarySeq, member)
+                .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
+
+        String currentImageUrl = diary.getImageUrl();
+        if(image != null && !image.isEmpty()) {
+            // 기존 파일 삭제
+            if(currentImageUrl != null) {
+                imageService.deleteImage(currentImageUrl);
+            }
+            currentImageUrl = imageService.uploadLocal(image);
+        }
+
+        // 2. 기본 정보 수정
+        diary.updateDiary(request.title(), request.content(), request.diaryDate(), currentImageUrl);
+
+        // 3. 태그 교체
+        if (request.tags() != null) {
+            List<Tag> tags = getOrCreateTags(request.tags());
+            diary.updateTags(tags);
+        }
+    }
+
+    /**
      * 태그 이름 리스트를 바탕으로 기존 태그를 조회하거나 신규 태그를 생성합니다.
      */
     private List<Tag> getOrCreateTags(List<String> tagNames) {
@@ -179,31 +220,10 @@ public class DiaryService {
     }
 
     /**
-     * 기존에 작성된 일기 내용을 수정합니다.
-     *
-     * @param memberSeq   현재 로그인한 회원 정보
-     * @param diarySeq 수정할 일기의 고유 식별자
-     * @param request  수정할 제목, 내용, 이미지, 태그 리스트 등을 담은 DTO
-     * @throws BaseException 일기를 찾을 수 없거나 본인 일기가 아닐 경우 발생
+     * 특정 일기 삭제
+     *  @param memberSeq   현재 로그인한 회원 정보
+     *  @param diarySeq    삭제할 일기의 고유 식별자
      */
-    @Transactional
-    public void updateDiary(Long memberSeq, Long diarySeq, DiaryUpdateRequest request) {
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
-
-        // 1. 본인의 일기인지 확인하며 조회
-        Diary diary = diaryRepository.findByDiarySeqAndMember(diarySeq, member)
-                .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
-
-        // 2. 기본 정보 수정
-        diary.updateDiary(request.title(), request.content(), request.imageUrl());
-
-        // 3. 태그 교체
-        if (request.tags() != null) {
-            List<Tag> tags = getOrCreateTags(request.tags());
-            diary.updateTags(tags);
-        }
-    }
-
     @Transactional
     public void deleteDiary(Long memberSeq, Long diarySeq) {
         Member member = memberRepository.findByIdOrThrow(memberSeq);
@@ -211,6 +231,9 @@ public class DiaryService {
         Diary diary = diaryRepository.findByDiarySeqAndMember(diarySeq, member)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
+        if(diary.getImageUrl() != null) {
+            imageService.deleteImage(diary.getImageUrl());
+        }
         diaryRepository.delete(diary);
         // diary_tag 테이블의 데이터도 알아서 같이 지워집니다!
     }
@@ -229,7 +252,9 @@ public class DiaryService {
         Diary diary = diaryRepository.findByDiarySeqAndMember(diarySeq, member)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
-        return DiaryDetailResponse.from(diary);
+        String fullImageUrl = AppConfig.DIARY_IMAGE_URL + diary.getImageUrl();
+
+        return DiaryDetailResponse.from(diary,fullImageUrl);
     }
 
 }

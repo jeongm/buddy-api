@@ -34,11 +34,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain)
-            throws ServletException, IOException {
+            throws IOException, ServletException {
+
+        String path = request.getRequestURI();
 
         // 1. OPTIONS 메서드는 토큰 검사 없이 통과 (CORS 예비 요청 처리)
-        if (request.getMethod().equals("OPTIONS")) {
-            response.setStatus(HttpServletResponse.SC_OK);
+        if (request.getMethod().equals("OPTIONS") || path.startsWith("/api/v1/auth/refresh")) {
             filterChain.doFilter(request, response);
             return;
         }
