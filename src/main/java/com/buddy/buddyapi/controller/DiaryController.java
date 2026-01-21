@@ -15,8 +15,10 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -38,11 +40,12 @@ public class DiaryController {
     }
 
     @Operation(summary = "일기 생성", description = "새로운 일기를 저장합니다.")
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<Long> createDiary(
             @AuthenticationPrincipal CustomUserDetails member,
-            @Valid @RequestBody DiaryCreateRequest request) {
-        return ApiResponse.ok(diaryService.createDiary(member.memberSeq(), request));
+            @RequestPart(value = "request") @Valid DiaryCreateRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
+        return ApiResponse.ok(diaryService.createDiary(member.memberSeq(), request, image));
     }
 
     @Operation(summary = "날짜별 일기 목록 조회", description = "특정 날짜의 일기 리스트를 가져옵니다.")
@@ -62,12 +65,13 @@ public class DiaryController {
     }
 
     @Operation(summary = "일기 수정", description = "기존 일기의 내용 및 태그를 수정합니다.")
-    @PatchMapping("/{diarySeq}")
+    @PatchMapping(value = "/{diarySeq}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<Long> updateDiary(
             @AuthenticationPrincipal CustomUserDetails member,
             @PathVariable Long diarySeq,
-            @Valid @RequestBody DiaryUpdateRequest request) {
-        diaryService.updateDiary(member.memberSeq(), diarySeq, request);
+            @RequestPart("request") @Valid DiaryUpdateRequest request,
+            @RequestPart(value = "image", required = false) MultipartFile image) {
+        diaryService.updateDiary(member.memberSeq(), diarySeq, request, image);
         return ApiResponse.ok(diarySeq);
     }
 
@@ -79,6 +83,8 @@ public class DiaryController {
         diaryService.deleteDiary(member.memberSeq(), diarySeq);
         return ApiResponse.ok();
     }
+
+
 
 
 
