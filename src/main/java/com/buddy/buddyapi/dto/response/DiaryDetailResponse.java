@@ -15,12 +15,12 @@ public record DiaryDetailResponse(
         LocalDateTime createdAt,
         List<TagResponse> tags // 태그도 seq와 name을 같이 주면 프론트가 편해요
 ) {
-    public static DiaryDetailResponse from(Diary diary, String fullImageUrl) {
+    public static DiaryDetailResponse from(Diary diary) {
         return DiaryDetailResponse.builder()
                 .diarySeq(diary.getDiarySeq())
                 .title(diary.getTitle())
                 .content(diary.getContent())
-                .imageUrl(fullImageUrl)
+                .imageUrl(diary.getImageUrl())
                 .createdAt(diary.getCreatedAt())
                 .tags(diary.getDiaryTags().stream()
                         .map(dt -> new TagResponse(dt.getTag().getTagSeq(), dt.getTag().getName()))

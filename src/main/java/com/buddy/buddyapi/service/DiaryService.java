@@ -153,7 +153,7 @@ public class DiaryService {
         // 이미지 파일이 있으면 저장하고 경로 반환받기
         String savedImageUrl = null;
         if(image != null && !image.isEmpty()) {
-            savedImageUrl = imageService.uploadLocal(image);
+            savedImageUrl = imageService.uploadImage(image);
         }
 
         // 1. 일기 엔티티 생성
@@ -196,7 +196,7 @@ public class DiaryService {
             if(currentImageUrl != null) {
                 imageService.deleteImage(currentImageUrl);
             }
-            currentImageUrl = imageService.uploadLocal(image);
+            currentImageUrl = imageService.uploadImage(image);
         }
 
         // 2. 기본 정보 수정
@@ -252,9 +252,7 @@ public class DiaryService {
         Diary diary = diaryRepository.findByDiarySeqAndMember(diarySeq, member)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
-        String fullImageUrl = AppConfig.DIARY_IMAGE_URL + diary.getImageUrl();
-
-        return DiaryDetailResponse.from(diary,fullImageUrl);
+        return DiaryDetailResponse.from(diary);
     }
 
 }

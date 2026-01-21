@@ -1,5 +1,7 @@
 package com.buddy.buddyapi.service;
 
+import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -10,6 +12,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -17,51 +20,43 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ImageService {
 
-    @Value("${file.upload-dir}")
-    private String uploadDir;
+    private final Cloudinary cloudinary;
 
-    public String uploadLocal(MultipartFile file) {
+    public String uploadImage(MultipartFile file) {
         if(file.isEmpty()) return null;
 
         try {
-            // 1. 폴더가 없으면 생성
-            File directory = new File(uploadDir);
-            if (!directory.exists()) directory.mkdirs();
+            // Cloudinary 업로드 호출
+            Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
+                    "folder", "diary_uploads" // Cloudinary 내의 폴더명 지정 가능
+            ));
 
-            // 2. 파일 이름 중복 방지 (UUID 사용)
-            String originalName = file.getOriginalFilename();
-            String extension = originalName.substring(originalName.lastIndexOf("."));
-            String savedName = UUID.randomUUID().toString() + extension;
-
-            // 3. 실제 파일 저장
-            File destination = new File(directory.getAbsolutePath() + File.separator + savedName);
-            file.transferTo(destination);
-
-            return savedName;
+            // 업로드 성공 후 생성된 전체 URL(https://...)을 반환
+            return uploadResult.get("secure_url").toString();
 
         } catch (IOException e) {
+            log.error("Cloudinary 업로드 실패: {}", e.getMessage());
             throw new RuntimeException("이미지 저장 실패",e);
         }
     }
 
-    public void deleteImage(String fileName) {
-        if (fileName == null || fileName.isEmpty()) {
-            return;
-        }
+    public void deleteImage(String fileUrl) {
+        if (fileUrl == null || fileUrl.isEmpty()) return;
 
         try {
-            Path filePath = Paths.get(uploadDir).resolve(fileName).normalize();
-            File file = filePath.toFile();
+            // URL에서 Public ID 추출 (Cloudinary 삭제 시에는 파일 주소가 아니라 ID가 필요함)
+            // 예: https://.../diary_uploads/abc1234.jpg -> diary_uploads/abc1234
+            String publicId = extractPublicId(fileUrl);
 
-            if (file.exists()) {
-                file.delete();
-                log.info("파일 삭제 성공: {}", fileName);
-            } else {
-                log.warn("파일 삭제 실패 (파일은 존재하나 삭제되지 않음): {}", fileName);
-            }
+            cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+            log.info("Cloudinary 파일 삭제 성공: {}", publicId);
         } catch (Exception e) {
-            log.error("파일 삭제 중 예외 발생: {}, 사유: {}", fileName, e.getMessage(), e);
-        }
+            log.error("Cloudinary 파일 삭제 실패: {}", e.getMessage());        }
+    }
+
+    // URL에서 public_id만 뽑아내는 헬퍼 메서드
+    private String extractPublicId(String fileUrl) {
+        return fileUrl.substring(fileUrl.lastIndexOf("/") + 1, fileUrl.lastIndexOf("."));
     }
 
 }
