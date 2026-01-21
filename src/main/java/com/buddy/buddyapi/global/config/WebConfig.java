@@ -17,16 +17,6 @@ import java.util.List;
 public class WebConfig implements WebMvcConfigurer {
     private final ObjectMapper objectMapper;
 
-    @Value("${file.upload-dir}")
-    private String uploadDir;
-
-    // 1. 이미지 조회용 - 서버의 실제 폴더를 /images/** 주소로 연결
-    @Override
-    public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        registry.addResourceHandler("/images/**")
-                .addResourceLocations("file:" + uploadDir);
-    }
-
     // 2. 이름표 없는 데이터도 Json으로 인식하게 설정(swagger/프론트엔드용)
     @Override
     public void extendMessageConverters(List<HttpMessageConverter<?>> converters) {
