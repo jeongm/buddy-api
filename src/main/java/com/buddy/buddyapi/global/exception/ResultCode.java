@@ -12,9 +12,11 @@ public enum ResultCode {
     SUCCESS(HttpStatus.OK, "S000", "요청 성공"),
 
     // --- 공통 에러 (G) ---
+    // --- 공통 에러 (G) ---
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "G001", "입력 값이 올바르지 않습니다."),
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "G002", "잘못된 요청입니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "G003", "인증되지 않은 사용자입니다."),
+    METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "G004", "지원하지 않는 HTTP 메서드입니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "G500", "서버 내부 에러가 발생했습니다."),
 
     // --- 인증 및 토큰 관련 (T) ---

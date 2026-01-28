@@ -52,8 +52,9 @@ public class SecurityConfig {
         CorsConfiguration configuration = new CorsConfiguration();
 
         // TODO 배포시...변경...?
-        // ngrok 주소는 계속 바뀌므로 모든 Origin 허용 (패턴 사용)
+        // 주소는 미확정이므로
         configuration.setAllowedOriginPatterns(java.util.List.of("*"));
+//        configuration.setAllowedOrigins(java.util.List.of("https://buddy-frontend.vercel.app", "http://localhost:8080"));
 
         // 브라우저가 보낼 모든 메서드 허용
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
