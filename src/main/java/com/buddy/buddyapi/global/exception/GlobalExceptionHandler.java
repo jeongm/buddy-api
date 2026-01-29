@@ -21,6 +21,26 @@ import java.util.stream.Collectors;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // 토큰 만료 에러 - 401
+    @ExceptionHandler(io.jsonwebtoken.ExpiredJwtException.class)
+    public ResponseEntity<ApiResponse<Void>> handleExpiredJwtException(io.jsonwebtoken.ExpiredJwtException e) {
+        log.warn("JWT Token Expired: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ApiResponse<>(ResultCode.UNAUTHORIZED.getCode(), "토큰이 만료되었습니다. 다시 로그인해주세요.", null));
+    }
+
+    // 잘못된 토큰 에러 (서명 오류, 형식 오류 등) - 401
+    @ExceptionHandler({
+            io.jsonwebtoken.security.SignatureException.class,
+            io.jsonwebtoken.MalformedJwtException.class,
+            io.jsonwebtoken.UnsupportedJwtException.class
+    })
+    public ResponseEntity<ApiResponse<Void>> handleInvalidJwtException(Exception e) {
+        log.warn("Invalid JWT Token: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ApiResponse<>(ResultCode.UNAUTHORIZED.getCode(), "유효하지 않은 인증 토큰입니다.", null));
+    }
+
     // @Valid 유효성 검사 실패 - 400
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiResponse<Void>> handleMethodArgumentNotValidException(MethodArgumentNotValidException e) {

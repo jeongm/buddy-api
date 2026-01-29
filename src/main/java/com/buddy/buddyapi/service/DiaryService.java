@@ -8,6 +8,7 @@ import com.buddy.buddyapi.dto.response.DiaryListResponse;
 import com.buddy.buddyapi.dto.response.DiaryPreviewResponse;
 import com.buddy.buddyapi.dto.response.TagResponse;
 import com.buddy.buddyapi.entity.*;
+import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.config.AppConfig;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
@@ -49,6 +50,7 @@ public class DiaryService {
      * @return AI가 생성한 일기 제목, 본문, 추천 태그 정보를 담은 프리뷰 응답 DTO
      * @throws BaseException 세션을 찾을 수 없거나 대화 내역이 비어있을 경우 발생
      */
+    @Timer
     public DiaryPreviewResponse generateDiaryFromChat(Long memberSeq, DiaryGenerateRequest request) {
 
         Member member = memberRepository.findByIdOrThrow(memberSeq);
@@ -182,6 +184,7 @@ public class DiaryService {
      * @param request  수정할 제목, 내용, 이미지, 태그 리스트 등을 담은 DTO
      * @throws BaseException 일기를 찾을 수 없거나 본인 일기가 아닐 경우 발생
      */
+    // TODO N+1 해결해야 함
     @Transactional
     public void updateDiary(Long memberSeq, Long diarySeq, DiaryUpdateRequest request, MultipartFile image) {
         Member member = memberRepository.findByIdOrThrow(memberSeq);

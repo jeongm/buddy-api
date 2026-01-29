@@ -18,6 +18,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.servlet.HandlerExceptionResolver;
 
 import java.io.IOException;
 
@@ -26,7 +27,7 @@ import java.io.IOException;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final HandlerExceptionResolver handlerExceptionResolver;
 
 
     @Override
@@ -56,35 +57,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             filterChain.doFilter(request, response);
 
-        } catch (ExpiredJwtException e) {
-            log.error("만료된 토큰입니다: {}", e.getMessage());
-            sendErrorResponse(response, ResultCode.EXPIRED_TOKEN);
-        } catch (SignatureException | MalformedJwtException e) {
-            log.error("잘못된 토큰 서명입니다: {}", e.getMessage());
-            sendErrorResponse(response, ResultCode.TOKEN_SIGNATURE_ERROR);
-        } catch (UnsupportedJwtException e) {
-            log.error("지원되지 않는 토큰 형식입니다: {}", e.getMessage());
-            sendErrorResponse(response, ResultCode.UNSUPPORTED_TOKEN);
+        } catch (ExpiredJwtException | MalformedJwtException | SignatureException | UnsupportedJwtException e) {
+            // 위에서 발생한 모든 JWT 관련 예외를 Resolver로 던져서 GlobalExceptionHandler가 처리하게 함
+            log.error("JWT Filter Exception: {}", e.getMessage());
+            handlerExceptionResolver.resolveException(request, response, null, e);
         } catch (Exception e) {
-            log.error("인증 실패: {}", e.getMessage());
-            sendErrorResponse(response, ResultCode.INVALID_TOKEN);
+            log.error("Unexpected Filter Exception: {}", e.getMessage());
+            handlerExceptionResolver.resolveException(request, response, null, e);
         }
 
-
-
     }
 
-    private void sendErrorResponse(HttpServletResponse response, ResultCode resultCode) throws IOException {
-        response.setStatus(resultCode.getHttpStatus().value());
-        response.setContentType("application/json;charset=UTF-8");
-        response.setHeader("Access-Control-Allow_Origin","*");
-
-        ApiResponse<Void> apiResponse = ApiResponse.error(resultCode);
-
-        //ObjectMapper를 사용해 JSON문자열로 변환
-        String result = objectMapper.writeValueAsString(apiResponse);
-        response.getWriter().write(result);
-    }
 
     // Header "Bearer" 부분을 떼고 토큰 값만 가져오는 메서드
     private String resolveToken(HttpServletRequest request) {

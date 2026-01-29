@@ -73,12 +73,27 @@ public class Diary {
         }
     }
 
-    public void updateTags(List<Tag> newTags) {
-        // 1. 기존 태그 리스트를 비움(orphanRemoval = true 설정 덕분에 DB에서도 삭제됨)
-        this.diaryTags.clear();
 
-        // 2. 새로운 태그들 추가
-        addTags(newTags);
+    public void updateTags(List<Tag> newTags) {
+        if (newTags == null || newTags.isEmpty()) {
+            this.diaryTags.clear();
+            return;
+        }
+
+        // 기존 태그들중에 새 리스트에 없는 애 삭제
+        this.diaryTags.removeIf(diaryTag ->
+                !newTags.contains(diaryTag.getTag())
+        );
+
+        // 새 리스트의 태그들 중 기존 태그들에 없는 것들만 추가
+        List<Tag> currentTags = this.diaryTags.stream()
+                .map(DiaryTag::getTag)
+                .toList();
+
+        // 이미 있는건 중복 삽입 안하고 없는 놈들만 새로 생성해서 추가
+        newTags.stream()
+                .filter(tag -> !currentTags.contains(tag))
+                .forEach(this::addTag);
     }
 
 
