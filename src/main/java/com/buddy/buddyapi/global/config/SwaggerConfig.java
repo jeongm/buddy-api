@@ -29,9 +29,13 @@ public class SwaggerConfig {
                         .bearerFormat("JWT"));
 
         // 3. 서버 주소 강제 설정
-        Server server = new Server();
-        server.setUrl("https://buddy-api.kro.kr");
-        server.setDescription("운영 서버 (HTTPS)");
+        Server localServer = new Server();
+        localServer.setUrl("http://localhost:8080");
+        localServer.setDescription("로컬 환경");
+
+        Server prodServer = new Server();
+        prodServer.setUrl("https://buddy-api.kro.kr");
+        prodServer.setDescription("운영 서버 (HTTPS)");
 
         return new OpenAPI()
                 .info(new Info()
@@ -40,6 +44,6 @@ public class SwaggerConfig {
                         .version("v1.0"))
                 .addSecurityItem(securityRequirement)
                 .components(components)
-                .servers(List.of(server));
+                .servers(List.of(localServer, prodServer));
     }
 }
