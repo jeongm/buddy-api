@@ -2,6 +2,7 @@ package com.buddy.buddyapi.repository;
 
 import com.buddy.buddyapi.entity.ChatSession;
 import com.buddy.buddyapi.entity.Member;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -18,7 +19,7 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
 
     // 3. 특정 회원의 특정 세션 조회 (내 세션이 맞는지 검증 포함)
     @Query( "SELECT s FROM ChatSession s " +
-//            "JOIN FETCH s.buddyCharacter " +
             "WHERE s.sessionSeq = :sessionSeq AND s.member = :member")
     Optional<ChatSession> findBySessionSeqAndMember(Long sessionSeq, Member member);
+
 }

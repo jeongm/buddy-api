@@ -2,23 +2,31 @@ package com.buddy.buddyapi.service;
 
 import com.buddy.buddyapi.domain.SenderRole;
 import com.buddy.buddyapi.dto.request.ChatRequest;
+import com.buddy.buddyapi.dto.request.OpenAiRequest;
 import com.buddy.buddyapi.dto.response.ChatResponse;
 import com.buddy.buddyapi.entity.BuddyCharacter;
 import com.buddy.buddyapi.entity.ChatMessage;
 import com.buddy.buddyapi.entity.ChatSession;
 import com.buddy.buddyapi.entity.Member;
+import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.repository.BuddyCharacterRepository;
 import com.buddy.buddyapi.repository.ChatMessageRepository;
 import com.buddy.buddyapi.repository.ChatSessionRepository;
 import com.buddy.buddyapi.repository.MemberRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -28,6 +36,9 @@ public class ChatService {
     private final ChatMessageRepository chatMessageRepository;
     private final BuddyCharacterRepository buddyCharacterRepository;
     private final AiService aiService;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
+    private final String CHAT_KEY_PREFIX = "chat:history:";
 
     /**
      * 버디(AI 캐릭터)에게 메시지를 전송하고 응답을 받습니다.
@@ -35,6 +46,7 @@ public class ChatService {
      * @param request 전송할 메시지 내용 및 세션 ID가 담긴 DTO
      * @return AI의 응답 메시지와 세션 ID를 포함한 응답 DTO
      */
+    @Timer
     @Transactional
     public ChatResponse sendMessage(Long memberSeq, ChatRequest request) {
 
@@ -47,11 +59,92 @@ public class ChatService {
         // 3. AI 답변 생성
         String aiContent = generateAiResponse(session, request.content());
 
-        // 4. AI 메시지 저장
+        // 4. AI 메시지 저장(DB)
         ChatMessage aiMessage = saveMessage(session, SenderRole.ASSISTANT, aiContent);
+
+        // 5. Redis에 대화내용 저장
+        saveContextToRedis(session.getSessionSeq(), request.content(), aiContent);
 
         return ChatResponse.from(aiMessage, session.getSessionSeq());
 
+    }
+
+    /**
+     * AI 서비스를 호출하여 캐릭터의 성격이 반영된 답변을 생성합니다.
+     * * @param session     현재 대화 세션 (캐릭터 정보 포함)
+     *
+     * @param userContent 사용자가 입력한 메시지 내용
+     * @return AI가 생성한 답변 문자열
+     */
+    private String generateAiResponse(ChatSession session, String userContent) {
+        // OpenAI API 연동 지점
+        // 1. 조립할 리스트 생성
+        List<OpenAiRequest.Message> fullMessages = new ArrayList<>();
+
+        String characterName = session.getMember().getCharacterNickname();
+        String characterPersonality = session.getBuddyCharacter().getPersonality();
+
+
+        fullMessages.add(new OpenAiRequest.Message("system",
+                String.format(AiPrompt.CHAT_SYSTEM_PROMPT, characterPersonality,characterName)));
+
+        // Redis에서 과거 대화 가져오기
+        fullMessages.addAll(getContextFromRedis(session.getSessionSeq()));
+
+        // 현재 사용자의 질문 추가
+        fullMessages.add(new OpenAiRequest.Message("user", userContent));
+
+
+        return aiService.getChatResponse(fullMessages);
+    }
+
+    /**
+     * Redis에서 저장된 JSON 대화 내역을 객체 리스트로 변환
+     * @param sessionSeq 현재 대화 세션
+     * @return Redis에서 저장된 JSON 대화 내역 ~10개
+     */
+    private List<OpenAiRequest.Message> getContextFromRedis(Long sessionSeq) {
+        String key = CHAT_KEY_PREFIX + sessionSeq;
+        List<String> jsonHistory = redisTemplate.opsForList().range(key, 0, -1);
+        List<OpenAiRequest.Message> history = new ArrayList<>();
+
+        if(jsonHistory != null) {
+            for(String json : jsonHistory) {
+                try {
+                    history.add(objectMapper.readValue(json, OpenAiRequest.Message.class));
+                } catch (Exception e) {
+                    log.error("Redis 메시지 파싱 에러 : {}", e.getMessage());
+                }
+            }
+        }
+
+        return history;
+    }
+
+    /**
+     * 대화 내역을 JSON으로 변환하여 Redis에 저장하고, 관리(Trim/Expire)
+     * @param sessionSeq 현재 대화 세션
+     * @param userMessage 현재 유저 메시지
+     * @param aiMessage 응답 메시지
+     */
+    private void saveContextToRedis(Long sessionSeq, String userMessage, String aiMessage) {
+        String key = CHAT_KEY_PREFIX + sessionSeq;
+
+        try{
+            String userJson = objectMapper.writeValueAsString(new OpenAiRequest.Message("user", userMessage));
+            String aiJson = objectMapper.writeValueAsString(new OpenAiRequest.Message("assistant", aiMessage));
+
+            redisTemplate.opsForList().rightPush(key, userJson);
+            redisTemplate.opsForList().rightPush(key, aiJson);
+
+            // 최신 10개(사용자5개, AI5개)만 유지
+            redisTemplate.opsForList().trim(key, -10,-1);
+            // TODO 1시간동안 대화 없으면 자동 삭제
+//            redisTemplate.expire(key, Duration.ofHours(1));
+        }catch (Exception e) {
+            log.error("Redis 저장 중 에러 발생: {}", e.getMessage());
+
+        }
     }
 
     /**
@@ -62,7 +155,8 @@ public class ChatService {
      */
     private ChatSession getOrCreateSession(Long memberSeq, Long sessionId) {
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = memberRepository.findByIdWithCharacter(memberSeq)
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
 
         if(sessionId != null) {
             return chatSessionRepository.findBySessionSeqAndMember(sessionId, member)
@@ -71,6 +165,7 @@ public class ChatService {
         }
         return createNewSession(member);
     }
+
 
     /**
      * 회원이 설정한 캐릭터 정보를 바탕으로 새로운 대화 세션을 생성합니다.
@@ -110,17 +205,6 @@ public class ChatService {
         return chatMessageRepository.save(message);
     }
 
-    /**
-     * AI 서비스를 호출하여 캐릭터의 성격이 반영된 답변을 생성합니다.
-     * * @param session     현재 대화 세션 (캐릭터 정보 포함)
-     * @param userContent 사용자가 입력한 메시지 내용
-     * @return AI가 생성한 답변 문자열
-     */
-    private String generateAiResponse(ChatSession session, String userContent) {
-        // OpenAI API 연동 지점
-        String characterPersonality = session.getBuddyCharacter().getName();
-        return aiService.getChatResponse(userContent, characterPersonality);
-    }
 
     /**
      * 특정 세션의 이전 대화 기록을 조회합니다.

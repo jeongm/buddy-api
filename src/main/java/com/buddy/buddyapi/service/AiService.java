@@ -2,6 +2,7 @@ package com.buddy.buddyapi.service;
 
 import com.buddy.buddyapi.dto.request.OpenAiRequest;
 import com.buddy.buddyapi.dto.response.OpenAiResponse;
+import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -27,7 +28,6 @@ public class AiService {
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
 
-    // 생성자를 통해 설정값을 주입받음
     public AiService(
             @Value("${openai.api.key}") String apiKey,
             @Value("${openai.api.url}") String apiUrl,
@@ -41,17 +41,12 @@ public class AiService {
 
     /**
      * 채팅 시 openai 프롬프트 및 호출
-     * @param conversation 사용자 메시지
-     * @param characterPersonality AI에게 부여할 캐릭터의 성격 설정값
+     * @param messages 조립이 완료된 전체 메시지 리스트 (System + History + User)
      * @return AI가 생성한 응답 문자열
      */
-    public String getChatResponse(String conversation, String characterPersonality) {
-        String systemMessage = String.format(
-                AiPrompt.CHAT_SYSTEM_PROMPT,
-                characterPersonality
-        );
-
-        return callOpenAi(systemMessage, conversation,false);
+    @Timer
+    public String getChatResponse(List<OpenAiRequest.Message> messages) {
+        return callOpenAi(messages,false);
     }
 
     /**
@@ -59,29 +54,31 @@ public class AiService {
      * @param conversations 해당 세션의 전체 대화 내역
      * @return AI가 생성한 일기 초안 문자열
      */
+    @Timer
     public String getDiaryDraft(String conversations) {
         String systemMessage = String.format(
                 AiPrompt.DIARY_SYSTEM_PROMPT
         );
 
-        return callOpenAi(systemMessage, conversations, true);
+        List<OpenAiRequest.Message> messages = List.of(
+          new OpenAiRequest.Message("system", systemMessage),
+          new OpenAiRequest.Message("user", conversations)
+        );
+
+        return callOpenAi(messages, true);
     }
 
     /**
      * openai 호출
-     * @param prompt prompt AI에게 전달할 시스템 지시문
-     * @param userMessage 사용자의 질문 또는 대화 내용
+     * @param messages prompt AI에게 전달할 시스템 지시문
      * @param isJsonRequest 응답 형식이 JSON이어야 하는지 여부
      * @return 정제된 AI 응답 문자열
      */
-    private String callOpenAi(String prompt, String userMessage, boolean isJsonRequest) {
+    private String callOpenAi(List<OpenAiRequest.Message> messages, boolean isJsonRequest) {
         // 요청 객체 생성
         OpenAiRequest request = new OpenAiRequest(
                 "gpt-3.5-turbo",
-                List.of(
-                        new OpenAiRequest.Message("system", prompt),
-                        new OpenAiRequest.Message("user", userMessage)
-                ),
+                messages,
                 0.7
         );
 

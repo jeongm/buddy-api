@@ -23,7 +23,7 @@ public class MemberRegisterRequest {
     private String password;
 
     @NotBlank(message = "닉네임을 입력해주세요")
-    @Size(min = 2, max = 15, message = "닉네임은 2자에서 15자 사이여야 합니다.")
+    @Size(min = 1, max = 15, message = "닉네임은 15자 이하여야 합니다.")
     private String nickname;
 
     private Long characterSeq;
