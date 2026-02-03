@@ -22,9 +22,9 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -57,7 +57,6 @@ public class ChatService {
         saveMessage(session, SenderRole.USER, request.content());
 
         // 3. AI 답변 생성
-        // TODO Redis를 뒤져서 이전 대화 기록 포함
         String aiContent = generateAiResponse(session, request.content());
 
         // 4. AI 메시지 저장(DB)
@@ -73,20 +72,21 @@ public class ChatService {
     /**
      * AI 서비스를 호출하여 캐릭터의 성격이 반영된 답변을 생성합니다.
      * * @param session     현재 대화 세션 (캐릭터 정보 포함)
+     *
      * @param userContent 사용자가 입력한 메시지 내용
      * @return AI가 생성한 답변 문자열
      */
-    // TODO 이름 넣기
     private String generateAiResponse(ChatSession session, String userContent) {
         // OpenAI API 연동 지점
         // 1. 조립할 리스트 생성
-
         List<OpenAiRequest.Message> fullMessages = new ArrayList<>();
 
+        String characterName = session.getMember().getCharacterNickname();
         String characterPersonality = session.getBuddyCharacter().getPersonality();
 
+
         fullMessages.add(new OpenAiRequest.Message("system",
-                String.format(AiPrompt.CHAT_SYSTEM_PROMPT, "이름" ,characterPersonality)));
+                String.format(AiPrompt.CHAT_SYSTEM_PROMPT, characterPersonality,characterName)));
 
         // Redis에서 과거 대화 가져오기
         fullMessages.addAll(getContextFromRedis(session.getSessionSeq()));
@@ -100,8 +100,8 @@ public class ChatService {
 
     /**
      * Redis에서 저장된 JSON 대화 내역을 객체 리스트로 변환
-     * @param sessionSeq
-     * @return
+     * @param sessionSeq 현재 대화 세션
+     * @return Redis에서 저장된 JSON 대화 내역 ~10개
      */
     private List<OpenAiRequest.Message> getContextFromRedis(Long sessionSeq) {
         String key = CHAT_KEY_PREFIX + sessionSeq;
@@ -123,9 +123,9 @@ public class ChatService {
 
     /**
      * 대화 내역을 JSON으로 변환하여 Redis에 저장하고, 관리(Trim/Expire)
-     * @param sessionSeq
-     * @param userMessage
-     * @param aiMessage
+     * @param sessionSeq 현재 대화 세션
+     * @param userMessage 현재 유저 메시지
+     * @param aiMessage 응답 메시지
      */
     private void saveContextToRedis(Long sessionSeq, String userMessage, String aiMessage) {
         String key = CHAT_KEY_PREFIX + sessionSeq;
@@ -155,7 +155,8 @@ public class ChatService {
      */
     private ChatSession getOrCreateSession(Long memberSeq, Long sessionId) {
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = memberRepository.findByIdWithCharacter(memberSeq)
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
 
         if(sessionId != null) {
             return chatSessionRepository.findBySessionSeqAndMember(sessionId, member)
