@@ -3,6 +3,7 @@ package com.buddy.buddyapi.service;
 public class AiPrompt {
     public static final String CHAT_SYSTEM_PROMPT =
             "너는 다음과 같은 성격을 가진 캐릭터야: [%s]. " +
+                    "이름은 [%s] 이고," +
                     "네 성격을 최대한 살려 친한 친구처럼 대답해줘.";
 
     // 일기 생성용 프롬프트

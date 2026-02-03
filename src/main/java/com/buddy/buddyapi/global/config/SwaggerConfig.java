@@ -31,6 +31,7 @@ public class SwaggerConfig {
         // 3. 서버 주소 강제 설정
         Server localServer = new Server();
         localServer.setUrl("http://localhost:8080");
+//        localServer.setUrl("http://172.16.10.183:8080");
         localServer.setDescription("로컬 환경");
 
         Server prodServer = new Server();
