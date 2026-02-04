@@ -7,6 +7,7 @@ import com.buddy.buddyapi.dto.request.DiaryUpdateRequest;
 import com.buddy.buddyapi.dto.response.DiaryDetailResponse;
 import com.buddy.buddyapi.dto.response.DiaryListResponse;
 import com.buddy.buddyapi.dto.response.DiaryPreviewResponse;
+import com.buddy.buddyapi.dto.response.MonthlyDiaryCountResponse;
 import com.buddy.buddyapi.entity.Member;
 import com.buddy.buddyapi.global.config.CustomUserDetails;
 import com.buddy.buddyapi.service.DiaryService;
@@ -16,6 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -54,6 +56,16 @@ public class DiaryController {
             @AuthenticationPrincipal CustomUserDetails member,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
         return ApiResponse.ok(diaryService.getDiariesByDate(member.memberSeq(), date));
+    }
+
+    @Operation(summary = "월별 일기 개수 조회", description = "특정 월의 일기 개수를 가져옵니다.")
+    @GetMapping("/calendar")
+    public ApiResponse<List<MonthlyDiaryCountResponse>> getMonthlyDiaryStats(
+            @AuthenticationPrincipal CustomUserDetails member, // 현재 로그인 유저
+            @RequestParam(name = "year") int year,
+            @RequestParam(name = "month") int month) {
+
+        return ApiResponse.ok(diaryService.getMonthlyDiaryStats(member.memberSeq(), year, month));
     }
 
     @Operation(summary = "일기 상세 조회", description = "특정 일기의 상세 내용을 조회합니다.")

@@ -3,10 +3,7 @@ package com.buddy.buddyapi.service;
 import com.buddy.buddyapi.dto.request.DiaryCreateRequest;
 import com.buddy.buddyapi.dto.request.DiaryGenerateRequest;
 import com.buddy.buddyapi.dto.request.DiaryUpdateRequest;
-import com.buddy.buddyapi.dto.response.DiaryDetailResponse;
-import com.buddy.buddyapi.dto.response.DiaryListResponse;
-import com.buddy.buddyapi.dto.response.DiaryPreviewResponse;
-import com.buddy.buddyapi.dto.response.TagResponse;
+import com.buddy.buddyapi.dto.response.*;
 import com.buddy.buddyapi.entity.*;
 import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.config.AppConfig;
@@ -24,6 +21,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.YearMonth;
+import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -53,10 +52,8 @@ public class DiaryService {
     @Timer
     public DiaryPreviewResponse generateDiaryFromChat(Long memberSeq, DiaryGenerateRequest request) {
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
-
         // 1. 세션 조회 (내 세션인지, 종료된 세션인지 확인)
-        ChatSession session = chatSessionRepository.findBySessionSeqAndMember(request.sessionId(), member)
+        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(request.sessionId(), memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
         // 2. 해당 세션의 모든 메시지 시간순 조회
@@ -131,9 +128,7 @@ public class DiaryService {
      */
     public List<DiaryListResponse> getDiariesByDate(Long memberSeq, LocalDate date) {
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
-
-        return diaryRepository.findAllByMemberAndDiaryDate(member, date)
+        return diaryRepository.findAllByMemberAndDiaryDate(memberSeq, date)
                 .stream()
                 .map(DiaryListResponse::from)
                 .toList();
@@ -187,10 +182,9 @@ public class DiaryService {
     // TODO N+1 해결해야 함
     @Transactional
     public void updateDiary(Long memberSeq, Long diarySeq, DiaryUpdateRequest request, MultipartFile image) {
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
 
         // 1. 본인의 일기인지 확인하며 조회
-        Diary diary = diaryRepository.findByDiarySeqAndMember(diarySeq, member)
+        Diary diary = diaryRepository.findByDiarySeqAndMember_MemberSeq(diarySeq, memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
         String currentImageUrl = diary.getImageUrl();
@@ -229,9 +223,8 @@ public class DiaryService {
      */
     @Transactional
     public void deleteDiary(Long memberSeq, Long diarySeq) {
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
 
-        Diary diary = diaryRepository.findByDiarySeqAndMember(diarySeq, member)
+        Diary diary = diaryRepository.findByDiarySeqAndMember_MemberSeq(diarySeq, memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
         if(diary.getImageUrl() != null) {
@@ -251,11 +244,29 @@ public class DiaryService {
      */
     @Transactional(readOnly = true)
     public DiaryDetailResponse getDiaryDetail(Long memberSeq, Long diarySeq) {
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
-        Diary diary = diaryRepository.findByDiarySeqAndMember(diarySeq, member)
+        Diary diary = diaryRepository.findByDiarySeqAndMember_MemberSeq(diarySeq, memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
         return DiaryDetailResponse.from(diary);
     }
 
+    /**
+     *
+     * @param memberSeq 현재 로그인한 회원 정보
+     * @param year 조회할 년도
+     * @param month 조회할 월
+     * @return 조회 년월의 일기 개수 리스트
+     */
+    @Transactional(readOnly = true)
+    public List<MonthlyDiaryCountResponse> getMonthlyDiaryStats(Long memberSeq, int year, int month) {
+// 1. 해당 월의 시작일 (예: 2024-03-01)
+        YearMonth yearMonth = YearMonth.of(year, month);
+        LocalDate startDate = yearMonth.atDay(1);
+
+        // 2. 해당 월의 마지막 날 (예: 2024-03-31)
+        LocalDate endDate = yearMonth.atEndOfMonth();
+
+        // 3. 레포지토리 호출
+        return diaryRepository.findAllMonthlyCount(memberSeq, startDate, endDate);
+    }
 }

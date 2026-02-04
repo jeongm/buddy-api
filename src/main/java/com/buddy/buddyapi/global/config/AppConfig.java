@@ -2,6 +2,9 @@ package com.buddy.buddyapi.global.config;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
+import com.querydsl.jpa.impl.JPAQueryFactory;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,6 +24,9 @@ public class AppConfig {
     @Value("${cloudinary.api-secret}")
     private String apiSecret;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
@@ -38,6 +44,11 @@ public class AppConfig {
                 "api_key", apiKey,
                 "api_secret", apiSecret
         ));
+    }
+
+    @Bean
+    public JPAQueryFactory jpaQueryFactory() {
+        return new JPAQueryFactory(entityManager);
     }
     
     
