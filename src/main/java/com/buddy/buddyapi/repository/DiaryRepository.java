@@ -11,5 +11,4 @@ public interface DiaryRepository extends JpaRepository<Diary, Long>, DiaryReposi
 
 
 
-
 }

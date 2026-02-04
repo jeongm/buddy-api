@@ -39,16 +39,25 @@ public class Diary {
     @JoinColumn(name = "member_seq", nullable = false)
     private Member member;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_seq")
+    private ChatSession chatSession;
+
     @OneToMany(mappedBy = "diary", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<DiaryTag> diaryTags = new ArrayList<>();
 
     @Builder
-    public Diary(String title, String content, LocalDate diaryDate, String imageUrl, Member member) {
+    public Diary(String title, String content, LocalDate diaryDate, String imageUrl, Member member, ChatSession chatSession) {
         this.title = title;
         this.content = content;
         this.diaryDate = diaryDate;
         this.imageUrl = imageUrl;
         this.member = member;
+        this.chatSession = chatSession;
+    }
+
+    public boolean isAiGenerated() {
+        return this.chatSession != null;
     }
 
     public void updateDiary(String title, String content, LocalDate diaryDate, String imageUrl) {
