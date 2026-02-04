@@ -10,6 +10,7 @@ public record DiaryListResponse(
         String title,
         String summary,
         LocalDateTime createAt,
+        String imageUrl,
         List<String> tags
 
 ) {
@@ -24,6 +25,7 @@ public record DiaryListResponse(
                 diary.getTitle(),
                 summary,
                 diary.getCreatedAt(),
+                diary.getImageUrl(),
                 diary.getDiaryTags().stream()
                         .map(diaryTag -> diaryTag.getTag().getName())
                         .toList()

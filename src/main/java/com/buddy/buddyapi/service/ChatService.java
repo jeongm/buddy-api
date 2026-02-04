@@ -159,7 +159,7 @@ public class ChatService {
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
 
         if(sessionId != null) {
-            return chatSessionRepository.findBySessionSeqAndMember(sessionId, member)
+            return chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionId, memberSeq)
                     .filter(s -> !s.isEnded()) // 종료되지 않은 세션만 사용
                     .orElseGet(() -> createNewSession(member));
         }
@@ -215,10 +215,8 @@ public class ChatService {
      */
     public List<ChatResponse> getChatHistory(Long memberSeq, Long sessionId) {
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
-
-        // 내 세션인지 검증
-        ChatSession session = chatSessionRepository.findBySessionSeqAndMember(sessionId, member)
+        // 내 세션인지 검증함께
+        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionId, memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
         // 메시지 목록을 과거순으로 조회하여 DTO로 변환
@@ -237,15 +235,12 @@ public class ChatService {
     @Transactional
     public void endChatSession(Long memberSeq, Long sessionId){
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
-
-        ChatSession session = chatSessionRepository.findBySessionSeqAndMember(sessionId, member)
+        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionId, memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
         // 2. 이미 종료된 세션인지 체크 (선택 사항)
         if (session.isEnded()) {
             throw new BaseException(ResultCode.SESSION_ALREADY_ENDED);
-            // ResultCode에 SESSION_ALREADY_ENDED 하나 추가해주면 좋습니다.
         }
 
         session.endSession();
