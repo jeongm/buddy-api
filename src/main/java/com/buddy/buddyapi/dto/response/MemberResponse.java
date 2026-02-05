@@ -10,7 +10,6 @@ public record MemberResponse(
         String email,
         String nickname,
 
-        // TODO 캐릭터에 관한거는 수정
         Long characterSeq,
         String characterNickname,
         String avatarUrl
@@ -20,16 +19,17 @@ public record MemberResponse(
         // 변수명을 character라고 지었으니 누가 봐도 BuddyCharacter 타입
         // var는 java10에서 도입되어 컴파일러가 오른쪽의 대입되는 값을 보고 타입을 자동으로 알아냄(지역변수타입추론 local variable type inference)
 //        var character = member.getBuddyCharacter();
-
+        // TODO N+1 발생 서비스로직에서 캐릭터 까지 들고오도록 호출해야할듯
         BuddyCharacter character = member.getBuddyCharacter();
+
         // Entity에서 비밀번호 등 민감한 필드는 제외하고, 필요한 정보만 추출
-        // TODO character관련 null 설정 맞는지 확인 해봐야할듯
         return MemberResponse.builder()
                 .memberSeq(member.getMemberSeq())
                 .email(member.getEmail())
                 .nickname(member.getNickname())
-                .characterSeq(member.getBuddyCharacter() != null ? member.getBuddyCharacter().getCharacterSeq() : null)
-                .characterNickname(member.getCharacterNickname() != null ? member.getCharacterNickname(): member.getBuddyCharacter().getName())
+                .characterSeq(character.getCharacterSeq())
+                .characterNickname(member.getCharacterNickname() != null
+                        ? member.getCharacterNickname(): character.getName())
                 .avatarUrl(member.getBuddyCharacter() != null ? member.getBuddyCharacter().getAvatarUrl() : null)
                 .build();
     }

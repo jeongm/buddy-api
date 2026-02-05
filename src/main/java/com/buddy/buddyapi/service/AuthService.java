@@ -4,6 +4,7 @@ import com.buddy.buddyapi.dto.request.MemberLoginRequest;
 import com.buddy.buddyapi.dto.request.MemberRegisterRequest;
 import com.buddy.buddyapi.dto.response.LoginResponse;
 import com.buddy.buddyapi.dto.response.MemberResponse;
+import com.buddy.buddyapi.dto.response.MemberSeqResponse;
 import com.buddy.buddyapi.entity.BuddyCharacter;
 import com.buddy.buddyapi.entity.Member;
 import com.buddy.buddyapi.entity.RefreshToken;
@@ -35,34 +36,31 @@ public class AuthService {
      * @throws BaseException 이미 존재하는 이메일이거나 캐릭터가 없을 경우 발생
      */
     @Transactional
-    public MemberResponse registerMember(MemberRegisterRequest request) {
-        // 1. 중복 검사 (이메일, 닉네임)
+    public MemberSeqResponse registerMember(MemberRegisterRequest request) {
+
         if(memberRepository.existsByEmail(request.getEmail())) {
             throw new BaseException(ResultCode.EMAIL_DUPLICATED);
         }
 
-        // 2. 비밀번호 암호화 (BCrypt 등)
         String encodedPassword = passwordEncoder.encode(request.getPassword());
 
-        // 3. 초기 캐릭터 조회 및 유효성 검사
+        // 초기 캐릭터 조회 및 유효성 검사
+        // TODO DB에 1번 캐릭터가 반드시 존재해야 한다는 강력한 전제가 필요 -
         Long charSeq = request.getCharacterSeq() != null ? request.getCharacterSeq() : 1;
 
         BuddyCharacter selectedCharacter = characterRepository.findById(charSeq)
                 .orElseThrow(()-> new BaseException(ResultCode.CHARACTER_NOT_FOUND));
 
-        // 3. Request DTO를 Entity로 변환
         Member newMember = Member.builder()
                 .email(request.getEmail())
                 .password(encodedPassword)
                 .nickname(request.getNickname())
                 .buddyCharacter(selectedCharacter)
                 .build();
-        // 4. memberRepository.save(newMember)
-        Member savedmember = memberRepository.save(newMember);
-        // jpa는 영속성 컨텍스트라서 그냥 newMember그대로 반환해도 되지 않나? -> 그래도 안전성을 위해 그냥 이렇게 하기로 함
 
-        // 5. 저장된 Entity를 Response DTO로 변환하여 반환
-        return MemberResponse.from(savedmember);
+        Member savedMember = memberRepository.save(newMember);
+
+        return MemberSeqResponse.from(savedMember);
     }
 
     /**

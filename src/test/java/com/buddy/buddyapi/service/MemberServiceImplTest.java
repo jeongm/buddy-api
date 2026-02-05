@@ -4,6 +4,7 @@ import com.buddy.buddyapi.dto.response.LoginResponse;
 import com.buddy.buddyapi.dto.request.MemberLoginRequest;
 import com.buddy.buddyapi.dto.request.MemberRegisterRequest;
 import com.buddy.buddyapi.dto.response.MemberResponse;
+import com.buddy.buddyapi.dto.response.MemberSeqResponse;
 import com.buddy.buddyapi.entity.BuddyCharacter;
 import com.buddy.buddyapi.entity.Member;
 import com.buddy.buddyapi.global.config.JwtTokenProvider;
@@ -68,10 +69,9 @@ class MemberServiceImplTest {
         given(memberRepository.save(any(Member.class))).willReturn(member);
 
         // 2. 실행 (when)
-        MemberResponse response = authService.registerMember(request);
+        MemberSeqResponse response = authService.registerMember(request);
 
         // 3. 검증 (then)
-        assertThat(response.email()).isEqualTo("test@test.com");
         assertThat(response.memberSeq()).isEqualTo(1L);
     }
 

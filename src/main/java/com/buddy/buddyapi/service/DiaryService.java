@@ -49,6 +49,7 @@ public class DiaryService {
      * @return AI가 생성한 일기 제목, 본문, 추천 태그 정보를 담은 프리뷰 응답 DTO
      * @throws BaseException 세션을 찾을 수 없거나 대화 내역이 비어있을 경우 발생
      */
+    // TODO sessionSeq 추가해줘야 할지 고민
     @Timer
     public DiaryPreviewResponse generateDiaryFromChat(Long memberSeq, DiaryGenerateRequest request) {
 
@@ -147,19 +148,25 @@ public class DiaryService {
 
         Member member = memberRepository.findByIdOrThrow(memberSeq);
 
+        ChatSession chatSession = null;
+        if(request.sessionSeq() != null) {
+            chatSession = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(request.sessionSeq(), memberSeq)
+                    .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
+        }
+
         // 이미지 파일이 있으면 저장하고 경로 반환받기
         String savedImageUrl = null;
         if(image != null && !image.isEmpty()) {
             savedImageUrl = imageService.uploadImage(image);
         }
 
-        // 1. 일기 엔티티 생성
         Diary diary = Diary.builder()
                 .title(request.title())
                 .content(request.content())
                 .diaryDate(request.diaryDate())
                 .imageUrl(savedImageUrl)
                 .member(member)
+                .chatSession(chatSession)
                 .build();
 
         // 2. 태그 리스트가 있다면 조회 후 연결
@@ -244,7 +251,7 @@ public class DiaryService {
      */
     @Transactional(readOnly = true)
     public DiaryDetailResponse getDiaryDetail(Long memberSeq, Long diarySeq) {
-        Diary diary = diaryRepository.findByDiarySeqAndMember_MemberSeq(diarySeq, memberSeq)
+        Diary diary = diaryRepository.findDetailByDiarySeqAndMemberSeq(diarySeq, memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
         return DiaryDetailResponse.from(diary);

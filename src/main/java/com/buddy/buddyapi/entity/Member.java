@@ -37,7 +37,7 @@ public class Member {
 
     // -------- relation --------
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "character_seq",nullable = false)
     private BuddyCharacter buddyCharacter;
 

@@ -14,6 +14,7 @@ public record DiaryCreateRequest(
         @NotNull(message = "일기 날짜를 입력해주세요")
         @DateTimeFormat(pattern = "yyyy-MM-dd")
         LocalDate diaryDate,
+        Long sessionSeq, // AI 대화 세션 ID - 사용자 작성 일기일 경우 null
         List<String> tags
 ) {
 }
