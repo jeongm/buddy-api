@@ -15,7 +15,6 @@ public record DiaryListResponse(
 
 ) {
     public static DiaryListResponse from(Diary diary) {
-        // TODO 본문을 60자 정도로 요약하는 로직....필요한지...생각좀...
         String content = diary.getContent();
         String summary = (content != null && content.length() > 60)
                 ? content.substring(0,60) + "..." : content;

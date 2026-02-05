@@ -49,7 +49,7 @@ public class DiaryService {
      * @return AI가 생성한 일기 제목, 본문, 추천 태그 정보를 담은 프리뷰 응답 DTO
      * @throws BaseException 세션을 찾을 수 없거나 대화 내역이 비어있을 경우 발생
      */
-    // TODO sessionSeq 추가해줘야 함
+    // TODO sessionSeq 추가해줘야 할지 고민
     @Timer
     public DiaryPreviewResponse generateDiaryFromChat(Long memberSeq, DiaryGenerateRequest request) {
 

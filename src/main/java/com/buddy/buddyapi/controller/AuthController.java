@@ -6,6 +6,7 @@ import com.buddy.buddyapi.dto.request.MemberLoginRequest;
 import com.buddy.buddyapi.dto.request.MemberRegisterRequest;
 import com.buddy.buddyapi.dto.response.MemberResponse;
 import com.buddy.buddyapi.dto.common.ApiResponse;
+import com.buddy.buddyapi.dto.response.MemberSeqResponse;
 import com.buddy.buddyapi.global.config.CustomUserDetails;
 import com.buddy.buddyapi.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -30,11 +31,11 @@ public class AuthController {
 
     @Operation(summary = "일반 회원가입", description = "이메일, 비밀번호 등을 입력받아 회원가입을 진행합니다.")
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<MemberResponse>> signup(
+    public ResponseEntity<ApiResponse<MemberSeqResponse>> signup(
             @Valid @RequestBody MemberRegisterRequest request) {
 
 
-        MemberResponse result = authService.registerMember(request);
+        MemberSeqResponse result = authService.registerMember(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("회원가입 완료", result));
     }
