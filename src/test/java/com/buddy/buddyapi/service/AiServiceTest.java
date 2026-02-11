@@ -1,5 +1,6 @@
 package com.buddy.buddyapi.service;
 
+import com.buddy.buddyapi.domain.ai.AiService;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

@@ -1,9 +1,6 @@
 package com.buddy.buddyapi.global.config;
 
-import com.buddy.buddyapi.global.security.oauth.CustomOAuth2UserService;
-import com.buddy.buddyapi.global.security.oauth.OAuth2AuthenticationFailureHandler;
-import com.buddy.buddyapi.global.security.oauth.OAuth2AuthenticationSuccessHandler;
-import lombok.RequiredArgsConstructor;
+import com.buddy.buddyapi.global.security.*;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -59,6 +56,11 @@ public class SecurityConfig {
                         .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
                 )
                 .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(authorization -> authorization
+                                .baseUri("/oauth2/authorization")
+                        )
+                        .redirectionEndpoint(redirection -> redirection
+                                .baseUri("/login/oauth2/code/*"))
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService)
                         )

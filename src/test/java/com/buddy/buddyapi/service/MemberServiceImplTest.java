@@ -1,14 +1,16 @@
 package com.buddy.buddyapi.service;
 
-import com.buddy.buddyapi.dto.response.LoginResponse;
-import com.buddy.buddyapi.dto.request.MemberLoginRequest;
-import com.buddy.buddyapi.dto.request.MemberRegisterRequest;
-import com.buddy.buddyapi.dto.response.MemberSeqResponse;
-import com.buddy.buddyapi.entity.BuddyCharacter;
-import com.buddy.buddyapi.entity.Member;
-import com.buddy.buddyapi.global.config.JwtTokenProvider;
-import com.buddy.buddyapi.repository.BuddyCharacterRepository;
-import com.buddy.buddyapi.repository.MemberRepository;
+import com.buddy.buddyapi.domain.auth.AuthService;
+import com.buddy.buddyapi.domain.member.MemberService;
+import com.buddy.buddyapi.domain.auth.dto.LoginResponse;
+import com.buddy.buddyapi.domain.auth.dto.MemberLoginRequest;
+import com.buddy.buddyapi.domain.member.dto.MemberRegisterRequest;
+import com.buddy.buddyapi.domain.member.dto.MemberSeqResponse;
+import com.buddy.buddyapi.domain.character.BuddyCharacter;
+import com.buddy.buddyapi.domain.member.Member;
+import com.buddy.buddyapi.global.security.JwtTokenProvider;
+import com.buddy.buddyapi.domain.character.BuddyCharacterRepository;
+import com.buddy.buddyapi.domain.member.MemberRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -68,7 +70,7 @@ class MemberServiceImplTest {
         given(memberRepository.save(any(Member.class))).willReturn(member);
 
         // 2. 실행 (when)
-        MemberSeqResponse response = authService.registerMember(request);
+        MemberSeqResponse response = memberService.registerMember(request);
 
         // 3. 검증 (then)
         assertThat(response.memberSeq()).isEqualTo(1L);
