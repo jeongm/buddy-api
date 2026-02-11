@@ -7,6 +7,7 @@ import com.buddy.buddyapi.domain.member.dto.MemberSeqResponse;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final BuddyCharacterRepository characterRepository;
+    private final StringRedisTemplate redisTemplate;
 
     /**
      * 일반 회원가입 처리
@@ -28,14 +30,22 @@ public class MemberService {
     @Transactional
     public MemberSeqResponse registerMember(MemberRegisterRequest request) {
 
-        if(memberRepository.existsByEmail(request.getEmail())) {
-            throw new BaseException(ResultCode.EMAIL_DUPLICATED);
+        // 이메일 인증 여부 확인
+        String isVerified = redisTemplate.opsForValue().get("verified:" + request.getEmail());
+
+        if (!"true".equals(isVerified)) {
+            // 인증 안 된 상태면 가입 거부 (401 Unauthorized 또는 400 Bad Request)
+            throw new BaseException(ResultCode.UNAUTHORIZED);
         }
+
+        redisTemplate.delete("verified:" + request.getEmail());
+
+        checkEmailDuplicate(request.getEmail());
 
         String encodedPassword = passwordEncoder.encode(request.getPassword());
 
         // 초기 캐릭터 조회 및 유효성 검사
-        // TODO DB에 1번 캐릭터가 반드시 존재해야 한다는 강력한 전제가 필요 -
+        // DB에 1번 캐릭터가 반드시 존재해야 한다는 강력한 전제가 필요
         Long charSeq = request.getCharacterSeq() != null ? request.getCharacterSeq() : 1;
 
         BuddyCharacter selectedCharacter = characterRepository.findById(charSeq)
