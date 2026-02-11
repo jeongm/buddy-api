@@ -1,9 +1,6 @@
 package com.buddy.buddyapi.global.config;
 
-import com.buddy.buddyapi.global.security.oauth.CustomOAuth2UserService;
-import com.buddy.buddyapi.global.security.oauth.OAuth2AuthenticationFailureHandler;
-import com.buddy.buddyapi.global.security.oauth.OAuth2AuthenticationSuccessHandler;
-import lombok.RequiredArgsConstructor;
+import com.buddy.buddyapi.global.security.*;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

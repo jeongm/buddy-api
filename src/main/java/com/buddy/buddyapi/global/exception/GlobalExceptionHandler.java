@@ -1,7 +1,7 @@
 package com.buddy.buddyapi.global.exception;
 
 
-import com.buddy.buddyapi.dto.common.ApiResponse;
+import com.buddy.buddyapi.global.common.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
