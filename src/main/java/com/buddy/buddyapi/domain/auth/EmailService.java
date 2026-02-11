@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -24,9 +25,10 @@ public class EmailService {
     private static final String PREFIX = "email_verify:";
     private static final long LIMIT_TIME = 3 * 60;
 
+    @Async
     public void sendVerificationCode(String email) {
 
-        String code = String.valueOf((int) (Math.random() * 900000) + 100000);
+        String code = generateCode();
         redisTemplate.opsForValue().set(PREFIX + email, code, Duration.ofSeconds(LIMIT_TIME));
 
         SimpleMailMessage message = new SimpleMailMessage();
@@ -46,13 +48,23 @@ public class EmailService {
             log.warn("인증 번호가 만료되었거나 존재하지 않음: {}", email);
             return false;
         }
-        if (!savedCode.equals(code)) {
+
+        if (savedCode.equals(code)) {
+            redisTemplate.delete(PREFIX + email);
+
+            // 인증 완료 상태를 5분간 저장 (회원가입 로직에서 확인용)
+            redisTemplate.opsForValue().set("verified:" + email, "true", Duration.ofMinutes(5));
+
+            return true;
+        } else {
             log.warn("인증 번호 불일치 - 입력: {}, 저장: {}", code, savedCode);
-            return false;
         }
 
-        redisTemplate.delete(PREFIX + email);
-        return true;
+        return false;
+    }
+
+    private String generateCode(){
+        return String.valueOf((int) (Math.random() * 900000) + 100000);
     }
 
 
