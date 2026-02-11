@@ -1,7 +1,5 @@
 package com.buddy.buddyapi.domain.auth;
 
-import com.buddy.buddyapi.domain.auth.dto.EmailRequest;
-import com.buddy.buddyapi.domain.member.MemberRepository;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +22,7 @@ public class EmailService {
 
     private static final String PREFIX = "email_verify:";
     private static final long LIMIT_TIME = 3 * 60;
+    private static final String LIMIT_PREFIX = "email_limit:";
 
     @Async
     public void sendVerificationCode(String email) {
@@ -61,6 +60,16 @@ public class EmailService {
         }
 
         return false;
+    }
+
+    // 발송 가능 여부 확인 (동기 메서드) - 연속으로 이메일인증코드 요청하지 않도록 시간에 제한을 둔다
+    public void checkSendRateLimit(String email) {
+        if (redisTemplate.hasKey(LIMIT_PREFIX + email)) {
+            // 1분 내에 이미 보낸 기록이 있으면 에러 뱉기
+            throw new BaseException(ResultCode.TOO_MANY_REQUESTS); // 또는 429 에러
+        }
+        // 없으면 "나 방금 보냈어" 표시 남기기 (60초 유지)
+        redisTemplate.opsForValue().set(LIMIT_PREFIX + email, "true", Duration.ofSeconds(60));
     }
 
     private String generateCode(){

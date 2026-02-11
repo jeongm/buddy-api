@@ -17,6 +17,8 @@ public enum ResultCode {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "G003", "인증되지 않은 사용자입니다."),
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "G004", "지원하지 않는 HTTP 메서드입니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "G500", "서버 내부 에러가 발생했습니다."),
+    // 429 Too Many Requests : 도배 방지용
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "G005", "요청 횟수가 초과되었습니다. 잠시 후 다시 시도해주세요."),
 
     // --- 인증 및 토큰 관련 (T) ---
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "T001", "유효하지 않은 토큰입니다."),
