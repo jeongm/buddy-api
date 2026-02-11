@@ -18,8 +18,14 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final MemberRepository memberRepository;
 
     @Override
-    public UserDetails loadUserByUsername(String memberSeqStr) throws UsernameNotFoundException {
-        Long memberSeq = Long.parseLong(memberSeqStr);
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+
+        return CustomUserDetails.from(member);
+    }
+
+    public UserDetails loadUserByMemberSeq(Long memberSeq) throws UsernameNotFoundException {
         Member member = memberRepository.findById(memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
 

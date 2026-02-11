@@ -1,18 +1,12 @@
 package com.buddy.buddyapi.service;
 
-import com.buddy.buddyapi.dto.request.MemberLoginRequest;
-import com.buddy.buddyapi.dto.request.MemberRegisterRequest;
 import com.buddy.buddyapi.dto.request.UpdateNicknameRequest;
 import com.buddy.buddyapi.dto.request.UpdatePasswordRequest;
-import com.buddy.buddyapi.dto.response.LoginResponse;
 import com.buddy.buddyapi.dto.response.MemberResponse;
 import com.buddy.buddyapi.dto.response.UpdateNicknameResponse;
-import com.buddy.buddyapi.entity.BuddyCharacter;
 import com.buddy.buddyapi.entity.Member;
-import com.buddy.buddyapi.global.config.JwtTokenProvider;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
-import com.buddy.buddyapi.repository.BuddyCharacterRepository;
 import com.buddy.buddyapi.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;

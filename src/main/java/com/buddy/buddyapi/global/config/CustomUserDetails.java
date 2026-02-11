@@ -4,38 +4,70 @@ import com.buddy.buddyapi.entity.Member;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Map;
 
 public record CustomUserDetails(
         Long memberSeq,
         String email,
         String password, // 인증 시에만 사용됨
+        Map<String, Object> attributes,
         Collection<? extends GrantedAuthority> authorities
-) implements UserDetails {
+) implements UserDetails, OAuth2User {
 
-    // 정적 팩토리 메서드
+    // 일반 로그인용
     public static CustomUserDetails from(Member member) {
         return new CustomUserDetails(
                 member.getMemberSeq(),
                 member.getEmail(),
                 member.getPassword(),
+                null,
                 Collections.singleton(new SimpleGrantedAuthority("ROLE_USER"))
         );
     }
 
-    // JSON으로 변환될 때(Jackson) password 필드가 무시되도록 설정하거나
-    // 컨트롤러에서 사용할 때는 record의 getter를 호출하지 않으면 됩니다.
+    // 소셜 로그인용
+    public static CustomUserDetails of(Member member, Map<String,Object> attributes) {
+        return new CustomUserDetails(
+                member.getMemberSeq(),
+                member.getEmail(),
+                null,
+                attributes,
+                Collections.singleton(new SimpleGrantedAuthority("ROLE_USER"))
+        );
+    }
 
-    // 인터페이스의 getAuthorities()를 호출하면 record의 authorities 필드를 반환합니다.
+    // --- OAuth2User ---
+    @Override
+    public Map<String, Object> getAttributes() {
+        return attributes;
+    }
+
+    @Override
+    public String getName() {
+        return String.valueOf(memberSeq);
+    }
+
+
+    // --- UserDetails ---
+    @Override
+    public String getUsername() {
+        return String.valueOf(memberSeq);
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;
     }
 
-    @Override public String getUsername() { return String.valueOf(memberSeq); }
-    @Override public String getPassword() { return password; }
+    @Override
+    public String getPassword() {
+        return password;
+    }
+
     @Override public boolean isAccountNonExpired() { return true; }
     @Override public boolean isAccountNonLocked() { return true; }
     @Override public boolean isCredentialsNonExpired() { return true; }

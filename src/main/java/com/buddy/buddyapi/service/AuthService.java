@@ -1,18 +1,22 @@
 package com.buddy.buddyapi.service;
 
+import com.buddy.buddyapi.domain.Provider;
 import com.buddy.buddyapi.dto.request.MemberLoginRequest;
 import com.buddy.buddyapi.dto.request.MemberRegisterRequest;
+import com.buddy.buddyapi.dto.request.OAuthLinkRequest;
 import com.buddy.buddyapi.dto.response.LoginResponse;
 import com.buddy.buddyapi.dto.response.MemberResponse;
 import com.buddy.buddyapi.dto.response.MemberSeqResponse;
 import com.buddy.buddyapi.entity.BuddyCharacter;
 import com.buddy.buddyapi.entity.Member;
+import com.buddy.buddyapi.entity.OauthAccount;
 import com.buddy.buddyapi.entity.RefreshToken;
 import com.buddy.buddyapi.global.config.JwtTokenProvider;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.repository.BuddyCharacterRepository;
 import com.buddy.buddyapi.repository.MemberRepository;
+import com.buddy.buddyapi.repository.OauthAccountRepository;
 import com.buddy.buddyapi.repository.RefreshTokenRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,6 +32,7 @@ public class AuthService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final BuddyCharacterRepository characterRepository;
+    private final OauthAccountRepository oauthAccountRepository;
 
     /**
      * 일반 회원가입 처리
@@ -127,5 +132,33 @@ public class AuthService {
     public void logout(Long memberSeq) {
         refreshTokenRepository.deleteById(memberSeq);
     }
+
+    @Transactional
+    public void deleteMember(Long memberSeq) {
+        memberRepository.deleteById(memberSeq);
+    }
+
+    @Transactional
+    public LoginResponse linkOauthAccount(OAuthLinkRequest request) {
+        Member member = memberRepository.findByEmail(request.email())
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+
+        Provider provider = Provider.from(request.provider());
+        if(oauthAccountRepository.existsByMemberAndProvider(member,provider)) {
+            throw new BaseException(ResultCode.ALREADY_LINKED_ACCOUNT);
+        }
+
+        OauthAccount oauthAccount = OauthAccount.builder()
+                .provider(provider)
+                .oauthId(request.oauthId())
+                .member(member)
+                .build();
+
+        oauthAccountRepository.save(oauthAccount);
+
+        return generateTokenSet(member);
+
+    }
+
 
 }

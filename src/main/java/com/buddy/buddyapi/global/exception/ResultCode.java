@@ -12,7 +12,6 @@ public enum ResultCode {
     SUCCESS(HttpStatus.OK, "S000", "요청 성공"),
 
     // --- 공통 에러 (G) ---
-    // --- 공통 에러 (G) ---
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "G001", "입력 값이 올바르지 않습니다."),
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "G002", "잘못된 요청입니다."),
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "G003", "인증되지 않은 사용자입니다."),
@@ -33,6 +32,8 @@ public enum ResultCode {
     CURRENT_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "M004", "현재 비밀번호가 일치하지 않습니다."),
     INVALID_PASSWORD_FORMAT(HttpStatus.BAD_REQUEST, "M005", "비밀번호 형식이 올바르지 않습니다."),
     CHARACTER_NOT_FOUND(HttpStatus.NOT_FOUND, "M006", "존재하지 않는 캐릭터입니다."),
+    ALREADY_SIGNED_UP_EMAIL(HttpStatus.BAD_REQUEST, "M007", "이미 가입된 이메일입니다. 소셜 계정 연동이 필요합니다."),
+    ALREADY_LINKED_ACCOUNT(HttpStatus.BAD_REQUEST, "M008", "이미 해당 소셜 플랫폼과 연동된 계정입니다."),
 
     // --- 일기 관련 (D) ---
     DIARY_NOT_FOUND(HttpStatus.NOT_FOUND, "D001", "존재하지 않는 일기입니다."),

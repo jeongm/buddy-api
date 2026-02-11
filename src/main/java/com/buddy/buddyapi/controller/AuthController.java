@@ -1,10 +1,10 @@
 package com.buddy.buddyapi.controller;
 
+import com.buddy.buddyapi.dto.request.OAuthLinkRequest;
 import com.buddy.buddyapi.dto.request.TokenRefreshRequest;
 import com.buddy.buddyapi.dto.response.LoginResponse;
 import com.buddy.buddyapi.dto.request.MemberLoginRequest;
 import com.buddy.buddyapi.dto.request.MemberRegisterRequest;
-import com.buddy.buddyapi.dto.response.MemberResponse;
 import com.buddy.buddyapi.dto.common.ApiResponse;
 import com.buddy.buddyapi.dto.response.MemberSeqResponse;
 import com.buddy.buddyapi.global.config.CustomUserDetails;
@@ -16,10 +16,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @Tag(name = "Auth", description = "Auth 관련 API")
 @RestController
@@ -64,6 +63,23 @@ public class AuthController {
 
         return ResponseEntity.ok(ApiResponse.ok("로그아웃 성공", null));
     }
+
+    @Operation(summary = "소셜 로그인 연동", description = "기존에 가입된 이메일일 경우 소셜 로그인 연동")
+    @PostMapping("/oauth-link")
+    public ResponseEntity<ApiResponse<LoginResponse>> linkSocialAccount(@RequestBody OAuthLinkRequest request) {
+        LoginResponse result = authService.linkOauthAccount(request);
+        return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
+    @Operation(summary = "회원 탈퇴")
+    @DeleteMapping("/delete-account")
+    public ResponseEntity<ApiResponse<String>> deleteAccount(
+            @AuthenticationPrincipal CustomUserDetails member
+    ) {
+        authService.deleteMember(member.memberSeq());
+        return ResponseEntity.ok(ApiResponse.ok("탈퇴 완료",null));
+    }
+
 
 
 }
