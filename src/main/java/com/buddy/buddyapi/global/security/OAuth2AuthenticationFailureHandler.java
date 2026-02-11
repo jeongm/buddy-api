@@ -29,7 +29,7 @@ public class OAuth2AuthenticationFailureHandler  extends SimpleUrlAuthentication
 
             // TODO queryparam은 보안상 좋지 않음 레디스 등으로 수정해야함
             // 프론트에서 리다이렉트 url을 보고 연동 요청을 보내야하는건가
-            String targetUrl = UriComponentsBuilder.fromUriString("http://buddydiary.vercel.app/auth/callback")
+            String targetUrl = UriComponentsBuilder.fromUriString("https://buddydiary.vercel.app/auth/callback")
                     .queryParam("mode", "link")
                     .queryParam("email", email)
                     .queryParam("provider", provider)
