@@ -58,6 +58,7 @@ jobs:
               -e NAVER_CLIENT_SECRET=${{ secrets.NAVER_CLIENT_SECRET }} \
               -e KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }} \
               -e KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }} \
+              -e SPRING_MAIL_PASSWORD=${{ secrets.BUDDY_EMAIL_PASSWORD }} \
               ${{ secrets.DOCKER_USERNAME }}/buddy-api
             # 미사용 이미지 삭제 (용량 확보)
             docker image prune -f
