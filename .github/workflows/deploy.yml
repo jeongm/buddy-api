@@ -52,6 +52,12 @@ jobs:
               -e CLOUDINARY_NAME=${{ secrets.CLOUDINARY_NAME }} \
               -e CLOUDINARY_KEY=${{ secrets.CLOUDINARY_KEY }} \
               -e CLOUDINARY_SECRET=${{ secrets.CLOUDINARY_SECRET }} \
+              -e GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }} \
+              -e GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+              -e NAVER_CLIENT_ID=${{ secrets.NAVER_CLIENT_ID }} \
+              -e NAVER_CLIENT_SECRET=${{ secrets.NAVER_CLIENT_SECRET }} \
+              -e KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }} \
+              -e KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }} \
               ${{ secrets.DOCKER_USERNAME }}/buddy-api
             # 미사용 이미지 삭제 (용량 확보)
             docker image prune -f
