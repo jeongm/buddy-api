@@ -75,6 +75,7 @@ public class AuthController {
             @RequestBody EmailRequest request
     ) {
         memberService.checkEmailDuplicate(request.email());
+        emailService.checkSendRateLimit(request.email());
         emailService.sendVerificationCode(request.email());
         return ResponseEntity.ok(ApiResponse.ok("인증 코드가 발송되었습니다.", null));
 
