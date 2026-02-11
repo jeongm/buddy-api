@@ -21,17 +21,6 @@ public class MemberController {
 
     private final MemberService memberService;
 
-    @Operation(summary = "일반 회원가입", description = "이메일, 비밀번호 등을 입력받아 회원가입을 진행합니다.")
-    @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<MemberSeqResponse>> signup(
-            @Valid @RequestBody MemberRegisterRequest request) {
-
-
-        MemberSeqResponse result = memberService.registerMember(request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.ok("회원가입 완료", result));
-    }
-
     @Operation(summary = "내 정보 조회", description = "현재 로그인한 사용자의 프로필 정보를 조회합니다.")
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<MemberResponse>> getMyInfo(

@@ -1,15 +1,17 @@
 package com.buddy.buddyapi.domain.auth;
 
-import com.buddy.buddyapi.domain.auth.dto.OAuthLinkRequest;
-import com.buddy.buddyapi.domain.auth.dto.TokenRefreshRequest;
-import com.buddy.buddyapi.domain.auth.dto.LoginResponse;
-import com.buddy.buddyapi.domain.auth.dto.MemberLoginRequest;
+import com.buddy.buddyapi.domain.auth.dto.*;
+import com.buddy.buddyapi.domain.member.MemberService;
+import com.buddy.buddyapi.domain.member.dto.MemberRegisterRequest;
+import com.buddy.buddyapi.domain.member.dto.MemberSeqResponse;
 import com.buddy.buddyapi.global.common.ApiResponse;
+import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -21,7 +23,18 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final EmailService emailService;
+    private final MemberService memberService;
 
+    @Operation(summary = "일반 회원가입", description = "이메일, 비밀번호 등을 입력받아 회원가입을 진행합니다.")
+    @PostMapping("/signup")
+    public ResponseEntity<ApiResponse<MemberSeqResponse>> signup(
+            @Valid @RequestBody MemberRegisterRequest request) {
+
+        MemberSeqResponse result = memberService.registerMember(request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("회원가입 완료", result));
+    }
 
 
     @Operation(summary = "일반 로그인", description = "이메일과 비밀번호로 로그인하고 JWT 토큰을 발급받습니다.")
@@ -56,8 +69,29 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
+    @Operation(summary = "회원가입 인증 이메일 발송", description = "입력한 이메일로 6자리 인증 코드를 보냅니다.")
+    @PostMapping("/signup/email")
+    public ResponseEntity<ApiResponse<Void>> requestEmail(
+            @RequestBody EmailRequest request
+    ) {
+        memberService.checkEmailDuplicate(request.email());
+        emailService.sendVerificationCode(request.email());
+        return ResponseEntity.ok(ApiResponse.ok("인증 코드가 발송되었습니다.", null));
 
+    }
 
+    @Operation(summary = "인증 코드 검증", description = "사용자가 입력한 코드가 유효한지 확인합니다.")
+    @PostMapping("/signup/email/verify")
+    public ResponseEntity<ApiResponse<Boolean>> verifyEmail(
+            @RequestBody EmailVerifyRequest request
+            ) {
+        boolean isVerified = emailService.verifyCode(request.email(), request.code());
 
-
+        if (isVerified) {
+            return ResponseEntity.ok(ApiResponse.ok("인증에 성공했습니다.", true));
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.fail(ResultCode.INVALID_INPUT, "인증 코드가 틀렸거나 만료되었습니다."));
+        }
+    }
 }

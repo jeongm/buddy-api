@@ -145,4 +145,9 @@ public class MemberService {
         memberRepository.deleteById(memberSeq);
     }
 
+    public void checkEmailDuplicate(String email) {
+        if(memberRepository.existsByEmail(email)) {
+            throw new BaseException(ResultCode.EMAIL_DUPLICATED);
+        }
+    }
 }

@@ -36,4 +36,19 @@ public class ApiResponse<T> {
         return new ApiResponse<>(resultCode.getCode(), resultCode.getMessage(), errorDetail);
     }
 
+    // 6. 실패 응답 (ResultCode 기반)
+    public static <T> ApiResponse<T> fail(ResultCode resultCode) {
+        return new ApiResponse<>(resultCode.getCode(), resultCode.getMessage(), null);
+    }
+
+    // 7. 실패 응답 (메시지 커스텀 - 예외 발생 시 상세 메시지 전달용)
+    public static <T> ApiResponse<T> fail(ResultCode resultCode, String message) {
+        return new ApiResponse<>(resultCode.getCode(), message, null);
+    }
+
+    // 8. 실패 응답 (데이터 포함 - 실패 시에도 특정 데이터(예: 남은 인증 횟수 등)를 넘겨야 할 때)
+    public static <T> ApiResponse<T> fail(ResultCode resultCode, T result) {
+        return new ApiResponse<>(resultCode.getCode(), resultCode.getMessage(), result);
+    }
+
 }
