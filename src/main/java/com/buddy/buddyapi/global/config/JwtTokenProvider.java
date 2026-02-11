@@ -2,6 +2,7 @@ package com.buddy.buddyapi.global.config;
 
 import com.buddy.buddyapi.entity.RefreshToken;
 import com.buddy.buddyapi.repository.RefreshTokenRepository;
+import com.buddy.buddyapi.service.CustomUserDetailsService;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
@@ -22,14 +23,14 @@ public class JwtTokenProvider {
     private final Key key;
     private final long accessTokenValidity;
     private final long refreshTokenValidity;
-    private final UserDetailsService userDetailsService;
+    private final CustomUserDetailsService userDetailsService;
     private final RefreshTokenRepository refreshTokenRepository;
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-token-validity}") long accessTokenValidity,
             @Value("${jwt.refresh-token-validity}") long refreshTokenValidity,
-            UserDetailsService userDetailsService,
+            CustomUserDetailsService userDetailsService,
             RefreshTokenRepository refreshTokenRepository
     ) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
@@ -82,7 +83,7 @@ public class JwtTokenProvider {
         // 여기서는 간단하게 memberSeq(Subject)만 추출하여 사용하거나
         // UserDetailsService를 주입받아 사용하도록 구성할 수 있습니다.
         String memberSeqStr = claims.getSubject();
-        UserDetails userDetails = userDetailsService.loadUserByUsername(memberSeqStr);
+        UserDetails userDetails = userDetailsService.loadUserByMemberSeq(Long.parseLong(memberSeqStr));
         // UserDetailsService를 주입받아 처리
 
         return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());

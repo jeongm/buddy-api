@@ -1,8 +1,5 @@
 package com.buddy.buddyapi.global.config;
 
-import com.buddy.buddyapi.dto.common.ApiResponse;
-import com.buddy.buddyapi.global.exception.ResultCode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;

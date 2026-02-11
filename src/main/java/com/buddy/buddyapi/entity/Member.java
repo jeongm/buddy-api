@@ -55,7 +55,6 @@ public class Member {
         this.buddyCharacter = buddyCharacter;
     }
     
-    // TODO 수정 - 소셜로그인 관련 로직 추가
 
     public void updateBuddyCharacter(BuddyCharacter buddyCharacter) {
         this.buddyCharacter = buddyCharacter;

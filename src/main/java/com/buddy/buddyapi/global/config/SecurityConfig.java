@@ -1,5 +1,8 @@
 package com.buddy.buddyapi.global.config;
 
+import com.buddy.buddyapi.global.security.oauth.CustomOAuth2UserService;
+import com.buddy.buddyapi.global.security.oauth.OAuth2AuthenticationFailureHandler;
+import com.buddy.buddyapi.global.security.oauth.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
@@ -21,12 +24,21 @@ public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final HandlerExceptionResolver exceptionResolver;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2AuthenticationSuccessHandler oauthSuccessHandler;
+    private final OAuth2AuthenticationFailureHandler oauthFailureHandler;
+
 
     public SecurityConfig (
             JwtTokenProvider jwtTokenProvider,
-            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver) {
+            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver,
+            CustomOAuth2UserService customOAuth2UserService,
+            OAuth2AuthenticationSuccessHandler oauthSuccessHandler, OAuth2AuthenticationFailureHandler oauthFailureHandler) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.exceptionResolver = exceptionResolver;
+        this.customOAuth2UserService = customOAuth2UserService;
+        this.oauthSuccessHandler = oauthSuccessHandler;
+        this.oauthFailureHandler = oauthFailureHandler;
     }
 
 
@@ -40,17 +52,18 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/v1/auth/**").permitAll() // 명세서의 auth 경로는 모두 허용
                         .requestMatchers("/images/**").permitAll()
-                        .requestMatchers(
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
-//                                "/swagger-resources/**"
-//                                "/webjars/**"
-                        ).permitAll()
-                        .requestMatchers("/h2-console/**").permitAll() // H2 콘솔 접근 허용
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // OPTIONS 메서드는 CORS Preflight를 위해 모두 허용(OPTIONS 메서드로 들어오는 모든 예비 요청은 '인증 없이' 통과)
                         .requestMatchers(HttpMethod.OPTIONS,"/**").permitAll()
+                        .requestMatchers("/login/oauth2/**", "/oauth2/**").permitAll()
                         .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
+                )
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                        )
+                        .successHandler(oauthSuccessHandler)
+                        .failureHandler(oauthFailureHandler)
                 )
                 // UsernamePasswordAuthenticationFilter 이전에 JWT 필터 실행
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, exceptionResolver),
@@ -66,7 +79,7 @@ public class SecurityConfig {
         // TODO 배포시...변경...?
         // 주소는 미확정이므로
         configuration.setAllowedOriginPatterns(java.util.List.of("*"));
-//        configuration.setAllowedOrigins(java.util.List.of("https://buddy-frontend.vercel.app", "http://localhost:8080"));
+//        configuration.setAllowedOrigins(java.util.List.of("https://buddydiary.vercel.app", "http://localhost:8080"));
 
         // 브라우저가 보낼 모든 메서드 허용
         configuration.setAllowedMethods(java.util.List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));

@@ -3,7 +3,6 @@ package com.buddy.buddyapi.service;
 import com.buddy.buddyapi.dto.response.LoginResponse;
 import com.buddy.buddyapi.dto.request.MemberLoginRequest;
 import com.buddy.buddyapi.dto.request.MemberRegisterRequest;
-import com.buddy.buddyapi.dto.response.MemberResponse;
 import com.buddy.buddyapi.dto.response.MemberSeqResponse;
 import com.buddy.buddyapi.entity.BuddyCharacter;
 import com.buddy.buddyapi.entity.Member;
