@@ -20,15 +20,13 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
     private final StringRedisTemplate redisTemplate;
-    private final MemberRepository memberRepository;
 
     private static final String PREFIX = "email_verify:";
     private static final long LIMIT_TIME = 3 * 60;
 
     public void sendVerificationCode(String email) {
 
-        String code = String.valueOf((int) (Math.random() * 8999999) + 100000);
-
+        String code = String.valueOf((int) (Math.random() * 900000) + 100000);
         redisTemplate.opsForValue().set(PREFIX + email, code, Duration.ofSeconds(LIMIT_TIME));
 
         SimpleMailMessage message = new SimpleMailMessage();

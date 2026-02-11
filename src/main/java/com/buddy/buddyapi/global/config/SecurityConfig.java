@@ -46,13 +46,13 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable()) // CSRF 비활성화(JWT사용시 필수)
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션 미사용
+                .formLogin(form -> form.disable())
+                .httpBasic(basic -> basic.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**").permitAll() // 명세서의 auth 경로는 모두 허용
-                        .requestMatchers("/images/**").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/api/v1/auth/**", "/login/oauth2/**", "/oauth2/**").permitAll()
+                        .requestMatchers("/images/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // OPTIONS 메서드는 CORS Preflight를 위해 모두 허용(OPTIONS 메서드로 들어오는 모든 예비 요청은 '인증 없이' 통과)
                         .requestMatchers(HttpMethod.OPTIONS,"/**").permitAll()
-                        .requestMatchers("/login/oauth2/**", "/oauth2/**").permitAll()
                         .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
                 )
                 .oauth2Login(oauth2 -> oauth2
