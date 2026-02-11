@@ -21,8 +21,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
 
-        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-        Long memberSeq = (Long) oAuth2User.getAttributes().get("memberSeq");
+        CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
+        Long memberSeq = userDetails.memberSeq();
 
         String accessToken = jwtTokenProvider.createAccessToken(memberSeq);
         String refreshToken = jwtTokenProvider.createRefreshToken(memberSeq);
