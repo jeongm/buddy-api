@@ -49,5 +49,6 @@ application-prod.properties
 *.key
 *.pem
 
-
+.cursorignore
+TEST_CONVENTION.md
 

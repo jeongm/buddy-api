@@ -73,7 +73,4 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
         );
     }
 
-    /**
-     * AI 일기 작성 시 대화 기록 가져오기
-     */
 }

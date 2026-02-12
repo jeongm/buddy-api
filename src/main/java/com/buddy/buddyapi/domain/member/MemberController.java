@@ -1,14 +1,12 @@
 package com.buddy.buddyapi.domain.member;
 
 import com.buddy.buddyapi.domain.member.dto.*;
-import com.buddy.buddyapi.domain.member.dto.MemberSeqResponse;
 import com.buddy.buddyapi.global.common.ApiResponse;
 import com.buddy.buddyapi.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
