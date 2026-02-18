@@ -22,6 +22,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         Long memberSeq = userDetails.memberSeq();
+        boolean isNewMember = (userDetails.characterSeq() == null);
 
         String accessToken = jwtTokenProvider.createAccessToken(memberSeq);
         String refreshToken = jwtTokenProvider.createRefreshToken(memberSeq);
@@ -31,6 +32,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                 .queryParam("mode","success")
                 .queryParam("accessToken", accessToken)
                 .queryParam("refreshToken", refreshToken)
+                .queryParam("isNewMember",isNewMember)
                         .build().toUriString();
 
         getRedirectStrategy().sendRedirect(request,response,targetUrl);

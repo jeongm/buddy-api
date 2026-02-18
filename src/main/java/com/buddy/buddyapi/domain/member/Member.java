@@ -39,8 +39,8 @@ public class Member {
 
     // -------- relation --------
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "character_seq",nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "character_seq", nullable = true)
     private BuddyCharacter buddyCharacter;
 
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
