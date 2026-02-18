@@ -75,11 +75,10 @@ public record OAuthAttributes(
      * 처음 가입하는 시점에 Member 엔티티를 생성합니다.
      * 이때, 캐릭터는 필수이므로 파라미터로 기본 캐릭터를 전달받습니다.
      */
-    public Member toEntity(BuddyCharacter defaultCharacter) {
+    public Member toEntity() {
         return Member.builder()
                 .email(email)
                 .nickname(getSafeName())
-                .buddyCharacter(defaultCharacter)
                 .build();
     }
 

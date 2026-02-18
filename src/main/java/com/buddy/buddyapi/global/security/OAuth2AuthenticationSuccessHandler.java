@@ -5,7 +5,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -23,6 +22,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
         CustomUserDetails userDetails = (CustomUserDetails) authentication.getPrincipal();
         Long memberSeq = userDetails.memberSeq();
+        boolean isNewMember = (userDetails.characterSeq() == null);
 
         String accessToken = jwtTokenProvider.createAccessToken(memberSeq);
         String refreshToken = jwtTokenProvider.createRefreshToken(memberSeq);
@@ -32,6 +32,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                 .queryParam("mode","success")
                 .queryParam("accessToken", accessToken)
                 .queryParam("refreshToken", refreshToken)
+                .queryParam("isNewMember",isNewMember)
                         .build().toUriString();
 
         getRedirectStrategy().sendRedirect(request,response,targetUrl);

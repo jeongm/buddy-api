@@ -6,7 +6,6 @@ import com.buddy.buddyapi.domain.member.Member;
 import com.buddy.buddyapi.domain.member.OauthAccount;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
-import com.buddy.buddyapi.domain.character.BuddyCharacterRepository;
 import com.buddy.buddyapi.domain.member.MemberRepository;
 import com.buddy.buddyapi.domain.member.OauthAccountRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +28,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final MemberRepository memberRepository;
     private final OauthAccountRepository oauthAccountRepository;
-    private final BuddyCharacterRepository characterRepository;
 
     @Override
     @Transactional
@@ -90,11 +88,8 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     @Transactional
     private Member createNewMember(OAuthAttributes attributes) {
-        // 기본 캐릭터 default로 1으로 저장하도록 함
-        BuddyCharacter defaultCharacter = characterRepository.findById(1L)
-                .orElseThrow(() -> new BaseException(ResultCode.CHARACTER_NOT_FOUND));
 
-        Member newMember = attributes.toEntity(defaultCharacter);
+        Member newMember = attributes.toEntity();
 
         Member savedMember = memberRepository.save(newMember);
 

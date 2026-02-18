@@ -44,7 +44,6 @@ public class MemberService {
 
         String encodedPassword = passwordEncoder.encode(request.getPassword());
 
-        // 초기 캐릭터 조회 및 유효성 검사
         // DB에 1번 캐릭터가 반드시 존재해야 한다는 강력한 전제가 필요
         Long charSeq = request.getCharacterSeq() != null ? request.getCharacterSeq() : 1;
 

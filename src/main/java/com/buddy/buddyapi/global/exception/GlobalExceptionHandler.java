@@ -82,7 +82,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleConstraintViolationException(ConstraintViolationException e) {
         log.warn("Constraint Violation Exception: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ApiResponse<>(ResultCode.INVALID_INPUT.getCode(), e.getMessage(), null));
+                .body(ApiResponse.fail(ResultCode.INVALID_INPUT));
     }
 
     // 우리가 직접 정의한 BaseException 처리

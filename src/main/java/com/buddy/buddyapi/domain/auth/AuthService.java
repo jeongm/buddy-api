@@ -8,7 +8,6 @@ import com.buddy.buddyapi.domain.member.dto.MemberResponse;
 import com.buddy.buddyapi.global.security.JwtTokenProvider;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
-import com.buddy.buddyapi.domain.character.BuddyCharacterRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -22,7 +21,6 @@ public class AuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
-    private final BuddyCharacterRepository characterRepository;
     private final OauthAccountRepository oauthAccountRepository;
 
 
