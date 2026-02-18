@@ -28,7 +28,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String refreshToken = jwtTokenProvider.createRefreshToken(memberSeq);
 
         // TODO queryparam으로 보내는건 보안상 최악임 수정해야함
-        String targetUrl = UriComponentsBuilder.fromUriString("http://buddydiary.vercel.app/auth/callback")
+        String targetUrl = UriComponentsBuilder.fromUriString("https://buddydiary.vercel.app/auth/callback")
                 .queryParam("mode","success")
                 .queryParam("accessToken", accessToken)
                 .queryParam("refreshToken", refreshToken)
