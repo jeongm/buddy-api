@@ -37,8 +37,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
 
-        // TODO 지워야함
-        // H2 콘솔이나 인증 제외 경로는 필터를 그냥 통과시켜야 함
+        // 개발용 - H2 콘솔이나 인증 제외 경로는 필터를 그냥 통과시켜야 함
         if (path.startsWith("/h2-console") || path.startsWith("/api/v1/auth") || path.startsWith("/swagger-ui")) {
             filterChain.doFilter(request, response);
             return;

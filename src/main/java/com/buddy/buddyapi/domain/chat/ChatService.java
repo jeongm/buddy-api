@@ -135,8 +135,7 @@ public class ChatService {
 
             // 최신 10개(사용자5개, AI5개)만 유지
             redisTemplate.opsForList().trim(key, -10,-1);
-            // TODO 1시간동안 대화 없으면 자동 삭제
-//            redisTemplate.expire(key, Duration.ofHours(1));
+
         }catch (Exception e) {
             log.error("Redis 저장 중 에러 발생: {}", e.getMessage());
 
