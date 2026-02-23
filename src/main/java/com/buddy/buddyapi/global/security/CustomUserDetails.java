@@ -12,7 +12,6 @@ import java.util.Map;
 
 public record CustomUserDetails(
         Long memberSeq,
-        Long characterSeq,
         String email,
         String password, // 인증 시에만 사용됨
         Map<String, Object> attributes,
@@ -22,13 +21,8 @@ public record CustomUserDetails(
     // 일반 로그인용
     public static CustomUserDetails from(Member member) {
 
-        Long charSeq = (member.getBuddyCharacter() != null)
-                ? member.getBuddyCharacter().getCharacterSeq()
-                : null;
-
         return new CustomUserDetails(
                 member.getMemberSeq(),
-                charSeq,
                 member.getEmail(),
                 member.getPassword(),
                 null,
@@ -39,13 +33,8 @@ public record CustomUserDetails(
     // 소셜 로그인용
     public static CustomUserDetails of(Member member, Map<String,Object> attributes) {
 
-        Long charSeq = (member.getBuddyCharacter() != null)
-                ? member.getBuddyCharacter().getCharacterSeq()
-                : null;
-
         return new CustomUserDetails(
                 member.getMemberSeq(),
-                charSeq,
                 member.getEmail(),
                 null,
                 attributes,
