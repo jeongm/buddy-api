@@ -111,7 +111,8 @@ public class MemberService {
      */
     @Transactional(readOnly = true)
     public MemberResponse getUserDetails(Long memberSeq) {
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = memberRepository.findByIdWithCharacter(memberSeq)
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
         return MemberResponse.from(member);
     }
 
@@ -124,15 +125,16 @@ public class MemberService {
      * @throws BaseException 존재하지 않는 캐릭터 ID이거나 회원을 찾을 수 없을 경우 발생
      */
     @Transactional
-    public MemberResponse changeMyCharacter(Long memberSeq, CharacterChangeRequest request) {
-        BuddyCharacter newCharacter = characterRepository.findById(request.characterSeq())
-                .orElseThrow(() -> new BaseException(ResultCode.CHARACTER_NOT_FOUND));
+    public void changeMyCharacter(Long memberSeq, CharacterChangeRequest request) {
 
         Member member = memberRepository.findByIdOrThrow(memberSeq);
 
+        //캐릭터는 가짜 프록시 객체로 가져옴 (SELECT 발생 안 함)
+        // DB에 가지 않고, id값만 가진 껍데기 객체를 만듭니다.
+        BuddyCharacter newCharacter = characterRepository.getReferenceById(request.characterSeq());
+
         member.changeCharacter(newCharacter);
 
-        return MemberResponse.from(member);
     }
 
     /**

@@ -2,6 +2,7 @@ package com.buddy.buddyapi.domain.diary.dto;
 
 import com.buddy.buddyapi.domain.diary.Diary;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -9,7 +10,8 @@ public record DiaryListResponse(
         Long diarySeq,
         String title,
         String summary,
-        LocalDateTime createAt,
+        LocalDateTime createdAt,
+        LocalDate diaryDate,
         String imageUrl,
         List<String> tags
 
@@ -24,6 +26,7 @@ public record DiaryListResponse(
                 diary.getTitle(),
                 summary,
                 diary.getCreatedAt(),
+                diary.getDiaryDate(),
                 diary.getImageUrl(),
                 diary.getDiaryTags().stream()
                         .map(diaryTag -> diaryTag.getTag().getName())

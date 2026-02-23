@@ -47,10 +47,11 @@ public class MemberController {
 
     @Operation(summary = "내 캐릭터 변경", description = "현재 사용자의 버디 캐릭터를 변경합니다.")
     @PatchMapping("/me/character")
-    public ResponseEntity<ApiResponse<MemberResponse>> changeCharacter(
+    public ResponseEntity<ApiResponse<String>> changeCharacter(
             @AuthenticationPrincipal CustomUserDetails member ,
             @Valid @RequestBody CharacterChangeRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok(memberService.changeMyCharacter(member.memberSeq(), request)));
+        memberService.changeMyCharacter(member.memberSeq(), request);
+        return ResponseEntity.ok(ApiResponse.ok("캐릭터 변경 성공"));
     }
 
     @Operation(summary = "캐릭터 별명 변경", description = "캐릭터에게 지어준 별명을 수정합니다.")

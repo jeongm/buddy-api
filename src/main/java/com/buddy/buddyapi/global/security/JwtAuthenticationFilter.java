@@ -36,6 +36,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         String path = request.getRequestURI();
 
+
+        // TODO 지워야함
+        // H2 콘솔이나 인증 제외 경로는 필터를 그냥 통과시켜야 함
+        if (path.startsWith("/h2-console") || path.startsWith("/api/v1/auth") || path.startsWith("/swagger-ui")) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
         // 1. OPTIONS 메서드는 토큰 검사 없이 통과 (CORS 예비 요청 처리)
         if (request.getMethod().equals("OPTIONS") || path.startsWith("/api/v1/auth/refresh")) {
             filterChain.doFilter(request, response);

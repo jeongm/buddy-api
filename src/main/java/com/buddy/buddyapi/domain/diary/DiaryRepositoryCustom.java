@@ -1,6 +1,8 @@
 package com.buddy.buddyapi.domain.diary;
 
 import com.buddy.buddyapi.domain.diary.dto.MonthlyDiaryCountResponse;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -15,4 +17,6 @@ public interface DiaryRepositoryCustom {
 
     // 일기 상세페이지 - 모든 태그정보, 대화 로그
     Optional<Diary> findDetailByDiarySeqAndMemberSeq(Long diarySeq, Long memberSeq);
+
+    Slice<Diary> searchMyDiaries(Long memberSeq, String search, Pageable pageable);
 }

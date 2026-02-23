@@ -5,6 +5,8 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.Objects;
+
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -21,6 +23,22 @@ public class Tag {
 
     public Tag(String name) {
         this.name = name;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        // getClass() 대신 instanceof 를 사용해야 프록시 객체와 정상 비교가 됩니다.
+        if (!(o instanceof Tag)) return false;
+
+        Tag tag = (Tag) o;
+        // 필드 직접 접근(tag.name) 대신 getter(tag.getName()) 사용 필수!
+        return Objects.equals(this.getName(), tag.getName());
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(this.getName());
     }
 
 

@@ -8,6 +8,4 @@ public interface DiaryRepository extends JpaRepository<Diary, Long>, DiaryReposi
 
     Optional<Diary> findByDiarySeqAndMember_MemberSeq(Long diarySeq, Long memberSeq);
 
-
-
 }
