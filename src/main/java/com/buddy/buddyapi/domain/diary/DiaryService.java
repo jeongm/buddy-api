@@ -15,6 +15,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -38,6 +40,15 @@ public class DiaryService {
     private final AiService aiService;
     private final ObjectMapper objectMapper;
     private final ImageService imageService;
+
+    @Transactional(readOnly = true)
+    public Slice<DiaryListResponse> getDiaryList(Long memberSeq, String search, Pageable pageable) {
+
+        Slice<Diary> diarySlice = diaryRepository.searchMyDiaries(memberSeq, search, pageable);
+
+        // 엔티티(Diary)를 DTO(DiaryListResponse)로 변환해서 반환
+        return diarySlice.map(DiaryListResponse::from);
+    }
 
     /**
      * 채팅 내역을 기반으로 AI 일기 초안을 생성합니다. (DB 저장 안 함)
@@ -183,7 +194,6 @@ public class DiaryService {
      * @param request  수정할 제목, 내용, 이미지, 태그 리스트 등을 담은 DTO
      * @throws BaseException 일기를 찾을 수 없거나 본인 일기가 아닐 경우 발생
      */
-    // TODO N+1 해결해야 함
     @Transactional
     public void updateDiary(Long memberSeq, Long diarySeq, DiaryUpdateRequest request, MultipartFile image) {
 
@@ -214,15 +224,37 @@ public class DiaryService {
      * 태그 이름 리스트를 바탕으로 기존 태그를 조회하거나 신규 태그를 생성합니다.
      */
     private List<Tag> getOrCreateTags(List<String> tagNames) {
-        return tagNames.stream()
-                .map(name -> tagRepository.findByName(name)
-                        .orElseGet(() -> tagRepository.save(new Tag(name))))
-                .collect(Collectors.toList());
+        if (tagNames == null || tagNames.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 1. 이미 DB에 존재하는 태그들을 IN 쿼리로 한 번에 싹 다 가져옴 (쿼리 1방)
+        List<Tag> existingTags = tagRepository.findByNameIn(tagNames);
+
+        // 2. 찾아온 태그들의 이름만 추출
+        List<String> existingTagNames = existingTags.stream()
+                .map(Tag::getName)
+                .toList();
+
+        // 3. DB에 없는 새로운 태그들만 필터링해서 객체 생성
+        List<Tag> newTags = tagNames.stream()
+                .filter(name -> !existingTagNames.contains(name))
+                .map(Tag::new)
+                .toList();
+
+        // 4. 새로운 태그들 한 번에 저장 (쿼리 1방 - Batch Insert 설정 시)
+        if (!newTags.isEmpty()) {
+            tagRepository.saveAll(newTags);
+            // 기존 태그 리스트에 새로 만든 태그들을 합침
+            existingTags.addAll(newTags);
+        }
+
+        return existingTags;
     }
 
     /**
      * 특정 일기 삭제
-     *  @param memberSeq   현재 로그인한 회원 정보
+     *  @param memberSeq   현재 로그인한 회원 정보정보
      *  @param diarySeq    삭제할 일기의 고유 식별자
      */
     @Transactional

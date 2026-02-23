@@ -13,6 +13,11 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Slice;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -54,11 +59,24 @@ public class DiaryController {
     }
 
     @Operation(summary = "날짜별 일기 목록 조회", description = "특정 날짜의 일기 리스트를 가져옵니다.")
-    @GetMapping
+    @GetMapping("/date")
     public ResponseEntity<ApiResponse<List<DiaryListResponse>>> getDiariesByDate(
             @AuthenticationPrincipal CustomUserDetails member,
             @RequestParam @DateTimeFormat(pattern = "yyyy-MM-dd") LocalDate date) {
         return ResponseEntity.ok(ApiResponse.ok(diaryService.getDiariesByDate(member.memberSeq(), date)));
+    }
+
+    @Operation(summary = "내 일기 목록 조회 및 검색", description = "무한 스크롤을 위한 페이징 처리된 일기 목록을 반환합니다.")
+    @GetMapping
+    public ResponseEntity<ApiResponse<Slice<DiaryListResponse>>> getDiaryList(
+            @AuthenticationPrincipal CustomUserDetails member,
+            @RequestParam(required = false) String search,
+            // 기본값: 한 페이지에 10개씩, 작성일(diaryDate) 기준 최신순 정렬
+            @ParameterObject @PageableDefault(size = 10, sort = "diaryDate", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        Slice<DiaryListResponse> responses = diaryService.getDiaryList(member.memberSeq(), search, pageable);
+
+        return ResponseEntity.ok(ApiResponse.ok(responses));
     }
 
     @Operation(summary = "월별 일기 개수 조회", description = "특정 월의 일기 개수를 가져옵니다.")

@@ -47,6 +47,8 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable()) // CSRF 비활성화(JWT사용시 필수)
+                // H2 콘솔은 iframe을 사용하므로 SAMEORIGIN 설정을 해줘야 화면이 뜹니다.
+                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // 세션 미사용
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
@@ -55,6 +57,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/error").permitAll()
+                        .requestMatchers("/h2-console/**").permitAll()
                         .requestMatchers("/api/v1/auth/**", "/login/oauth2/**", "/oauth2/**").permitAll()
                         .requestMatchers("/images/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // OPTIONS 메서드는 CORS Preflight를 위해 모두 허용(OPTIONS 메서드로 들어오는 모든 예비 요청은 '인증 없이' 통과)
