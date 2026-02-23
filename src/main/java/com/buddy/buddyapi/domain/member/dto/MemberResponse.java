@@ -15,14 +15,17 @@ public record MemberResponse(
 
     public static MemberResponse from(Member member) {
 
+        var buddy = member.getBuddyCharacter();
+
         return MemberResponse.builder()
                 .memberSeq(member.getMemberSeq())
                 .email(member.getEmail())
                 .nickname(member.getNickname())
-                .characterSeq(member.getBuddyCharacter().getCharacterSeq())
+                .characterSeq(buddy != null ? buddy.getCharacterSeq() : null)
                 .characterNickname(member.getCharacterNickname() != null
-                        ? member.getCharacterNickname(): member.getBuddyCharacter().getName())
-                .avatarUrl(member.getBuddyCharacter() != null ? member.getBuddyCharacter().getAvatarUrl() : null)
+                        ? member.getCharacterNickname()
+                        : (buddy != null ? buddy.getName() : null))
+                .avatarUrl(buddy != null ? member.getBuddyCharacter().getAvatarUrl() : null)
                 .build();
     }
 }

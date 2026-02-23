@@ -1,17 +1,21 @@
 package com.buddy.buddyapi.domain.auth;
 
+import com.buddy.buddyapi.domain.auth.dto.AuthDto;
 import com.buddy.buddyapi.domain.member.*;
 import com.buddy.buddyapi.domain.auth.dto.MemberLoginRequest;
-import com.buddy.buddyapi.domain.auth.dto.OAuthLinkRequest;
 import com.buddy.buddyapi.domain.auth.dto.LoginResponse;
 import com.buddy.buddyapi.domain.member.dto.MemberResponse;
 import com.buddy.buddyapi.global.security.JwtTokenProvider;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Duration;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -22,6 +26,7 @@ public class AuthService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final OauthAccountRepository oauthAccountRepository;
+    private final RedisTemplate<String, String> redisTemplate;
 
 
     /**
@@ -84,25 +89,55 @@ public class AuthService {
                 .build();
     }
 
-    @Transactional
-    public void logout(Long memberSeq) {
-        refreshTokenRepository.deleteById(memberSeq);
+    // 로그인 성공 시 토큰 교환
+    public LoginResponse oauthLoginSuccess(String key) {
+        String redisKey = "OAUTH_SUCCESS:" + key;
+        String redisValue = redisTemplate.opsForValue().get(redisKey);
+
+        if (redisValue == null) {
+            throw new IllegalArgumentException("유효하지 않거나 이미 만료된 키입니다.");
+        }
+
+        redisTemplate.delete(redisKey); // 조회 즉시 삭제
+
+        String[] parts = redisValue.split(":");
+
+        Long memberSeq = Long.parseLong(parts[0]);
+
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
+
+        return generateTokenSet(member);
     }
 
-
     @Transactional
-    public LoginResponse linkOauthAccount(OAuthLinkRequest request) {
-        Member member = memberRepository.findByEmail(request.email())
+    public LoginResponse linkOauthAccount(String key) {
+
+        // Redis에서 검증된 진짜 정보 꺼내기
+        String redisKey = "OAUTH_LINK:" + key;
+        String redisValue = redisTemplate.opsForValue().get(redisKey);
+
+        if(redisValue == null) {
+            throw new BaseException(ResultCode.INVALID_TOKEN); // 만료되거나 조작된 요청
+        }
+
+        redisTemplate.delete(redisKey); // 사용 즉시 폐기!
+
+        String[] parts = redisValue.split(":");
+        String email = parts[0];
+        String providerStr = parts[1];
+        String oauthId = parts[2];
+
+        Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
 
-        Provider provider = Provider.from(request.provider());
+        Provider provider = Provider.from(providerStr);
         if(oauthAccountRepository.existsByMemberAndProvider(member,provider)) {
             throw new BaseException(ResultCode.ALREADY_LINKED_ACCOUNT);
         }
 
         OauthAccount oauthAccount = OauthAccount.builder()
                 .provider(provider)
-                .oauthId(request.oauthId())
+                .oauthId(oauthId)
                 .member(member)
                 .build();
 
@@ -110,6 +145,11 @@ public class AuthService {
 
         return generateTokenSet(member);
 
+    }
+
+    @Transactional
+    public void logout(Long memberSeq) {
+        refreshTokenRepository.deleteById(memberSeq);
     }
 
 
