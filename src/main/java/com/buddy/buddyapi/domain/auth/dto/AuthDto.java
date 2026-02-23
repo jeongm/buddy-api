@@ -12,15 +12,6 @@ public record AuthDto() {
     }
 
     @Builder
-    public record LinkResponse(
-            String email,
-            String provider,
-            String oauthId,
-            String linkToken
-    ) {
-    }
-
-    @Builder
     public record OAuthLinkRequest(
             String key // 프론트에서는 URL에서 뽑은 요 녀석만 보내면 됨!
     ) {}
