@@ -59,6 +59,7 @@ public class DiaryService {
      * @throws BaseException 세션을 찾을 수 없거나 대화 내역이 비어있을 경우 발생
      */
     @Timer
+    @Transactional(readOnly = true)
     public DiaryPreviewResponse generateDiaryFromChat(Long memberSeq, DiaryGenerateRequest request) {
 
         // 1. 세션 조회 (내 세션인지, 종료된 세션인지 확인)
@@ -135,6 +136,7 @@ public class DiaryService {
      * @param date   조회하고자 하는 날짜 (yyyy-MM-dd)
      * @return 해당 날짜에 작성된 일기 리스트 (최신순)
      */
+    @Transactional(readOnly = true)
     public List<DiaryListResponse> getDiariesByDate(Long memberSeq, LocalDate date) {
 
         return diaryRepository.findAllByMemberAndDiaryDate(memberSeq, date)
@@ -295,7 +297,8 @@ public class DiaryService {
      */
     @Transactional(readOnly = true)
     public List<MonthlyDiaryCountResponse> getMonthlyDiaryStats(Long memberSeq, int year, int month) {
-// 1. 해당 월의 시작일 (예: 2024-03-01)
+
+        // 1. 해당 월의 시작일 (예: 2024-03-01)
         YearMonth yearMonth = YearMonth.of(year, month);
         LocalDate startDate = yearMonth.atDay(1);
 
@@ -304,5 +307,16 @@ public class DiaryService {
 
         // 3. 레포지토리 호출
         return diaryRepository.findAllMonthlyCount(memberSeq, startDate, endDate);
+    }
+
+    /**
+     * 일기 목록에서 최근 사용한 태그를 보여줍니다.
+     * @param memberSeq 현재 로그인한 회원 정보
+     * @return 최근 30일 이내 가장 많이 사용한 태그 10개 (1. 빈도 수 2. 작성 순)
+     */
+    @Transactional(readOnly = true)
+    public List<TagResponse> getRecentTopTags(Long memberSeq) {
+        return tagRepository.findRecentTopTags(memberSeq);
+
     }
 }

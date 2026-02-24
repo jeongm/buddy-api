@@ -1,15 +1,12 @@
 package com.buddy.buddyapi.global.security;
 
 import com.buddy.buddyapi.domain.member.Provider;
-import com.buddy.buddyapi.domain.character.BuddyCharacter;
 import com.buddy.buddyapi.domain.member.Member;
 import com.buddy.buddyapi.domain.member.OauthAccount;
-import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.domain.member.MemberRepository;
 import com.buddy.buddyapi.domain.member.OauthAccountRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -20,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -44,16 +40,16 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 .getProviderDetails().getUserInfoEndpoint().getUserNameAttributeName();
 
         // 4. OAuth서버에서 준 json을 우리가 만든 OAuthAttributes로 변환
-        OAuthAttributes attributes = OAuthAttributes.of(registrationID,userNameAttributeName,oAuth2User.getAttributes());
+        OAuthAttributes attributes = OAuthAttributes.of(registrationID, userNameAttributeName,
+                oAuth2User.getAttributes());
 
         // 5. 회원 가입 여부 확인 및 연동 확인
         Member member = processUserAuthentication(attributes);
 
         // 시큐리티 반환 시: 어떤 키를 봐야 할지 알려줌
-        return CustomUserDetails.of(member,attributes.attributes());
+        return CustomUserDetails.of(member, attributes.attributes());
 
     }
-
 
     private Member processUserAuthentication(OAuthAttributes attributes) {
 
@@ -66,7 +62,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             Provider provider = Provider.from(attributes.registrationId());
             boolean isLinked = oauthAccountRepository.existsByMemberAndProvider(member, provider);
 
-            if(!isLinked) {
+            if (!isLinked) {
                 // 여기서 예외를 던지면 AuthenticationFailureHandler 가 낚아채서
                 // "이미 가입된 이메일입니다. 연동하시겠습니까?" 페이지로 리다이렉트 시킴
                 String errorMessage = String.format("%s:%s:%s:%s",
@@ -104,10 +100,5 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         return savedMember;
 
     }
-
-
-
-
-
 
 }

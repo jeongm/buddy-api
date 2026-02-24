@@ -1,13 +1,7 @@
 package com.buddy.buddyapi.domain.diary;
 
+import com.buddy.buddyapi.domain.diary.dto.*;
 import com.buddy.buddyapi.global.common.ApiResponse;
-import com.buddy.buddyapi.domain.diary.dto.DiaryCreateRequest;
-import com.buddy.buddyapi.domain.diary.dto.DiaryGenerateRequest;
-import com.buddy.buddyapi.domain.diary.dto.DiaryUpdateRequest;
-import com.buddy.buddyapi.domain.diary.dto.DiaryDetailResponse;
-import com.buddy.buddyapi.domain.diary.dto.DiaryListResponse;
-import com.buddy.buddyapi.domain.diary.dto.DiaryPreviewResponse;
-import com.buddy.buddyapi.domain.diary.dto.MonthlyDiaryCountResponse;
 import com.buddy.buddyapi.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -115,6 +109,17 @@ public class DiaryController {
             @PathVariable Long diarySeq) {
         diaryService.deleteDiary(member.memberSeq(), diarySeq);
         return ResponseEntity.ok(ApiResponse.ok("일기가 삭제되었습니다.", null));
+    }
+
+    @Operation(summary = "다이어리 추천 태그 조회", description = "최근 30일 동안 사용자가 가장 많이 사용한 태그 TOP 10을 조회합니다.")
+    @GetMapping("/tags/recommend")
+    public ResponseEntity<ApiResponse<List<TagResponse>>> getRecentTopTags(
+            @AuthenticationPrincipal CustomUserDetails member // 현재 사용 중인 인증 객체로 변경해주세요!
+    ) {
+        // 서비스 단 호출
+        List<TagResponse> result = diaryService.getRecentTopTags(member.memberSeq());
+
+        return ResponseEntity.ok(ApiResponse.ok("태그 조회 성공",result));
     }
 
 

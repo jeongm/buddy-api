@@ -8,14 +8,13 @@ import com.buddy.buddyapi.domain.member.dto.MemberResponse;
 import com.buddy.buddyapi.global.security.JwtTokenProvider;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.time.Duration;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -27,7 +26,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final OauthAccountRepository oauthAccountRepository;
     private final RedisTemplate<String, String> redisTemplate;
-
+    private final ObjectMapper objectMapper;
 
     /**
      * 이메일과 비밀번호를 기반으로 로그인을 처리하고 JWT 토큰을 발급합니다.
@@ -41,7 +40,7 @@ public class AuthService {
         Member member = memberRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
 
-        if(!passwordEncoder.matches(request.getPassword(), member.getPassword())){
+        if (!passwordEncoder.matches(request.getPassword(), member.getPassword())) {
             throw new BaseException(ResultCode.INVALID_CREDENTIALS);
         }
 
@@ -52,7 +51,7 @@ public class AuthService {
     @Transactional
     public LoginResponse refreshToken(String refreshToken) {
         // 1. 토큰 자체의 유효성 검사 (만료 여부, 서명 등)
-        if(!jwtTokenProvider.validateToken(refreshToken)) {
+        if (!jwtTokenProvider.validateToken(refreshToken)) {
             throw new BaseException(ResultCode.INVALID_TOKEN);
         }
 
@@ -90,15 +89,14 @@ public class AuthService {
     }
 
     // 로그인 성공 시 토큰 교환
+    @Transactional
     public LoginResponse oauthLoginSuccess(String key) {
         String redisKey = "OAUTH_SUCCESS:" + key;
-        String redisValue = redisTemplate.opsForValue().get(redisKey);
+        String redisValue = redisTemplate.opsForValue().getAndDelete(redisKey);
 
         if (redisValue == null) {
-            throw new IllegalArgumentException("유효하지 않거나 이미 만료된 키입니다.");
+            throw new BaseException(ResultCode.INVALID_TOKEN);
         }
-
-        redisTemplate.delete(redisKey); // 조회 즉시 삭제
 
         String[] parts = redisValue.split(":");
 
@@ -110,34 +108,30 @@ public class AuthService {
     }
 
     @Transactional
-    public LoginResponse linkOauthAccount(String key) {
+    public LoginResponse linkOauthAccount(String key) throws JsonProcessingException {
 
         // Redis에서 검증된 진짜 정보 꺼내기
         String redisKey = "OAUTH_LINK:" + key;
-        String redisValue = redisTemplate.opsForValue().get(redisKey);
+        String jsonValue = redisTemplate.opsForValue().getAndDelete(redisKey);
 
-        if(redisValue == null) {
+        if (jsonValue == null) {
             throw new BaseException(ResultCode.INVALID_TOKEN); // 만료되거나 조작된 요청
         }
 
-        redisTemplate.delete(redisKey); // 사용 즉시 폐기!
+        AuthDto.OauthLinkInfo linkInfo = objectMapper.readValue(jsonValue, AuthDto.OauthLinkInfo.class);
 
-        String[] parts = redisValue.split(":");
-        String email = parts[0];
-        String providerStr = parts[1];
-        String oauthId = parts[2];
 
-        Member member = memberRepository.findByEmail(email)
+        Member member = memberRepository.findByEmail(linkInfo.email())
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
 
-        Provider provider = Provider.from(providerStr);
-        if(oauthAccountRepository.existsByMemberAndProvider(member,provider)) {
+        Provider provider = Provider.from(linkInfo.provider());
+        if (oauthAccountRepository.existsByMemberAndProvider(member, provider)) {
             throw new BaseException(ResultCode.ALREADY_LINKED_ACCOUNT);
         }
 
         OauthAccount oauthAccount = OauthAccount.builder()
                 .provider(provider)
-                .oauthId(oauthId)
+                .oauthId(linkInfo.oauthId())
                 .member(member)
                 .build();
 
@@ -151,6 +145,5 @@ public class AuthService {
     public void logout(Long memberSeq) {
         refreshTokenRepository.deleteById(memberSeq);
     }
-
 
 }
