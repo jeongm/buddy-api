@@ -64,7 +64,7 @@ public class DiaryController {
     @GetMapping
     public ResponseEntity<ApiResponse<Slice<DiaryListResponse>>> getDiaryList(
             @AuthenticationPrincipal CustomUserDetails member,
-            @RequestParam(required = false) String search,
+            @RequestParam(name = "search", required = false) String search,
             // 기본값: 한 페이지에 10개씩, 작성일(diaryDate) 기준 최신순 정렬
             @ParameterObject @PageableDefault(size = 10, sort = "diaryDate", direction = Sort.Direction.DESC) Pageable pageable) {
 

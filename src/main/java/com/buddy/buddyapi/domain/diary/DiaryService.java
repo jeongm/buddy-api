@@ -41,6 +41,13 @@ public class DiaryService {
     private final ObjectMapper objectMapper;
     private final ImageService imageService;
 
+    /**
+     * 일기를 목록입니다. 검색어가 있을 시 검색된 일기 목록을 보여줍니다.
+     * @param memberSeq
+     * @param search
+     * @param pageable
+     * @return
+     */
     @Transactional(readOnly = true)
     public Slice<DiaryListResponse> getDiaryList(Long memberSeq, String search, Pageable pageable) {
 

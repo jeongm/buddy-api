@@ -30,7 +30,7 @@ public class ChatController {
     }
 
     @Operation(summary = "대화 내역 조회", description = "특정 세션의 모든 대화 내역을 조회합니다.")
-    @GetMapping("/{sessionId}")
+    @GetMapping(value = "/{sessionId}")
     public ResponseEntity<ApiResponse<List<ChatResponse>>> getChatHistory(
             @AuthenticationPrincipal CustomUserDetails member,
             @PathVariable Long sessionId
@@ -39,7 +39,7 @@ public class ChatController {
     }
 
     @Operation(summary = "대화 세션 종료", description = "대화를 종료하고 해당 세션을 일기 생성 가능 상태로 변경합니다.")
-    @PatchMapping("/{sessionId}/end")
+    @PatchMapping(value = "/{sessionId}/end")
     public ResponseEntity<ApiResponse<String>> endSession(
             @AuthenticationPrincipal CustomUserDetails member,
             @PathVariable Long sessionId) {

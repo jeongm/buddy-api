@@ -48,7 +48,8 @@ public class AuthController {
 
     @Operation(summary = "소셜 로그인 성공 정보 조회", description = "발급받은 임시 키로 토큰 정보를 교환합니다.")
     @GetMapping("/oauth/success")
-    public ResponseEntity<ApiResponse<LoginResponse>> oauthLoginSuccess(@RequestParam String key) {
+    public ResponseEntity<ApiResponse<LoginResponse>> oauthLoginSuccess(
+            @RequestParam String key) {
         LoginResponse result = authService.oauthLoginSuccess(key);
         return ResponseEntity.ok(ApiResponse.ok("소셜 로그인 성공", result));
     }
@@ -56,7 +57,8 @@ public class AuthController {
 
     @Operation(summary = "소셜 로그인 연동", description = "발급받은 키를 이용해 소셜 계정을 연동")
     @PostMapping("/oauth/link")
-    public ResponseEntity<ApiResponse<LoginResponse>> linkSocialAccount(@RequestBody AuthDto.OAuthLinkRequest request) throws JsonProcessingException {
+    public ResponseEntity<ApiResponse<LoginResponse>> linkSocialAccount(
+            @RequestBody AuthDto.OAuthLinkRequest request) throws JsonProcessingException {
         LoginResponse result = authService.linkOauthAccount(request.key());
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
