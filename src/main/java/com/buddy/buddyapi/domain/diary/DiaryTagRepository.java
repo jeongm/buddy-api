@@ -6,5 +6,4 @@ import java.util.List;
 
 public interface DiaryTagRepository extends JpaRepository<DiaryTag, DiaryTag.DiaryTagPK> {
 
-    List<DiaryTag> findByDiary(Diary diary);
 }
