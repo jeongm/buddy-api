@@ -46,7 +46,8 @@ public class AiService {
      */
     @Timer
     public String getChatResponse(List<OpenAiRequest.Message> messages) {
-        return callOpenAi(messages,false);
+        // 채팅은 빠르고 저렴한 4o-mini 사용, 온도는 0.7로 안정적이게!
+        return callOpenAi(messages, false, "gpt-4o-mini", 0.7);
     }
 
     /**
@@ -56,16 +57,16 @@ public class AiService {
      */
     @Timer
     public String getDiaryDraft(String conversations) {
-        String systemMessage = String.format(
-                AiPrompt.DIARY_SYSTEM_PROMPT
-        );
+        String systemMessage = String.format(AiPrompt.DIARY_SYSTEM_PROMPT);
 
         List<OpenAiRequest.Message> messages = List.of(
-          new OpenAiRequest.Message("system", systemMessage),
-          new OpenAiRequest.Message("user", conversations)
+                new OpenAiRequest.Message("system", systemMessage),
+                new OpenAiRequest.Message("user", conversations)
         );
 
-        return callOpenAi(messages, true);
+        // 일기는 퀄리티가 생명이므로 gpt-4o 사용, 온도를 0.85로 높여 감수성 폭발!
+        // (만약 비용이 부담되시면 여기도 "gpt-4o-mini"로 하되, 온도만 0.85로 유지하셔도 좋습니다)
+        return callOpenAi(messages, true, "gpt-4o-mini", 0.85);
     }
 
     /**
@@ -74,12 +75,12 @@ public class AiService {
      * @param isJsonRequest 응답 형식이 JSON이어야 하는지 여부
      * @return 정제된 AI 응답 문자열
      */
-    private String callOpenAi(List<OpenAiRequest.Message> messages, boolean isJsonRequest) {
+    private String callOpenAi(List<OpenAiRequest.Message> messages, boolean isJsonRequest, String model, double temperature) {
         // 요청 객체 생성
         OpenAiRequest request = new OpenAiRequest(
-                "gpt-3.5-turbo",
+                model,
                 messages,
-                0.7
+                temperature
         );
 
         HttpEntity<OpenAiRequest> entity = new HttpEntity<>(request, createHeaders());
