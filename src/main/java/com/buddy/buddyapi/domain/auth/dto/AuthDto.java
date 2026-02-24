@@ -2,14 +2,16 @@ package com.buddy.buddyapi.domain.auth.dto;
 
 import lombok.Builder;
 
-public record AuthDto() {
+public class AuthDto {
+
+    private AuthDto() {}
+
     @Builder
-    public record SuccessResponse(
-            String accessToken,
-            String refreshToken,
-            boolean isNewMember
-    ) {
-    }
+    public record OauthLinkInfo(
+            String email,
+            String provider,
+            String oauthId
+    ) {}
 
     @Builder
     public record OAuthLinkRequest(

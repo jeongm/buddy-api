@@ -1,6 +1,8 @@
 package com.buddy.buddyapi.global.security;
 
+import com.buddy.buddyapi.domain.auth.dto.AuthDto;
 import com.buddy.buddyapi.global.exception.ResultCode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -21,6 +23,7 @@ import java.util.UUID;
 public class OAuth2AuthenticationFailureHandler  extends SimpleUrlAuthenticationFailureHandler {
 
     private final RedisTemplate<String, String> redisTemplate;
+    private final ObjectMapper objectMapper;
 
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {
@@ -36,8 +39,9 @@ public class OAuth2AuthenticationFailureHandler  extends SimpleUrlAuthentication
             // 보안용 임시 키 발급
             String tempKey = UUID.randomUUID().toString();
 
-            // Redis에 저장 (예: "link:tempKey" -> "email:provider:oauthId", TTL 5분)
-            String redisValue = email + ":" + provider + ":" + oauthId;
+            // Redis에 저장 (예: "link:tempKey" -> {"email":"...", "provider":"..."}, TTL 5분)
+            AuthDto.OauthLinkInfo linkInfo = new AuthDto.OauthLinkInfo(email,provider,oauthId);
+            String redisValue = objectMapper.writeValueAsString(linkInfo);
             redisTemplate.opsForValue().set("OAUTH_LINK:" + tempKey, redisValue, Duration.ofMinutes(5));
 
             // 프론트에서 리다이렉트 url을 보고 연동 요청을 보내도록

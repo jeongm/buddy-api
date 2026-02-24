@@ -31,12 +31,13 @@ public class ImageService {
 
         } catch (IOException e) {
             log.error("Cloudinary 업로드 실패: {}", e.getMessage());
-            throw new RuntimeException("이미지 저장 실패",e);
+            throw new RuntimeException("이미지 저장 실패", e);
         }
     }
 
     public void deleteImage(String fileUrl) {
-        if (fileUrl == null || fileUrl.isEmpty()) return;
+        if (fileUrl == null || fileUrl.isEmpty())
+            return;
 
         try {
             // URL에서 Public ID 추출 (Cloudinary 삭제 시에는 파일 주소가 아니라 ID가 필요함)
@@ -46,7 +47,8 @@ public class ImageService {
             cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
             log.info("Cloudinary 파일 삭제 성공: {}", publicId);
         } catch (Exception e) {
-            log.error("Cloudinary 파일 삭제 실패: {}", e.getMessage());        }
+            log.error("Cloudinary 파일 삭제 실패: {}", e.getMessage());
+        }
     }
 
     // URL에서 public_id만 뽑아내는 헬퍼 메서드

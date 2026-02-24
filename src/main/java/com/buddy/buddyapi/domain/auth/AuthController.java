@@ -7,6 +7,7 @@ import com.buddy.buddyapi.domain.member.dto.MemberSeqResponse;
 import com.buddy.buddyapi.global.common.ApiResponse;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.global.security.CustomUserDetails;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -55,7 +56,7 @@ public class AuthController {
 
     @Operation(summary = "소셜 로그인 연동", description = "발급받은 키를 이용해 소셜 계정을 연동")
     @PostMapping("/oauth/link")
-    public ResponseEntity<ApiResponse<LoginResponse>> linkSocialAccount(@RequestBody AuthDto.OAuthLinkRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> linkSocialAccount(@RequestBody AuthDto.OAuthLinkRequest request) throws JsonProcessingException {
         LoginResponse result = authService.linkOauthAccount(request.key());
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
