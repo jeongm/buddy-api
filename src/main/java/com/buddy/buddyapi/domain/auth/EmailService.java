@@ -43,6 +43,9 @@ public class EmailService {
     public boolean verifyCode(String email, String code) {
         String savedCode = redisTemplate.opsForValue().get(PREFIX + email);
 
+        // 🚀 TODO 개선: 서비스단에서 예외를 던지도록 수정하는 것을 권장합니다.
+        // 예: emailService.verifyCode() 내부에서 틀리면 throw new BaseException(...) 처리
+
         if (savedCode == null) {
             log.warn("인증 번호가 만료되었거나 존재하지 않음: {}", email);
             return false;
