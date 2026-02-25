@@ -1,5 +1,6 @@
 package com.buddy.buddyapi.domain.auth.dto;
 
+import com.buddy.buddyapi.domain.auth.AuthStatus;
 import com.buddy.buddyapi.domain.member.dto.MemberResponse;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;

@@ -2,10 +2,8 @@ package com.buddy.buddyapi.domain.auth;
 
 import com.buddy.buddyapi.domain.auth.dto.*;
 import com.buddy.buddyapi.domain.member.MemberService;
-import com.buddy.buddyapi.domain.member.dto.MemberRegisterRequest;
-import com.buddy.buddyapi.domain.member.dto.MemberSeqResponse;
+import com.buddy.buddyapi.domain.auth.dto.SignUpRequest;
 import com.buddy.buddyapi.global.common.ApiResponse;
-import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.global.security.CustomUserDetails;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
@@ -32,10 +30,10 @@ public class AuthController {
     // =========================================================================
     @Operation(summary = "일반 회원가입", description = "이메일, 비밀번호 등을 입력받아 회원가입을 진행합니다.")
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<MemberSeqResponse>> signup(
-            @Valid @RequestBody MemberRegisterRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> signup(
+            @Valid @RequestBody SignUpRequest request) {
 
-        MemberSeqResponse result = memberService.registerMember(request);
+        LoginResponse result = authService.signup(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("회원가입 완료", result));
     }

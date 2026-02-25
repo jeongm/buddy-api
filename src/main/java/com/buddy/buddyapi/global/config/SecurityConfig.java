@@ -23,21 +23,12 @@ public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
     private final HandlerExceptionResolver exceptionResolver;
-    private final CustomOAuth2UserService customOAuth2UserService;
-    private final OAuth2AuthenticationSuccessHandler oauthSuccessHandler;
-    private final OAuth2AuthenticationFailureHandler oauthFailureHandler;
-
 
     public SecurityConfig (
             JwtTokenProvider jwtTokenProvider,
-            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver,
-            CustomOAuth2UserService customOAuth2UserService,
-            OAuth2AuthenticationSuccessHandler oauthSuccessHandler, OAuth2AuthenticationFailureHandler oauthFailureHandler) {
+            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver) {
         this.jwtTokenProvider = jwtTokenProvider;
         this.exceptionResolver = exceptionResolver;
-        this.customOAuth2UserService = customOAuth2UserService;
-        this.oauthSuccessHandler = oauthSuccessHandler;
-        this.oauthFailureHandler = oauthFailureHandler;
     }
 
 
@@ -56,25 +47,12 @@ public class SecurityConfig {
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/error").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
-                        .requestMatchers("/api/v1/auth/**", "/login/oauth2/**", "/oauth2/**").permitAll()
+                        .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/images/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         // OPTIONS 메서드는 CORS Preflight를 위해 모두 허용(OPTIONS 메서드로 들어오는 모든 예비 요청은 '인증 없이' 통과)
                         .requestMatchers(HttpMethod.OPTIONS,"/**").permitAll()
                         .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
-                )
-                .oauth2Login(oauth2 -> oauth2
-                        .authorizationEndpoint(authorization -> authorization
-                                .baseUri("/oauth2/authorization")
-                        )
-                        .redirectionEndpoint(redirection -> redirection
-                                .baseUri("/login/oauth2/code/*"))
-                        .userInfoEndpoint(userInfo -> userInfo
-                                .userService(customOAuth2UserService)
-                        )
-                        .successHandler(oauthSuccessHandler)
-                        .failureHandler(oauthFailureHandler)
                 )
                 // UsernamePasswordAuthenticationFilter 이전에 JWT 필터 실행
                 .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, exceptionResolver),
