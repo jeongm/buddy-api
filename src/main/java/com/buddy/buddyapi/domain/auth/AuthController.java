@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.java.Log;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -46,6 +47,15 @@ public class AuthController {
         return ResponseEntity.ok(ApiResponse.ok("로그인 성공", result));
     }
 
+    @PostMapping("/oauth/social")
+    public ResponseEntity<ApiResponse<LoginResponse>> oauthLogin(
+            @Valid @RequestBody OAuthDto.LoginRequest request
+    ) {
+        LoginResponse result = authService.socialTokenLogin(request);
+
+        return ResponseEntity.ok(ApiResponse.ok("소셜 로그인 성공", result));
+    }
+
     @Operation(summary = "소셜 로그인 성공 정보 조회", description = "발급받은 임시 키로 토큰 정보를 교환합니다.")
     @GetMapping("/oauth/success")
     public ResponseEntity<ApiResponse<LoginResponse>> oauthLoginSuccess(
@@ -58,7 +68,7 @@ public class AuthController {
     @Operation(summary = "소셜 로그인 연동", description = "발급받은 키를 이용해 소셜 계정을 연동")
     @PostMapping("/oauth/link")
     public ResponseEntity<ApiResponse<LoginResponse>> linkSocialAccount(
-            @RequestBody AuthDto.OAuthLinkRequest request) throws JsonProcessingException {
+            @RequestBody OAuthDto.OAuthLinkRequest request) throws JsonProcessingException {
         LoginResponse result = authService.linkOauthAccount(request.key());
         return ResponseEntity.ok(ApiResponse.ok(result));
     }

@@ -26,6 +26,7 @@ public enum ResultCode {
     REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, "T003", "리프레시 토큰이 존재하지 않거나 만료되었습니다."),
     TOKEN_SIGNATURE_ERROR(HttpStatus.UNAUTHORIZED, "T004", "토큰 서명이 올바르지 않습니다."),
     UNSUPPORTED_TOKEN(HttpStatus.UNAUTHORIZED, "T005", "지원되지 않는 토큰 형식입니다."),
+    UNSUPPORTED_PROVIDER(HttpStatus.BAD_REQUEST, "T006", "지원하지 않는 소셜 로그인 제공자입니다."),
 
     // --- 회원/캐릭터 관련 (M) ---
     EMAIL_DUPLICATED(HttpStatus.BAD_REQUEST, "M001", "이미 존재하는 이메일입니다."),

@@ -1,6 +1,6 @@
 package com.buddy.buddyapi.global.security;
 
-import com.buddy.buddyapi.domain.auth.dto.AuthDto;
+import com.buddy.buddyapi.domain.auth.dto.OAuthDto;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
@@ -40,7 +40,7 @@ public class OAuth2AuthenticationFailureHandler  extends SimpleUrlAuthentication
             String tempKey = UUID.randomUUID().toString();
 
             // Redis에 저장 (예: "link:tempKey" -> {"email":"...", "provider":"..."}, TTL 5분)
-            AuthDto.OauthLinkInfo linkInfo = new AuthDto.OauthLinkInfo(email,provider,oauthId);
+            OAuthDto.OauthLinkInfo linkInfo = new OAuthDto.OauthLinkInfo(email,provider,oauthId);
             String redisValue = objectMapper.writeValueAsString(linkInfo);
             redisTemplate.opsForValue().set("OAUTH_LINK:" + tempKey, redisValue, Duration.ofMinutes(5));
 
