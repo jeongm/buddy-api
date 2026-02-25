@@ -8,6 +8,7 @@ import com.buddy.buddyapi.domain.auth.dto.OAuthDto;
 import com.buddy.buddyapi.domain.member.*;
 import com.buddy.buddyapi.domain.auth.dto.MemberLoginRequest;
 import com.buddy.buddyapi.domain.auth.dto.LoginResponse;
+import com.buddy.buddyapi.domain.auth.dto.SignUpRequest;
 import com.buddy.buddyapi.domain.member.dto.MemberResponse;
 import com.buddy.buddyapi.global.security.JwtTokenProvider;
 import com.buddy.buddyapi.global.exception.BaseException;
@@ -20,15 +21,19 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.util.Optional;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
+    private final MemberService memberService;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
-    private final OauthAccountRepository oauthAccountRepository;
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
 
@@ -36,26 +41,116 @@ public class AuthService {
     private final KakaoTokenVerifier kakaoTokenVerifier;
     private final NaverTokenVerifier naverTokenVerifier;
 
+    @Transactional
+    public LoginResponse signup(SignUpRequest request) {
+        // 이메일 인증 확인
+        String isVerified = redisTemplate.opsForValue().get("verified:" + request.email());
+        if (!"true".equals(isVerified)) {
+            throw new BaseException(ResultCode.UNAUTHORIZED);
+        }
+        redisTemplate.delete("verified:" + request.email());
+
+        // 비밀번호 암호화
+        String encodedPassword = passwordEncoder.encode(request.password());
+
+        Member newMember = memberService.registerLocalMember(request, encodedPassword);
+
+        // 회원 가입 완료 시 자동 로그인
+        return buildAuthResponse(newMember, AuthStatus.SUCCESS);
+    }
+
     /**
-     * 이메일과 비밀번호를 기반으로 로그인을 처리하고 JWT 토큰을 발급합니다.
+     * [일반 로그인] 이메일과 비밀번호를 기반으로 로그인을 처리합니다.
      *
      * @param request 로그인 요청 정보 (이메일, 비밀번호)
-     * @return 액세스 토큰, 리프레시 토큰 및 회원 정보를 포함한 응답 DTO
+     * @return 성공 상태(SUCCESS), 액세스 토큰, 리프레시 토큰, 회원 정보를 포함한 응답 DTO
      * @throws BaseException 유저를 찾을 수 없거나 비밀번호가 일치하지 않을 경우 발생
      */
     @Transactional
-    public LoginResponse localLoginMember(MemberLoginRequest request) {
-        Member member = memberRepository.findByEmail(request.getEmail())
+    public LoginResponse localLogin(MemberLoginRequest request) {
+        Member member = memberRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
 
-        if (!passwordEncoder.matches(request.getPassword(), member.getPassword())) {
+        if (!passwordEncoder.matches(request.password(), member.getPassword())) {
             throw new BaseException(ResultCode.INVALID_CREDENTIALS);
         }
 
-        // 메서드 추출 적용
-        return generateTokenSet(member);
+        return buildAuthResponse(member, AuthStatus.SUCCESS);
     }
 
+    /**
+     * [소셜 로그인 통합] 제공자(Google, Kakao, Naver)의 토큰을 검증하고 서비스 로그인을 처리합니다.
+     * 이미 가입된 이메일이 존재하지만 소셜 연동이 되어있지 않은 경우, 연동 대기 상태(REQUIRES_LINKING)를 반환합니다.
+     *
+     * @param request 제공자 이름(provider)과 인증 토큰(token)
+     * @return 로그인 성공(SUCCESS) 또는 연동 필요(REQUIRES_LINKING) 상태가 포함된 응답 DTO
+     */
+    @Transactional
+    public LoginResponse socialLogin(OAuthDto.LoginRequest request) throws JsonProcessingException {
+        // 1. 검증 및 정보 추출 (verifyOauthToken)
+        OAuthUserInfo userInfo = verifyOauthToken(request.provider(), request.token());
+        Provider provider = Provider.from(request.provider());
+
+        // 기존 회원 여부 확인
+        Optional<Member> optionalMember = memberRepository.findByEmail(userInfo.email());
+
+        // [CASE] 이미 가입된 계정이 있는 경우
+        if(optionalMember.isPresent()) {
+            Member member = optionalMember.get();
+
+            // [CASE] 연동이 필요한 경우 (REQUIRES_LINKING)
+            if(!memberService.hasSocialAccount(member, provider)) {
+                return handleLinkingRequired(request, userInfo);
+            }
+
+            // [CASE] 이미 연동됨 -> 로그인 성공 (SUCCESS)
+            return buildAuthResponse(member, AuthStatus.SUCCESS);
+        }
+
+        // [CASE] 아예 신규 유저 (가입 + 연동 + SUCCESS)
+        Member newMember = memberService.registerSocialMember(userInfo,provider);
+        return buildAuthResponse(newMember, AuthStatus.SUCCESS);
+
+    }
+
+    /**
+     * [소셜 계정 연동 완료] Redis에 임시 저장된 연동 정보를 확인하고, 기존 계정에 소셜 정보를 귀속시킵니다.
+     *
+     * @param key 연동 대기 상태에서 프론트엔드로 전달했던 임시 키 (linkKey)
+     * @return 연동 완료 후 발급된 토큰셋을 포함한 로그인 성공 응답
+     * @throws BaseException 키가 만료되었거나 조작된 경우 발생
+     */
+    @Transactional
+    public LoginResponse linkOauthAccount(String key) throws JsonProcessingException {
+
+        // Redis에서 검증된 진짜 정보 꺼내기
+        String redisKey = "OAUTH_LINK:" + key;
+        String jsonValue = redisTemplate.opsForValue().getAndDelete(redisKey);
+
+        if (jsonValue == null) {
+            throw new BaseException(ResultCode.INVALID_TOKEN);
+        }
+
+        OAuthLinkInfo linkInfo = objectMapper.readValue(jsonValue, OAuthLinkInfo.class);
+
+        Member member = memberRepository.findByEmail(linkInfo.email())
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+
+        Provider provider = Provider.from(linkInfo.provider());
+
+        memberService.linkSocialAccount(member, provider, linkInfo.oauthId());
+
+        return buildAuthResponse(member, AuthStatus.SUCCESS);
+
+    }
+
+    /**
+     * [토큰 재발급] 만료된 액세스 토큰을 대신하여 리프레시 토큰을 통해 새로운 토큰셋을 발급합니다.
+     *
+     * @param refreshToken 클라이언트가 전달한 리프레시 토큰
+     * @return 새롭게 갱신된 토큰셋을 포함한 응답 DTO
+     * @throws BaseException 토큰이 유효하지 않거나 만료된 경우 발생
+     */
     @Transactional
     public LoginResponse refreshToken(String refreshToken) {
         // 1. 토큰 자체의 유효성 검사 (만료 여부, 서명 등)
@@ -70,124 +165,82 @@ public class AuthService {
         // 3. 토큰의 주인(Member)이 실제 존재하는지 확인
         Member member = memberRepository.findByIdOrThrow(savedToken.getMemberSeq());
 
-        // 5. 기존 Redis 토큰 삭제 (createRefreshToken에서 save를 하므로 여기서는 기존 것만 삭제)
-        // 만약 RefreshToken 객체의 memberSeq가 @Id라면,
-        // 새로운 save 시 덮어쓰기가 되므로 별도의 delete가 필요없을 수 있음
+        // 4. 기존 Redis 토큰 삭제 (새로운 토큰이 발급되므로 기존 토큰 파기)
         refreshTokenRepository.delete(savedToken);
 
-        return generateTokenSet(member);
+        return buildAuthResponse(member, AuthStatus.SUCCESS);
     }
 
     /**
-     * 공통 토큰 생성 및 응답 빌드 로직
+     * [로그아웃] Redis에 저장된 사용자의 리프레시 토큰을 삭제하여 로그아웃 처리합니다.
+     *
+     * @param memberSeq 로그아웃을 요청한 사용자의 PK
      */
-    private LoginResponse generateTokenSet(Member member) {
-        Long memberSeq = member.getMemberSeq();
+    @Transactional
+    public void logout(Long memberSeq) {
+        refreshTokenRepository.deleteById(memberSeq);
+    }
 
-        // 1. 토큰 생성 (JwtTokenProvider 내부에서 RefreshToken Redis 저장까지 처리됨)
-        String accessToken = jwtTokenProvider.createAccessToken(memberSeq);
-        String refreshToken = jwtTokenProvider.createRefreshToken(memberSeq);
+    // =========================================================================
+    // 헬퍼 메서드 (Helper Methods)
+    // =========================================================================
 
-        // 2. 응답 생성
+    /**
+     * 각 소셜 제공자별 알맞은 토큰 검증기(Verifier)를 호출하여 유저 정보를 추출합니다.
+     */
+    private OAuthUserInfo verifyOauthToken(String provider, String token) {
+        return switch (provider.toLowerCase()) {
+            case "google" -> googleTokenVerifier.verify(token);
+            case "kakao" -> kakaoTokenVerifier.verify(token);
+            case "naver" -> naverTokenVerifier.verify(token);
+            default -> throw new BaseException(ResultCode.UNSUPPORTED_PROVIDER);
+        };
+    }
+
+    /**
+     * 소셜 연동이 필요한 유저의 정보를 Redis에 10분간 임시 보관하고, 프론트엔드에 REQUIRES_LINKING 상태를 반환합니다.
+     */
+    private LoginResponse handleLinkingRequired(OAuthDto.LoginRequest request, OAuthUserInfo userInfo) throws JsonProcessingException {
+        String linkKey = UUID.randomUUID().toString();
+        OAuthLinkInfo linkInfo = OAuthLinkInfo.builder()
+                .email(userInfo.email())
+                .provider(request.provider())
+                .oauthId(userInfo.oauthId())
+                .build();
+
+        redisTemplate.opsForValue().set("OAUTH_LINK:" + linkKey,
+                objectMapper.writeValueAsString(linkInfo), Duration.ofMinutes(10));
+
         return LoginResponse.builder()
+                .status(AuthStatus.REQUIRES_LINKING)
+                .linkKey(linkKey)
+                .build();
+    }
+
+
+
+    /**
+     * 공통 응답 생성 로직. 토큰셋(Access, Refresh)을 생성하고 AuthStatus를 포함한 LoginResponse를 빌드합니다.
+     * 인증은 성공했더라도, 캐릭터가 없다면 무조건 온보딩 상태(REQUIRES_CHARACTER)로 강제 변환합니다.
+     */
+    private LoginResponse buildAuthResponse(Member member, AuthStatus status) {
+
+        AuthStatus finalStatus = status;
+        if (status == AuthStatus.SUCCESS && member.getBuddyCharacter() == null) {
+            finalStatus = AuthStatus.REQUIRES_CHARACTER;
+        }
+
+        String accessToken = jwtTokenProvider.createAccessToken(member.getMemberSeq());
+        String refreshToken = jwtTokenProvider.createRefreshToken(member.getMemberSeq());
+
+        return LoginResponse.builder()
+                .status(status)
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .member(MemberResponse.from(member))
                 .build();
     }
 
-    @Transactional
-    public LoginResponse socialTokenLogin(OAuthDto.LoginRequest request) {
-        // 1. Provider(구글/카카오/네이버)에 맞는 검증기를 통해 유저 정보 추출
-        OAuthUserInfo userInfo = verifyOauthToken(request.provider(), request.token());
 
-        Member member = memberRepository.findByEmail(userInfo.email())
-                .orElseGet(() -> {
-                   Member newMember = Member.builder()
-                           .email(userInfo.email())
-                           .nickname(userInfo.name())
-                           .build();
-                   return memberRepository.save(newMember);
-                });
-
-        Provider provider = Provider.from(request.provider());
-        if(!oauthAccountRepository.existsByMemberAndProvider(member,provider)){
-            OauthAccount oauthAccount = OauthAccount.builder()
-                    .provider(provider)
-                    .oauthId(userInfo.oauthId())
-                    .member(member)
-                    .build();
-            oauthAccountRepository.save(oauthAccount);
-        }
-
-        return generateTokenSet(member);
-    }
-
-    private OAuthUserInfo verifyOauthToken(String provider, String token) {
-        return switch (provider.toLowerCase()) {
-            case "google" -> googleTokenVerifier.verify(token);
-            case "kakao" -> kakaoTokenVerifier.verify(token);
-            case "naver" -> naverTokenVerifier.verify(token);
-            default -> throw new BaseException(ResultCode.UNSUPPORTED_PROVIDER); // 지원하지 않는 소셜 로그인
-        };
-    }
-
-    // 로그인 성공 시 토큰 교환
-    @Transactional
-    public LoginResponse oauthLoginSuccess(String key) {
-        String redisKey = "OAUTH_SUCCESS:" + key;
-        String redisValue = redisTemplate.opsForValue().getAndDelete(redisKey);
-
-        if (redisValue == null) {
-            throw new BaseException(ResultCode.INVALID_TOKEN);
-        }
-
-        String[] parts = redisValue.split(":");
-
-        Long memberSeq = Long.parseLong(parts[0]);
-
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
-
-        return generateTokenSet(member);
-    }
-
-    @Transactional
-    public LoginResponse linkOauthAccount(String key) throws JsonProcessingException {
-
-        // Redis에서 검증된 진짜 정보 꺼내기
-        String redisKey = "OAUTH_LINK:" + key;
-        String jsonValue = redisTemplate.opsForValue().getAndDelete(redisKey);
-
-        if (jsonValue == null) {
-            throw new BaseException(ResultCode.INVALID_TOKEN); // 만료되거나 조작된 요청
-        }
-
-        OAuthDto.OauthLinkInfo linkInfo = objectMapper.readValue(jsonValue, OAuthDto.OauthLinkInfo.class);
-
-
-        Member member = memberRepository.findByEmail(linkInfo.email())
-                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
-
-        Provider provider = Provider.from(linkInfo.provider());
-        if (oauthAccountRepository.existsByMemberAndProvider(member, provider)) {
-            throw new BaseException(ResultCode.ALREADY_LINKED_ACCOUNT);
-        }
-
-        OauthAccount oauthAccount = OauthAccount.builder()
-                .provider(provider)
-                .oauthId(linkInfo.oauthId())
-                .member(member)
-                .build();
-
-        oauthAccountRepository.save(oauthAccount);
-
-        return generateTokenSet(member);
-
-    }
-
-    @Transactional
-    public void logout(Long memberSeq) {
-        refreshTokenRepository.deleteById(memberSeq);
-    }
 
 }

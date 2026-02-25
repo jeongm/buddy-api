@@ -1,13 +1,13 @@
 package com.buddy.buddyapi.domain.member;
 
+import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
+import com.buddy.buddyapi.domain.auth.dto.SignUpRequest;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
 import com.buddy.buddyapi.domain.character.BuddyCharacterRepository;
 import com.buddy.buddyapi.domain.member.dto.*;
-import com.buddy.buddyapi.domain.member.dto.MemberSeqResponse;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,49 +17,97 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberService {
 
     private final MemberRepository memberRepository;
+    private final OauthAccountRepository oauthAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final BuddyCharacterRepository characterRepository;
-    private final StringRedisTemplate redisTemplate;
 
     /**
-     * 일반 회원가입 처리
+     * 일반(이메일) 회원가입을 처리하고 새로운 회원을 생성합니다.
      * @param request 회원가입 정보 (이메일, 비밀번호, 닉네임, 캐릭터 번호 등)
-     * @return memberResponse 가입 완료된 회원의 정보 DTO
-     * @throws BaseException 이미 존재하는 이메일이거나 캐릭터가 없을 경우 발생
+     * @param encodedPassword 시큐리티를 통해 암호화된 비밀번호
+     * @return 가입 완료된 회원의 식별자(PK) 정보를 담은 DTO
+     * @throws BaseException 이미 존재하는 이메일이거나, 선택한 캐릭터가 존재하지 않을 경우 발생
      */
     @Transactional
-    public MemberSeqResponse registerMember(MemberRegisterRequest request) {
+    public Member registerLocalMember(SignUpRequest request, String encodedPassword) {
 
-        // 이메일 인증 여부 확인
-        String isVerified = redisTemplate.opsForValue().get("verified:" + request.getEmail());
+        checkEmailDuplicate(request.email());
 
-        if (!"true".equals(isVerified)) {
-            // 인증 안 된 상태면 가입 거부 (401 Unauthorized 또는 400 Bad Request)
-            throw new BaseException(ResultCode.UNAUTHORIZED);
+        BuddyCharacter selectedCharacter = null;
+        if (request.characterSeq() != null) {
+            selectedCharacter = characterRepository.findById(request.characterSeq())
+                    .orElseThrow(() -> new BaseException(ResultCode.CHARACTER_NOT_FOUND));
         }
 
-        redisTemplate.delete("verified:" + request.getEmail());
-
-        checkEmailDuplicate(request.getEmail());
-
-        String encodedPassword = passwordEncoder.encode(request.getPassword());
-
-        // DB에 1번 캐릭터가 반드시 존재해야 한다는 강력한 전제가 필요
-        Long charSeq = request.getCharacterSeq() != null ? request.getCharacterSeq() : 1;
-
-        BuddyCharacter selectedCharacter = characterRepository.findById(charSeq)
-                .orElseThrow(()-> new BaseException(ResultCode.CHARACTER_NOT_FOUND));
-
         Member newMember = Member.builder()
-                .email(request.getEmail())
+                .email(request.email())
                 .password(encodedPassword)
-                .nickname(request.getNickname())
+                .nickname(request.nickname())
                 .buddyCharacter(selectedCharacter)
                 .build();
 
         Member savedMember = memberRepository.save(newMember);
 
-        return MemberSeqResponse.from(savedMember);
+        return savedMember;
+    }
+
+    /**
+     * 신규 소셜 로그인 유저를 데이터베이스에 등록하고 연동 정보를 함께 저장합니다.
+     * @param userInfo 소셜 제공자로부터 전달받은 유저 정보 (이메일, 닉네임, 고유 ID 등)
+     * @param provider 소셜 제공자 (Google, Kakao, Naver)
+     * @return 가입 완료된 회원 엔티티 (Member)
+     */
+    @Transactional
+    public Member registerSocialMember(OAuthUserInfo userInfo, Provider provider) {
+        Member newMember = memberRepository.save(
+                Member.builder()
+                        .email(userInfo.email())
+                        .nickname(userInfo.name())
+                        .build()
+        );
+
+        oauthAccountRepository.save(OauthAccount.builder()
+                .provider(provider)
+                .oauthId(userInfo.oauthId())
+                .member(newMember).build()
+        );
+
+
+        return newMember;
+    }
+
+    /**
+     * 기존 회원 계정에 새로운 소셜 계정 정보를 연동(추가)합니다.
+     * @param member 소셜 계정을 연동할 대상 기존 회원 엔티티
+     * @param provider 연동할 소셜 제공자 (Google, Kakao, Naver)
+     * @param oauthId 소셜 제공자 측의 고유 식별자 (ID)
+     * @throws BaseException 해당 소셜 제공자로 이미 연동된 계정이 존재할 경우 발생
+     */
+    @Transactional
+    public void linkSocialAccount(Member member, Provider provider, String oauthId) {
+
+        if (hasSocialAccount(member, provider)) {
+            throw new BaseException(ResultCode.ALREADY_LINKED_ACCOUNT);
+        }
+
+        OauthAccount oauthAccount = OauthAccount.builder()
+                .provider(provider)
+                .oauthId(oauthId)
+                .member(member)
+                .build();
+
+        oauthAccountRepository.save(oauthAccount);
+    }
+
+    /**
+     * 특정 회원이 해당 소셜 제공자와 이미 연동되어 있는지 여부를 확인합니다.
+     * @param member 확인할 회원 엔티티
+     * @param provider 소셜 제공자 (Google, Kakao, Naver)
+     * @return 이미 연동되어 있다면 true, 아니면 false 반환
+     */
+    @Transactional(readOnly = true)
+    public boolean hasSocialAccount(Member member, Provider provider) {
+        return oauthAccountRepository.existsByMemberAndProvider(member, provider);
     }
 
 
@@ -89,15 +137,13 @@ public class MemberService {
      */
     @Transactional
     public void updateMemberPassword(Long memberSeq, UpdatePasswordRequest request) {
-        // 1. 유저 조회
+
         Member member = memberRepository.findByIdOrThrow(memberSeq);
 
-        // 2. 기존 비밀번호 확인 (Spring Security의 matches 사용)
         if (!passwordEncoder.matches(request.currentPassword(), member.getPassword())) {
             throw new BaseException(ResultCode.CURRENT_PASSWORD_MISMATCH);
         }
 
-        // 3. 새 비밀번호 암호화 및 저장
         String encodedNewPassword = passwordEncoder.encode(request.newPassword());
         member.updatePassword(encodedNewPassword);
     }
@@ -121,7 +167,6 @@ public class MemberService {
      *
      * @param memberSeq 현재 로그인한 회원 정보
      * @param request    변경하고자 하는 캐릭터의 식별자가 담긴 DTO
-     * @return 캐릭터가 변경된 후의 회원 정보 응답 DTO
      * @throws BaseException 존재하지 않는 캐릭터 ID이거나 회원을 찾을 수 없을 경우 발생
      */
     @Transactional
@@ -156,6 +201,7 @@ public class MemberService {
         memberRepository.deleteById(memberSeq);
     }
 
+    @Transactional(readOnly = true)
     public void checkEmailDuplicate(String email) {
         if(memberRepository.existsByEmail(email)) {
             throw new BaseException(ResultCode.EMAIL_DUPLICATED);
