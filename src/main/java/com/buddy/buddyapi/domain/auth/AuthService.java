@@ -1,6 +1,10 @@
 package com.buddy.buddyapi.domain.auth;
 
-import com.buddy.buddyapi.domain.auth.dto.AuthDto;
+import com.buddy.buddyapi.domain.auth.component.GoogleTokenVerifier;
+import com.buddy.buddyapi.domain.auth.component.KakaoTokenVerifier;
+import com.buddy.buddyapi.domain.auth.component.NaverTokenVerifier;
+import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
+import com.buddy.buddyapi.domain.auth.dto.OAuthDto;
 import com.buddy.buddyapi.domain.member.*;
 import com.buddy.buddyapi.domain.auth.dto.MemberLoginRequest;
 import com.buddy.buddyapi.domain.auth.dto.LoginResponse;
@@ -27,6 +31,10 @@ public class AuthService {
     private final OauthAccountRepository oauthAccountRepository;
     private final RedisTemplate<String, String> redisTemplate;
     private final ObjectMapper objectMapper;
+
+    private final GoogleTokenVerifier googleTokenVerifier;
+    private final KakaoTokenVerifier kakaoTokenVerifier;
+    private final NaverTokenVerifier naverTokenVerifier;
 
     /**
      * 이메일과 비밀번호를 기반으로 로그인을 처리하고 JWT 토큰을 발급합니다.
@@ -88,6 +96,42 @@ public class AuthService {
                 .build();
     }
 
+    @Transactional
+    public LoginResponse socialTokenLogin(OAuthDto.LoginRequest request) {
+        // 1. Provider(구글/카카오/네이버)에 맞는 검증기를 통해 유저 정보 추출
+        OAuthUserInfo userInfo = verifyOauthToken(request.provider(), request.token());
+
+        Member member = memberRepository.findByEmail(userInfo.email())
+                .orElseGet(() -> {
+                   Member newMember = Member.builder()
+                           .email(userInfo.email())
+                           .nickname(userInfo.name())
+                           .build();
+                   return memberRepository.save(newMember);
+                });
+
+        Provider provider = Provider.from(request.provider());
+        if(!oauthAccountRepository.existsByMemberAndProvider(member,provider)){
+            OauthAccount oauthAccount = OauthAccount.builder()
+                    .provider(provider)
+                    .oauthId(userInfo.oauthId())
+                    .member(member)
+                    .build();
+            oauthAccountRepository.save(oauthAccount);
+        }
+
+        return generateTokenSet(member);
+    }
+
+    private OAuthUserInfo verifyOauthToken(String provider, String token) {
+        return switch (provider.toLowerCase()) {
+            case "google" -> googleTokenVerifier.verify(token);
+            case "kakao" -> kakaoTokenVerifier.verify(token);
+            case "naver" -> naverTokenVerifier.verify(token);
+            default -> throw new BaseException(ResultCode.UNSUPPORTED_PROVIDER); // 지원하지 않는 소셜 로그인
+        };
+    }
+
     // 로그인 성공 시 토큰 교환
     @Transactional
     public LoginResponse oauthLoginSuccess(String key) {
@@ -118,7 +162,7 @@ public class AuthService {
             throw new BaseException(ResultCode.INVALID_TOKEN); // 만료되거나 조작된 요청
         }
 
-        AuthDto.OauthLinkInfo linkInfo = objectMapper.readValue(jsonValue, AuthDto.OauthLinkInfo.class);
+        OAuthDto.OauthLinkInfo linkInfo = objectMapper.readValue(jsonValue, OAuthDto.OauthLinkInfo.class);
 
 
         Member member = memberRepository.findByEmail(linkInfo.email())
