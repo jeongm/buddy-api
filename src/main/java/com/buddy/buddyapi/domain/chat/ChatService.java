@@ -1,9 +1,11 @@
 package com.buddy.buddyapi.domain.chat;
 
+import com.buddy.buddyapi.domain.chat.dto.ChatHistoryResponse;
 import com.buddy.buddyapi.domain.chat.dto.ChatRequest;
 import com.buddy.buddyapi.domain.ai.dto.OpenAiRequest;
-import com.buddy.buddyapi.domain.chat.dto.ChatResponse;
+import com.buddy.buddyapi.domain.chat.dto.ChatMessageDto;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
+import com.buddy.buddyapi.domain.chat.dto.ChatSendResponse;
 import com.buddy.buddyapi.domain.member.Member;
 import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.exception.BaseException;
@@ -44,7 +46,7 @@ public class ChatService {
      */
     @Timer
     @Transactional
-    public ChatResponse sendMessage(Long memberSeq, ChatRequest request) {
+    public ChatSendResponse sendMessage(Long memberSeq, ChatRequest request) {
 
         // 1. 세션 조회 또는 생성 (세션 ID가 없거나 종료된 세션이면 새로 생성)
         ChatSession session = getOrCreateSession(memberSeq, request.sessionId());
@@ -61,7 +63,7 @@ public class ChatService {
         // 5. Redis에 대화내용 저장
         saveContextToRedis(session.getSessionSeq(), request.content(), aiContent);
 
-        return ChatResponse.from(aiMessage, session.getSessionSeq());
+        return ChatSendResponse.of(session.getSessionSeq(), ChatMessageDto.from(aiMessage));
 
     }
 
@@ -208,17 +210,19 @@ public class ChatService {
      * @return 과거 메시지 내역 리스트 (최신순)
      * @throws BaseException 해당 세션이 존재하지 않거나 본인 세션이 아닐 경우 발생
      */
-    public List<ChatResponse> getChatHistory(Long memberSeq, Long sessionId) {
+    public ChatHistoryResponse getChatHistory(Long memberSeq, Long sessionId) {
 
         // 내 세션인지 검증함께
         ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionId, memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
         // 메시지 목록을 과거순으로 조회하여 DTO로 변환
-        return chatMessageRepository.findAllByChatSessionOrderByCreatedAtDesc(session)
+        List<ChatMessageDto> messages =  chatMessageRepository.findAllByChatSessionOrderByCreatedAtDesc(session)
                 .stream()
-                .map(msg -> ChatResponse.from(msg, sessionId))
+                .map(ChatMessageDto::from)
                 .toList();
+
+        return ChatHistoryResponse.of(session.getSessionSeq(), session.getBuddyCharacter().getCharacterSeq(), messages);
     }
 
     /**
