@@ -1,8 +1,10 @@
 package com.buddy.buddyapi.domain.chat;
 
+import com.buddy.buddyapi.domain.chat.dto.ChatHistoryResponse;
+import com.buddy.buddyapi.domain.chat.dto.ChatSendResponse;
 import com.buddy.buddyapi.global.common.ApiResponse;
 import com.buddy.buddyapi.domain.chat.dto.ChatRequest;
-import com.buddy.buddyapi.domain.chat.dto.ChatResponse;
+import com.buddy.buddyapi.domain.chat.dto.ChatMessageDto;
 import com.buddy.buddyapi.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,7 +25,7 @@ public class ChatController {
 
     @Operation(summary = "메시지 전송", description = "사용자가 메시지를 보내고 AI의 답변을 받습니다.")
     @PostMapping
-    public ResponseEntity<ApiResponse<ChatResponse>> sendMessage(
+    public ResponseEntity<ApiResponse<ChatSendResponse>> sendMessage(
             @AuthenticationPrincipal CustomUserDetails member,
             @Valid @RequestBody ChatRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(chatService.sendMessage(member.memberSeq(), request)));
@@ -31,7 +33,7 @@ public class ChatController {
 
     @Operation(summary = "대화 내역 조회", description = "특정 세션의 모든 대화 내역을 조회합니다.")
     @GetMapping(value = "/{sessionId}")
-    public ResponseEntity<ApiResponse<List<ChatResponse>>> getChatHistory(
+    public ResponseEntity<ApiResponse<ChatHistoryResponse>> getChatHistory(
             @AuthenticationPrincipal CustomUserDetails member,
             @PathVariable Long sessionId
     ) {
