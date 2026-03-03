@@ -88,7 +88,7 @@ public class AuthService {
     @Transactional
     public LoginResponse socialLogin(OAuthDto.LoginRequest request) throws JsonProcessingException {
         // 1. 검증 및 정보 추출 (verifyOauthToken)
-        OAuthUserInfo userInfo = verifyOauthToken(request.provider(), request.token());
+        OAuthUserInfo userInfo = verifyOauthToken(request.provider(), request.code());
         Provider provider = Provider.from(request.provider());
 
         // 기존 회원 여부 확인

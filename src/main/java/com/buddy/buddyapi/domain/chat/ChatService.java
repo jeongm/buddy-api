@@ -49,7 +49,7 @@ public class ChatService {
     public ChatSendResponse sendMessage(Long memberSeq, ChatRequest request) {
 
         // 1. 세션 조회 또는 생성 (세션 ID가 없거나 종료된 세션이면 새로 생성)
-        ChatSession session = getOrCreateSession(memberSeq, request.sessionId());
+        ChatSession session = getOrCreateSession(memberSeq, request.sessionSeq());
 
         // 2. 사용자 메시지 저장
         saveMessage(session, SenderRole.USER, request.content());
@@ -147,16 +147,16 @@ public class ChatService {
     /**
      * 기존 대화 세션을 조회하거나, 없을 경우 새로운 세션을 생성합니다.
      * @param memberSeq    현재 로그인한 회원 정보
-     * @param sessionId 조회할 세션의 고유 식별자 (null 가능)
+     * @param sessionSeq 조회할 세션의 고유 식별자 (null 가능)
      * @return 활성화된 대화 세션 엔티티
      */
-    private ChatSession getOrCreateSession(Long memberSeq, Long sessionId) {
+    private ChatSession getOrCreateSession(Long memberSeq, Long sessionSeq) {
 
         Member member = memberRepository.findByIdWithCharacter(memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
 
-        if(sessionId != null) {
-            return chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionId, memberSeq)
+        if(sessionSeq != null) {
+            return chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionSeq, memberSeq)
                     .filter(s -> !s.isEnded()) // 종료되지 않은 세션만 사용
                     .orElseGet(() -> createNewSession(member));
         }
@@ -206,14 +206,14 @@ public class ChatService {
     /**
      * 특정 세션의 이전 대화 기록을 조회합니다.
      * * @param member    현재 로그인한 회원 정보
-     * @param sessionId 조회할 세션의 고유 식별자
+     * @param sessionSeq 조회할 세션의 고유 식별자
      * @return 과거 메시지 내역 리스트 (최신순)
      * @throws BaseException 해당 세션이 존재하지 않거나 본인 세션이 아닐 경우 발생
      */
-    public ChatHistoryResponse getChatHistory(Long memberSeq, Long sessionId) {
+    public ChatHistoryResponse getChatHistory(Long memberSeq, Long sessionSeq) {
 
         // 내 세션인지 검증함께
-        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionId, memberSeq)
+        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionSeq, memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
         // 메시지 목록을 과거순으로 조회하여 DTO로 변환
@@ -228,13 +228,13 @@ public class ChatService {
     /**
      * 진행 중인 대화 세션을 종료 상태로 변경합니다.
      * * @param member    현재 로그인한 회원 정보
-     * @param sessionId 종료할 세션의 고유 식별자
+     * @param sessionSeq 종료할 세션의 고유 식별자
      * @throws BaseException 해당 세션이 존재하지 않거나 본인 세션이 아닐 경우 발생
      */
     @Transactional
-    public void endChatSession(Long memberSeq, Long sessionId){
+    public void endChatSession(Long memberSeq, Long sessionSeq){
 
-        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionId, memberSeq)
+        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionSeq, memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
         // 2. 이미 종료된 세션인지 체크 (선택 사항)

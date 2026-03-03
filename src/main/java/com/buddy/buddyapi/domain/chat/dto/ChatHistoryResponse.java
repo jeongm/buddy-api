@@ -7,7 +7,7 @@ public record ChatHistoryResponse(
         Long characterSeq,
         List<ChatMessageDto> messages
 ) {
-    public static ChatHistoryResponse of(Long sessionId, Long characterSeq, List<ChatMessageDto> messages) {
-        return new ChatHistoryResponse(sessionId, characterSeq, messages);
+    public static ChatHistoryResponse of(Long sessionSeq, Long characterSeq, List<ChatMessageDto> messages) {
+        return new ChatHistoryResponse(sessionSeq, characterSeq, messages);
     }
 }
