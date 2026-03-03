@@ -10,6 +10,8 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Getter
@@ -36,6 +38,10 @@ public class ChatSession {
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
+
+    // TODO 현재는 세션이 삭제될 때 해당 세션의 모든 메시지도 함께 삭제됩니다.
+    @OneToMany(mappedBy = "chatSession", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ChatMessage> chatMessages = new ArrayList<>();
 
 
     @Builder

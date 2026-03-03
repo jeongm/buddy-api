@@ -1,6 +1,7 @@
 package com.buddy.buddyapi.domain.member;
 
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
+import com.buddy.buddyapi.domain.chat.ChatSession;
 import com.buddy.buddyapi.domain.diary.Diary;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
@@ -45,9 +46,14 @@ public class Member {
 
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<OauthAccount> oauthAccounts = new ArrayList<>();
-    
-    @OneToMany(mappedBy = "member")
+
+    // TODO 케스케이드 수정 - 현재는 일기 데이터도 부모 삭제 시 함께 삭제되도록 변경
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<Diary> diaries = new ArrayList<>();
+
+    // TODO casecade 수정 - 현재는 상동
+    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
+    private final List<ChatSession> chatSessions = new ArrayList<>();
 
     @Builder
     public Member(String email, String password, String nickname, BuddyCharacter buddyCharacter) {

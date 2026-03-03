@@ -74,6 +74,7 @@ public class DiaryService {
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
         // 2. 해당 세션의 모든 메시지 시간순 조회
+        // TODO user의 내용으로만 작성할지 캐릭터까지 들어가게 작성할지 -> 일단 user내용으로만 작성하도록 수정해보자
         List<ChatMessage> messages = chatMessageRepository.findAllByChatSessionOrderByCreatedAtAsc(session);
 
         if (messages.isEmpty()) {
