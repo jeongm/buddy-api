@@ -14,8 +14,8 @@ public class OAuthDto {
             @NotBlank(message = "제공자(google, kakao, naver)는 필수입니다.")
             String provider,
 
-            @NotBlank(message = "소셜 토큰은 필수입니다.")
-            String token
+            @NotBlank(message = "소셜 code는 필수입니다.")
+            String code
     ){}
 
 

@@ -70,7 +70,7 @@ public class DiaryService {
     public DiaryPreviewResponse generateDiaryFromChat(Long memberSeq, DiaryGenerateRequest request) {
 
         // 1. 세션 조회 (내 세션인지, 종료된 세션인지 확인)
-        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(request.sessionId(), memberSeq)
+        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(request.sessionSeq(), memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
         // 2. 해당 세션의 모든 메시지 시간순 조회
