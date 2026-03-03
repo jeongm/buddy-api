@@ -26,11 +26,10 @@ public class KakaoTokenVerifier {
     @Value("${spring.security.oauth2.client.registration.kakao.client-id}")
     private String clientId;
 
-    // ⭐️ 아까 프론트엔드와 얘기했던 보안의 핵심! (Client Secret)
     @Value("${spring.security.oauth2.client.registration.kakao.client-secret}")
     private String clientSecret;
 
-    // 프론트가 낚아챌 때 썼던 가짜 주소 (ex. https://buddy.com/oauth/kakao)
+    // 프론트가 낚아챌 때 썼던 가짜 주소 (ex. https://buddy.com/oauth/callback)
     @Value("${kakao.redirect-uri}")
     private String redirectUri;
 
