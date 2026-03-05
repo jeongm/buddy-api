@@ -70,6 +70,29 @@ public class AiService {
     }
 
     /**
+     * 일주일 치 일기와 최다 태그를 기반으로 주간 아이덴티티(칭호)를 생성합니다.
+     * @param diaryContents 이번 주 일기 내용 리스트
+     * @return AI가 생성한 JSON 문자열 (weeklyIdentity, weeklyTopTag 포함)
+     */
+    @Timer
+    public String getWeeklyIdentityDraft(List<String> diaryContents) {
+
+        String systemMessage = AiPrompt.WEEKLY_IDENTITY_SYSTEM_PROMPT;
+
+        String contentString = String.join("\n", diaryContents);
+
+        String userMessage = String.format("[일기 내용]\n%s", contentString);
+
+        List<OpenAiRequest.Message> messages = List.of(
+                new OpenAiRequest.Message("system", systemMessage),
+                new OpenAiRequest.Message("user", userMessage)
+        );
+
+        // 짧고 명확한 요약이므로 gpt-4o-mini 사용, 온도는 0.7
+        return callOpenAi(messages, true, "gpt-4o-mini", 0.7);
+    }
+
+    /**
      * openai 호출
      * @param messages prompt AI에게 전달할 시스템 지시문
      * @param isJsonRequest 응답 형식이 JSON이어야 하는지 여부
