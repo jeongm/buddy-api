@@ -1,6 +1,8 @@
 package com.buddy.buddyapi.domain.diary;
 
 import com.buddy.buddyapi.domain.diary.dto.MonthlyDiaryCountResponse;
+import com.buddy.buddyapi.domain.diary.dto.TagResponse;
+import com.buddy.buddyapi.domain.insight.dto.TagNameCountResponse;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 
@@ -20,7 +22,9 @@ public interface DiaryRepositoryCustom {
 
     Slice<Diary> searchMyDiaries(Long memberSeq, String search, Pageable pageable);
 
+    List<TagResponse> findRecentTopTags(Long memberSeq);
+
     List<String> findDiaryContentsByMemberAndDateRange(Long memberSeq, LocalDate startDate, LocalDate endDate);
 
-    String findTopTagNameByMemberAndDateRange(Long memberSeq, LocalDate startDate, LocalDate endDate);
+    List<TagNameCountResponse> findTopTagsByMemberAndDateRange(Long memberSeq, LocalDate startDate, LocalDate endDate, int limit);
 }
