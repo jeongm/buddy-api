@@ -16,7 +16,7 @@ import com.buddy.buddyapi.global.exception.ResultCode;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,22 +24,27 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
     private final MemberService memberService;
+    private final MailService mailService;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
-    private final RedisTemplate<String, String> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
     private final GoogleTokenVerifier googleTokenVerifier;
     private final KakaoTokenVerifier kakaoTokenVerifier;
     private final NaverTokenVerifier naverTokenVerifier;
+
+    private static final String RESET_CODE_PREFIX = "PWD_RESET_CODE:";
+    private static final long RESET_CODE_TTL_MINUTES = 5; // 보안을 위해 5분으로 단축
 
     @Transactional
     public LoginResponse signup(SignUpRequest request) {
@@ -179,6 +184,47 @@ public class AuthService {
     @Transactional
     public void logout(Long memberSeq) {
         refreshTokenRepository.deleteById(memberSeq);
+    }
+
+    /**
+     * 1단계: 6자리 인증번호 생성, Redis 저장 및 이메일 발송
+     */
+    @Transactional(readOnly = true)
+    public void sendPasswordResetCode(String email) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+
+        if (member.getPassword() == null) {
+            throw new BaseException(ResultCode.OAUTH_MEMBER_CANNOT_RESET_PASSWORD);
+        }
+
+        // 6자리 랜덤 숫자 생성 (000000 ~ 999999)
+        String code = String.format("%06d", new java.security.SecureRandom().nextInt(1000000));
+
+        // Redis 저장 (Key: PWD_RESET_CODE:test@test.com, Value: 123456, TTL: 5분)
+        redisTemplate.opsForValue()
+                .set(RESET_CODE_PREFIX + member.getEmail(), code, RESET_CODE_TTL_MINUTES, TimeUnit.MINUTES);
+
+        // 우체부에게 메일 전송 지시 (인증번호를 그대로 넘깁니다)
+        mailService.sendPasswordResetCode(member.getEmail(), code);
+    }
+
+    /**
+     * 2단계: 인증번호 검증 및 비밀번호 최종 변경
+     */
+    @Transactional
+    public void resetPasswordWithCode(String email, String code, String newPassword) {
+        String redisKey = RESET_CODE_PREFIX + email;
+
+        String savedCode = redisTemplate.opsForValue().getAndDelete(redisKey);
+        if (savedCode == null || !savedCode.equals(code)) {
+            throw new BaseException(ResultCode.EXPIRED_OR_INVALID_CODE);
+        }
+
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+
+        member.updatePassword(passwordEncoder.encode(newPassword));
     }
 
     // =========================================================================

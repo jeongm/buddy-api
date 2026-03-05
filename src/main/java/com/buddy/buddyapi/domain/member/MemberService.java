@@ -46,9 +46,7 @@ public class MemberService {
                 .buddyCharacter(selectedCharacter)
                 .build();
 
-        Member savedMember = memberRepository.save(newMember);
-
-        return savedMember;
+        return memberRepository.save(newMember);
     }
 
     /**
@@ -144,16 +142,16 @@ public class MemberService {
     /**
      * 회원의 비밀번호를 변경합니다.
      * @param memberSeq 비밀번호를 변경할 회원의 고유 식별자
-     * @param request 현재비밀번호 및 새 비밀번호를 담은 DTO
+     * @param currentPassword 현재비밀번호
+     * @param newPassword 새 비밀번호를 담은 DTO
      * @throws BaseException 기존 비밀번호가 일치하지 않거나 유저가 없을 경우 발생
      */
     @Transactional
-    public void updateMemberPassword(Long memberSeq, UpdatePasswordRequest request) {
-
-        verifyPassword(memberSeq,request.currentPassword());
+    public void updateMemberPassword(Long memberSeq, String currentPassword, String newPassword) {
+        verifyPassword(memberSeq,currentPassword);
 
         Member member = memberRepository.findByIdOrThrow(memberSeq);
-        String encodedNewPassword = passwordEncoder.encode(request.newPassword());
+        String encodedNewPassword = passwordEncoder.encode(newPassword);
         member.updatePassword(encodedNewPassword);
     }
 
@@ -205,11 +203,19 @@ public class MemberService {
         memberRepository.save(member);
     }
 
+    /**
+     * 회원 탈퇴
+     * @param memberSeq 현재 로그인한 회원 정보
+     */
     @Transactional
     public void deleteMember(Long memberSeq) {
         memberRepository.deleteById(memberSeq);
     }
 
+    /**
+     * 이메일 중복 체크
+     * @param email 중복체크할 이메일
+     */
     @Transactional(readOnly = true)
     public void checkEmailDuplicate(String email) {
         if(memberRepository.existsByEmail(email)) {

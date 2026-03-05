@@ -40,7 +40,7 @@ public class MemberController {
     @PostMapping("/me/password/verify")
     public ResponseEntity<ApiResponse<Void>> verifyCurrentPassword(
             @AuthenticationPrincipal CustomUserDetails member,
-            @Valid @RequestBody VerifyPasswordRequest request) {
+            @Valid @RequestBody PasswordUpdateDto.VerifyRequest request) {
 
         memberService.verifyPassword(member.memberSeq(), request.currentPassword());
 
@@ -51,8 +51,8 @@ public class MemberController {
     @PatchMapping("/me/password")
     public ResponseEntity<ApiResponse<Void>> updatePassword(
             @AuthenticationPrincipal CustomUserDetails member,
-            @Valid @RequestBody UpdatePasswordRequest request) {
-        memberService.updateMemberPassword(member.memberSeq(), request);
+            @Valid @RequestBody PasswordUpdateDto.UpdateRequest request) {
+        memberService.updateMemberPassword(member.memberSeq(), request.currentPassword(), request.newPassword());
         return ResponseEntity.ok(ApiResponse.ok("비밀번호가 변경되었습니다.", null));
     }
 

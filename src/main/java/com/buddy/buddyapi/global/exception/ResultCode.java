@@ -37,6 +37,8 @@ public enum ResultCode {
     CHARACTER_NOT_FOUND(HttpStatus.NOT_FOUND, "M006", "존재하지 않는 캐릭터입니다."),
     ALREADY_SIGNED_UP_EMAIL(HttpStatus.BAD_REQUEST, "M007", "이미 가입된 이메일입니다. 소셜 계정 연동이 필요합니다."),
     ALREADY_LINKED_ACCOUNT(HttpStatus.BAD_REQUEST, "M008", "이미 해당 소셜 플랫폼과 연동된 계정입니다."),
+    OAUTH_MEMBER_CANNOT_RESET_PASSWORD(HttpStatus.BAD_REQUEST, "M009", "소셜 계정으로 가입된 이메일입니다. 소셜로그인을 이용해주세요."),
+    EXPIRED_OR_INVALID_CODE(HttpStatus.BAD_REQUEST, "M010", "인증번호가 만료되었거나 일치하지 않습니다."),
 
     // --- 일기 관련 (D) ---
     DIARY_NOT_FOUND(HttpStatus.NOT_FOUND, "D001", "존재하지 않는 일기입니다."),
