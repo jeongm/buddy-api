@@ -113,6 +113,42 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
     }
 
     /**
+     * 원하는 기간동안의 일기를 내용만 조회
+     */
+    @Override
+    public List<String> findDiaryContentsByMemberAndDateRange(Long memberSeq, LocalDate startDate, LocalDate endDate) {
+        return queryFactory
+                .select(diary.content)
+                .from(diary)
+                .where(
+                        diary.member.memberSeq.eq(memberSeq),
+                        diary.diaryDate.between(startDate, endDate)
+                )
+                .fetch();
+    }
+
+    /**
+     * 원하는 기간 동안 최다 빈도의 태그 조회 (단건)
+     */
+
+    @Override
+    public String findTopTagNameByMemberAndDateRange(Long memberSeq, LocalDate startDate, LocalDate endDate) {
+        return queryFactory
+                .select(tag.name)
+                .from(diary)
+                .join(diary.diaryTags, diaryTag)
+                .join(diaryTag.tag, tag)
+                .where(
+                        diary.member.memberSeq.eq(memberSeq),
+                        diary.diaryDate.between(startDate,endDate)
+                )
+                .groupBy(tag.tagSeq, tag.name)
+                .orderBy(tag.tagSeq.count().desc())
+                .limit(1)
+                .fetchOne();
+    }
+
+    /**
      * 동적 쿼리를 위한 조건 생성 메서드
      * 검색어가 null 이거나 비어있으면 null 을 반환하여 where 절에서 무시됨!
      */

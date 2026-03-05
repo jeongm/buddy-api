@@ -24,8 +24,10 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -88,8 +90,6 @@ public class DiaryService {
                 .collect(Collectors.joining("\n"));
 
         // 4. AI 서비스 호출 (페르소나와 대화 내용 전달)
-        log.info("AI에게 보낼 텍스트:\n{}", fullConversation);
-
         String rawResponse = aiService.getDiaryDraft(
                 fullConversation
         );
@@ -98,43 +98,6 @@ public class DiaryService {
 
         // 5. AI 응답(JSON 문자열)을 DTO로 변환 (파싱 로직은 아래에서 구현)
         return parseAiResponse(rawResponse);
-    }
-
-    /**
-     * AI의 JSON 응답 문자열을 파싱하여 객체로 변환합니다.
-     *
-     * @param jsonString AI 서비스로부터 받은 JSON 포맷의 문자열
-     * @return 파싱된 일기 데이터와 태그 리스트가 포함된 DTO
-     * @throws BaseException JSON 파싱에 실패하거나 규격이 맞지 않을 경우 발생
-     */
-    private DiaryPreviewResponse parseAiResponse(String jsonString) {
-        try {
-
-            String cleanedJson = jsonString.substring(jsonString.indexOf("{"), jsonString.lastIndexOf("}") + 1);
-
-            // AI가 주는 JSON 필드에 맞춰 임시 클래스로 먼저 받거나 직접 매핑
-            JsonNode root = objectMapper.readTree(cleanedJson);
-
-            String title = root.path("title").asText();
-            String content = root.path("content").asText();
-
-            // 태그 또한 우선 프리 뷰 단계이므로 저장하지 않습니다.
-            List<TagResponse> tags = new ArrayList<>();
-            root.path("tags").forEach(t -> {
-                String name = t.asText();
-
-                Tag tag = tagRepository.findByName(name)
-                        .orElseGet(() -> new Tag(name));
-                tags.add(new TagResponse(tag.getTagSeq(), tag.getName()));
-            });
-
-            return new DiaryPreviewResponse(title, content, tags);
-
-        } catch (Exception e) {
-            // 파싱 실패 시 기본 응답을 주거나 예외 처리
-            log.error("AI 응답 파싱 에러. 원본 데이터: {}", jsonString, e);
-            throw new BaseException(ResultCode.AI_PARSE_ERROR);
-        }
     }
 
     /**
@@ -205,61 +168,33 @@ public class DiaryService {
      * @throws BaseException 일기를 찾을 수 없거나 본인 일기가 아닐 경우 발생
      */
     @Transactional
-    public void updateDiary(Long memberSeq, Long diarySeq, DiaryUpdateRequest request, MultipartFile image) {
+    public void updateDiary(Long memberSeq, Long diarySeq, DiaryUpdateRequest request, MultipartFile newImage) {
 
         // 1. 본인의 일기인지 확인하며 조회
         Diary diary = diaryRepository.findByDiarySeqAndMember_MemberSeq(diarySeq, memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
-        String currentImageUrl = diary.getImageUrl();
-        if(image != null && !image.isEmpty()) {
-            // 기존 파일 삭제
-            if(currentImageUrl != null) {
-                imageService.deleteImage(currentImageUrl);
-            }
-            currentImageUrl = imageService.uploadImage(image);
+        String oldImageUrl = diary.getImageUrl();
+        String newImageUrl = oldImageUrl;
+
+        if(newImage != null && !newImage.isEmpty()) {
+            newImageUrl = imageService.uploadImage(newImage);
         }
 
-        // 2. 기본 정보 수정
-        diary.updateDiary(request.title(), request.content(), request.diaryDate(), currentImageUrl);
+        diary.updateDiary(request.title(), request.content(), request.diaryDate(), newImageUrl);
 
         // 3. 태그 교체
         if (request.tags() != null) {
             List<Tag> tags = getOrCreateTags(request.tags());
             diary.updateTags(tags);
         }
-    }
 
-    /**
-     * 태그 이름 리스트를 바탕으로 기존 태그를 조회하거나 신규 태그를 생성합니다.
-     */
-    private List<Tag> getOrCreateTags(List<String> tagNames) {
-        if (tagNames == null || tagNames.isEmpty()) {
-            return new ArrayList<>();
+        diaryRepository.flush();
+
+        if(newImage != null && !newImage.isEmpty() && oldImageUrl != null) {
+            imageService.deleteImage(oldImageUrl);
         }
 
-        // 1. 이미 DB에 존재하는 태그들을 IN 쿼리로 한 번에 싹 다 가져옴 (쿼리 1방)
-        List<Tag> existingTags = tagRepository.findByNameIn(tagNames);
-
-        // 2. 찾아온 태그들의 이름만 추출
-        List<String> existingTagNames = existingTags.stream()
-                .map(Tag::getName)
-                .toList();
-
-        // 3. DB에 없는 새로운 태그들만 필터링해서 객체 생성
-        List<Tag> newTags = tagNames.stream()
-                .filter(name -> !existingTagNames.contains(name))
-                .map(Tag::new)
-                .toList();
-
-        // 4. 새로운 태그들 한 번에 저장 (쿼리 1방 - Batch Insert 설정 시)
-        if (!newTags.isEmpty()) {
-            tagRepository.saveAll(newTags);
-            // 기존 태그 리스트에 새로 만든 태그들을 합침
-            existingTags.addAll(newTags);
-        }
-
-        return existingTags;
     }
 
     /**
@@ -273,11 +208,13 @@ public class DiaryService {
         Diary diary = diaryRepository.findByDiarySeqAndMember_MemberSeq(diarySeq, memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
+        diaryRepository.delete(diary);
+        diaryRepository.flush();
+        // diary_tag 테이블의 데이터도 알아서 같이 지워집니다!
+
         if(diary.getImageUrl() != null) {
             imageService.deleteImage(diary.getImageUrl());
         }
-        diaryRepository.delete(diary);
-        // diary_tag 테이블의 데이터도 알아서 같이 지워집니다!
     }
 
     /**
@@ -327,4 +264,68 @@ public class DiaryService {
         return tagRepository.findRecentTopTags(memberSeq);
 
     }
+
+    /**
+     * 태그 이름 리스트를 바탕으로 기존 태그를 조회하거나 신규 태그를 생성합니다.
+     */
+    private List<Tag> getOrCreateTags(List<String> tagNames) {
+        if (tagNames == null || tagNames.isEmpty()) {
+            return Collections.emptyList(); // 텅 빈 리스트는 메모리를 안 먹는 emptyList() 반환
+        }
+
+        // 1. 이미 DB에 존재하는 태그들을 IN 쿼리로 한 번에 싹 다 가져옴
+        List<Tag> existingTags = tagRepository.findByNameIn(tagNames);
+
+        // 2. 찾아온 태그들의 이름만 추출
+        List<String> existingTagNames = existingTags.stream()
+                .map(Tag::getName)
+                .toList();
+
+        // 3. DB에 없는 새로운 태그들만 필터링해서 객체 생성
+        List<Tag> newTags = tagNames.stream()
+                .filter(name -> !existingTagNames.contains(name))
+                .map(Tag::new)
+                .toList();
+
+        // 4. 새로운 태그들 한 번에 저장 (쿼리 1방 - Batch Insert 설정 시)
+        if(newTags.isEmpty()) {
+            return existingTags;
+        }
+
+        tagRepository.saveAll(newTags);
+
+        return Stream.concat(existingTags.stream(), newTags.stream())
+                .toList();
+    }
+
+    /**
+     * AI의 JSON 응답 문자열을 파싱하여 객체로 변환합니다.
+     *
+     * @param jsonString AI 서비스로부터 받은 JSON 포맷의 문자열
+     * @return 파싱된 일기 데이터와 태그 리스트가 포함된 DTO
+     * @throws BaseException JSON 파싱에 실패하거나 규격이 맞지 않을 경우 발생
+     */
+    private DiaryPreviewResponse parseAiResponse(String jsonString) {
+        try {
+            int startIndex = jsonString.indexOf("{");
+            int endIndex = jsonString.lastIndexOf("}");
+            if (startIndex == -1 || endIndex == -1) throw new BaseException(ResultCode.AI_PARSE_ERROR);
+
+            String cleanedJson = jsonString.substring(startIndex, endIndex + 1);
+            ParsedAiDiaryDto parsed = objectMapper.readValue(cleanedJson, ParsedAiDiaryDto.class);
+
+            // 태그 또한 우선 프리 뷰 단계이므로 저장하지 않고 이름만 반환합니다
+            List<TagResponse> tagResponses = parsed.tags().stream()
+                    .map(name -> new TagResponse(null, name))
+                    .toList();
+
+            return new DiaryPreviewResponse(parsed.title(), parsed.content(), tagResponses);
+        } catch (Exception e) {
+            // 파싱 실패 시 기본 응답을 주거나 예외 처리
+            log.error("AI 응답 파싱 에러. 원본 데이터: {}", jsonString, e);
+            throw new BaseException(ResultCode.AI_PARSE_ERROR);
+        }
+    }
+
+    private record ParsedAiDiaryDto(String title, String content, List<String> tags) {}
 }
