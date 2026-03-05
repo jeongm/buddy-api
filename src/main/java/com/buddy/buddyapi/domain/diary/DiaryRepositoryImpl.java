@@ -1,6 +1,8 @@
 package com.buddy.buddyapi.domain.diary;
 
 import com.buddy.buddyapi.domain.diary.dto.MonthlyDiaryCountResponse;
+import com.buddy.buddyapi.domain.diary.dto.TagResponse;
+import com.buddy.buddyapi.domain.insight.dto.TagNameCountResponse;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -128,13 +130,49 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
     }
 
     /**
-     * 원하는 기간 동안 최다 빈도의 태그 조회 (단건)
+     * 최근 30일 동안 사용자가 작성한 일기에서 가장 많이 사용된 태그 Top 10을 조회합니다.
+     * 주로 일기 목록 상단의 '최근 자주 사용한 태그' 필터링 UI를 구성하는 데 사용됩니다.
+     *
+     * [정렬 기준]
+     * 1순위: 태그가 일기에 사용된 총 빈도수 (내림차순)
+     * 2순위: 빈도수가 동률일 경우, 가장 최근 날짜에 작성된 일기에 쓰인 태그를 우선 (최신순)
+     *
+     * @param memberSeq 통계를 조회할 사용자의 고유 식별자(PK)
+     * @return 태그 식별자(tagSeq)와 이름(name)을 담은 TagResponse 리스트 (최대 10개)
+     */
+    @Override
+    public List<TagResponse> findRecentTopTags(Long memberSeq) {
+        LocalDate thirtyDaysAgo = LocalDate.now().minusDays(30);
+
+        return queryFactory
+                .select(Projections.constructor(TagResponse.class,
+                        tag.tagSeq,
+                        tag.name))
+                .from(diary)
+                .join(diary.diaryTags, diaryTag)
+                .join(diaryTag.tag, tag)
+                .where(
+                        diary.member.memberSeq.eq(memberSeq),
+                        diary.diaryDate.goe(thirtyDaysAgo)
+                )
+                .groupBy(tag.tagSeq, tag.name)
+                .orderBy(tag.count().desc(), diary.diaryDate.max().desc())
+                .limit(10)
+                .fetch();
+    }
+
+    /**
+     * 원하는 기간 동안 최다 빈도 5개의 태그 조회
      */
 
     @Override
-    public String findTopTagNameByMemberAndDateRange(Long memberSeq, LocalDate startDate, LocalDate endDate) {
+    public List<TagNameCountResponse> findTopTagsByMemberAndDateRange(Long memberSeq, LocalDate startDate, LocalDate endDate, int limit) {
         return queryFactory
-                .select(tag.name)
+                .select(
+                        Projections.constructor(TagNameCountResponse.class,
+                                tag.name,
+                                tag.count())
+                )
                 .from(diary)
                 .join(diary.diaryTags, diaryTag)
                 .join(diaryTag.tag, tag)
@@ -143,9 +181,9 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
                         diary.diaryDate.between(startDate,endDate)
                 )
                 .groupBy(tag.tagSeq, tag.name)
-                .orderBy(tag.tagSeq.count().desc())
-                .limit(1)
-                .fetchOne();
+                .orderBy(tag.count().desc())
+                .limit(limit)
+                .fetch();
     }
 
     /**

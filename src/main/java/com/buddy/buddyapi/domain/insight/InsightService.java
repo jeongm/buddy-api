@@ -1,8 +1,11 @@
-package com.buddy.buddyapi.domain.member;
+package com.buddy.buddyapi.domain.insight;
 
 import com.buddy.buddyapi.domain.ai.AiService;
 import com.buddy.buddyapi.domain.diary.DiaryRepository;
-import com.buddy.buddyapi.domain.member.dto.WeeklyInsightResponse;
+import com.buddy.buddyapi.domain.insight.dto.TagNameCountResponse;
+import com.buddy.buddyapi.domain.insight.dto.WeeklyIdentityResponse;
+import com.buddy.buddyapi.domain.member.Member;
+import com.buddy.buddyapi.domain.member.MemberRepository;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,10 +22,10 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class MemberInsightService {
+public class InsightService {
 
     private final MemberRepository memberRepository;
-    private final MemberInsightRepository insightRepository;
+    private final InsightRepository insightRepository;
     private final DiaryRepository diaryRepository;
 
     private final AiService aiService;
@@ -34,7 +37,7 @@ public class MemberInsightService {
      * 주간 아이덴티티(칭호) 조회 및 생성 (Lazy Evaluation)
      */
     @Transactional
-    public WeeklyInsightResponse getWeeklyInsight(Long memberSeq) {
+    public WeeklyIdentityResponse getWeeklyInsight(Long memberSeq) {
         Member member = memberRepository.findByIdOrThrow(memberSeq);
 
         // 유저의 통계 테이블 조회 (없으면 null)
@@ -44,7 +47,7 @@ public class MemberInsightService {
 
         // 이미 이번 주에 칭호를 발급받았다면? -> AI 호출 없이 DB 값 바로 리턴!
         if (isCacheValid(insight)) {
-            return WeeklyInsightResponse.from(insight);
+            return WeeklyIdentityResponse.from(insight);
         }
 
         // 이번 주에 처음 접속했거나, 아직 데이터가 없는 경우
@@ -75,6 +78,22 @@ public class MemberInsightService {
     }
 
     /**
+     * 지난주(월~일) 동안 가장 많이 사용한 태그 Top 5와 빈도수를 조회합니다.
+     * @param memberSeq 현재 로그인한 회원 정보
+     * @return 태그 이름과 사용 횟수가 담긴 DTO 리스트
+     */
+    @Transactional(readOnly = true)
+    public List<TagNameCountResponse> getLastWeekTopTags(Long memberSeq) {
+
+        // 1. 지난주 월~일 날짜 계산
+        LocalDate lastMonday = LocalDate.now().minusWeeks(1).with(DayOfWeek.MONDAY);
+        LocalDate lastSunday = LocalDate.now().minusWeeks(1).with(DayOfWeek.SUNDAY);
+
+        // 2. QueryDSL 레포지토리 호출 (5개 제한)
+        return diaryRepository.findTopTagsByMemberAndDateRange(memberSeq, lastMonday, lastSunday, 5);
+    }
+
+    /**
      * 캐시 유효성 검사
      */
     private boolean isCacheValid(MemberInsight insight) {
@@ -86,10 +105,10 @@ public class MemberInsightService {
     /**
      * 엔티티 업데이트 및 저장 (그리고 DTO 변환까지 한 큐에!)
      */
-    private WeeklyInsightResponse updateAndSaveInsight(MemberInsight insight, String identity, String keyword) {
+    private WeeklyIdentityResponse updateAndSaveInsight(MemberInsight insight, String identity, String keyword) {
         insight.updateWeeklyInsight(identity, keyword);
         insightRepository.save(insight);
-        return WeeklyInsightResponse.from(insight);
+        return WeeklyIdentityResponse.from(insight);
     }
 
     private ParsedInsightDto parseAiResponse(String rawJsonResponse) {

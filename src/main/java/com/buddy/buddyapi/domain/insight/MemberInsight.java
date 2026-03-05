@@ -1,5 +1,6 @@
-package com.buddy.buddyapi.domain.member;
+package com.buddy.buddyapi.domain.insight;
 
+import com.buddy.buddyapi.domain.member.Member;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;

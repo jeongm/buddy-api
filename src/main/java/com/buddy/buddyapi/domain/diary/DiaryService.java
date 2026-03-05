@@ -11,7 +11,6 @@ import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.domain.ai.AiService;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,7 +22,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.time.YearMonth;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -45,9 +43,9 @@ public class DiaryService {
 
     /**
      * 일기를 목록입니다. 검색어가 있을 시 검색된 일기 목록을 보여줍니다.
-     * @param memberSeq
-     * @param search
-     * @param pageable
+     * @param memberSeq 현재 로그인한 회원 정보
+     * @param search 검색하고 싶은 내용
+     * @param pageable 원하는 페이지
      * @return
      */
     @Transactional(readOnly = true)
@@ -55,7 +53,6 @@ public class DiaryService {
 
         Slice<Diary> diarySlice = diaryRepository.searchMyDiaries(memberSeq, search, pageable);
 
-        // 엔티티(Diary)를 DTO(DiaryListResponse)로 변환해서 반환
         return diarySlice.map(DiaryListResponse::from);
     }
 
@@ -71,11 +68,11 @@ public class DiaryService {
     @Transactional(readOnly = true)
     public DiaryPreviewResponse generateDiaryFromChat(Long memberSeq, DiaryGenerateRequest request) {
 
-        // 1. 세션 조회 (내 세션인지, 종료된 세션인지 확인)
+        // 세션 조회 (내 세션인지, 종료된 세션인지 확인)
         ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(request.sessionSeq(), memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
-        // 2. 해당 세션의 모든 메시지 시간순 조회
+        // 해당 세션의 모든 메시지 시간순 조회
         // TODO user의 내용으로만 작성할지 캐릭터까지 들어가게 작성할지 -> 일단 user내용으로만 작성하도록 수정해보자
         List<ChatMessage> messages = chatMessageRepository.findAllByChatSessionOrderByCreatedAtAsc(session);
 
@@ -83,20 +80,20 @@ public class DiaryService {
             throw new BaseException(ResultCode.EMPTY_CHAT_HISTORY); // 대화가 없으면 일기 생성 불가
         }
 
-        // 3. AI에게 전달할 대화 텍스트 포맷팅
+        // AI에게 전달할 대화 텍스트 포맷팅
         // 예: "USER: 오늘 힘들어 / ASSISTANT: 무슨 일이야?
         String fullConversation = messages.stream()
                 .map(m -> String.format("%s: %s", m.getRole(), m.getContent()))
                 .collect(Collectors.joining("\n"));
 
-        // 4. AI 서비스 호출 (페르소나와 대화 내용 전달)
+        // AI 서비스 호출 (페르소나와 대화 내용 전달)
         String rawResponse = aiService.getDiaryDraft(
                 fullConversation
         );
 
         log.info("AI 응답 일기 초안 : \n{}",rawResponse);
 
-        // 5. AI 응답(JSON 문자열)을 DTO로 변환 (파싱 로직은 아래에서 구현)
+        // AI 응답(JSON 문자열)을 DTO로 변환 (파싱 로직은 아래에서 구현)
         return parseAiResponse(rawResponse);
     }
 
@@ -170,7 +167,6 @@ public class DiaryService {
     @Transactional
     public void updateDiary(Long memberSeq, Long diarySeq, DiaryUpdateRequest request, MultipartFile newImage) {
 
-        // 1. 본인의 일기인지 확인하며 조회
         Diary diary = diaryRepository.findByDiarySeqAndMember_MemberSeq(diarySeq, memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
@@ -183,7 +179,7 @@ public class DiaryService {
 
         diary.updateDiary(request.title(), request.content(), request.diaryDate(), newImageUrl);
 
-        // 3. 태그 교체
+        // 태그 교체
         if (request.tags() != null) {
             List<Tag> tags = getOrCreateTags(request.tags());
             diary.updateTags(tags);
@@ -243,14 +239,13 @@ public class DiaryService {
     @Transactional(readOnly = true)
     public List<MonthlyDiaryCountResponse> getMonthlyDiaryStats(Long memberSeq, int year, int month) {
 
-        // 1. 해당 월의 시작일 (예: 2024-03-01)
+        // 해당 월의 시작일 (예: 2024-03-01)
         YearMonth yearMonth = YearMonth.of(year, month);
         LocalDate startDate = yearMonth.atDay(1);
 
-        // 2. 해당 월의 마지막 날 (예: 2024-03-31)
+        // 해당 월의 마지막 날 (예: 2024-03-31)
         LocalDate endDate = yearMonth.atEndOfMonth();
 
-        // 3. 레포지토리 호출
         return diaryRepository.findAllMonthlyCount(memberSeq, startDate, endDate);
     }
 
@@ -261,7 +256,7 @@ public class DiaryService {
      */
     @Transactional(readOnly = true)
     public List<TagResponse> getRecentTopTags(Long memberSeq) {
-        return tagRepository.findRecentTopTags(memberSeq);
+        return diaryRepository.findRecentTopTags(memberSeq);
 
     }
 
@@ -273,21 +268,21 @@ public class DiaryService {
             return Collections.emptyList(); // 텅 빈 리스트는 메모리를 안 먹는 emptyList() 반환
         }
 
-        // 1. 이미 DB에 존재하는 태그들을 IN 쿼리로 한 번에 싹 다 가져옴
+        // 이미 DB에 존재하는 태그들을 IN 쿼리로 한 번에 싹 다 가져옴
         List<Tag> existingTags = tagRepository.findByNameIn(tagNames);
 
-        // 2. 찾아온 태그들의 이름만 추출
+        // 찾아온 태그들의 이름만 추출
         List<String> existingTagNames = existingTags.stream()
                 .map(Tag::getName)
                 .toList();
 
-        // 3. DB에 없는 새로운 태그들만 필터링해서 객체 생성
+        // DB에 없는 새로운 태그들만 필터링해서 객체 생성
         List<Tag> newTags = tagNames.stream()
                 .filter(name -> !existingTagNames.contains(name))
                 .map(Tag::new)
                 .toList();
 
-        // 4. 새로운 태그들 한 번에 저장 (쿼리 1방 - Batch Insert 설정 시)
+        // 새로운 태그들 한 번에 저장 (쿼리 1방 - Batch Insert 설정 시)
         if(newTags.isEmpty()) {
             return existingTags;
         }

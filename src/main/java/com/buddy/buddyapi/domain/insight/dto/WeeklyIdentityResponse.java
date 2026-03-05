@@ -1,22 +1,22 @@
-package com.buddy.buddyapi.domain.member.dto;
+package com.buddy.buddyapi.domain.insight.dto;
 
-import com.buddy.buddyapi.domain.member.MemberInsight;
+import com.buddy.buddyapi.domain.insight.MemberInsight;
 import lombok.Builder;
 
 @Builder
-public record WeeklyInsightResponse(
+public record WeeklyIdentityResponse(
         String weeklyIdentity,
         String weeklyKeyword
 ) {
-    public static WeeklyInsightResponse from(MemberInsight insight) {
+    public static WeeklyIdentityResponse from(MemberInsight insight) {
         if (insight == null) {
-            return WeeklyInsightResponse.builder()
+            return WeeklyIdentityResponse.builder()
                     .weeklyIdentity(null)
                     .weeklyKeyword(null)
                     .build();
         }
 
-        return WeeklyInsightResponse.builder()
+        return WeeklyIdentityResponse.builder()
                 .weeklyIdentity(insight.getWeeklyIdentity())
                 .weeklyKeyword(insight.getWeeklyKeyword())
                 .build();
