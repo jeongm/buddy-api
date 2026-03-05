@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class MemberController {
 
     private final MemberService memberService;
+    private final MemberInsightService insightService;
 
     @Operation(summary = "내 정보 조회", description = "현재 로그인한 사용자의 프로필 정보를 조회합니다.")
     @GetMapping("/me")
@@ -70,6 +71,20 @@ public class MemberController {
     ) {
         memberService.deleteMember(member.memberSeq());
         return ResponseEntity.ok(ApiResponse.ok("탈퇴 완료",null));
+    }
+
+    // TODO insight 기능 확장 시 url 변경 가능성 농후
+    @Operation(
+            summary = "주간 아이덴티티(칭호) 조회",
+            description = "유저의 지난주 일기를 바탕으로 AI가 분석한 주간 칭호와 핵심 태그를 반환합니다. (이번 주 최초 조회 시에만 AI 분석이 실행되며, 이후에는 저장된 데이터를 빠르게 반환합니다. 작성된 일기가 없으면 null이 반환됩니다.)"
+    )
+    @GetMapping("/me/insight")
+    public ResponseEntity<ApiResponse<WeeklyInsightResponse>> getMyWeeklyIdentity(
+            @AuthenticationPrincipal CustomUserDetails member) {
+
+        WeeklyInsightResponse response = insightService.getWeeklyInsight(member.memberSeq());
+
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
 }

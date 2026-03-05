@@ -34,12 +34,13 @@ public class Member {
     @Column(name = "joined_at", nullable = false, updatable = false)
     private LocalDateTime joinedAt;
 
-    // 사용자는 직접 캐릭터의 별명을 지어줄 수 있음
+    // 사용자는 직접 캐릭터의 별명을 지어줄 수 있음 추후 캐릭터 확장 시 테이블 분리
     @Column(name = "character_nickname", length = 20)
     private String characterNickname;
 
     // -------- relation --------
 
+    // TODO 캐릭터 세계관 확장 시 분리하여 관리
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
     @JoinColumn(name = "character_seq", nullable = true)
     private BuddyCharacter buddyCharacter;
@@ -54,6 +55,9 @@ public class Member {
     // TODO casecade 수정 - 현재는 상동
     @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
     private final List<ChatSession> chatSessions = new ArrayList<>();
+
+    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private MemberInsight memberInsight;
 
     @Builder
     public Member(String email, String password, String nickname, BuddyCharacter buddyCharacter) {
@@ -81,6 +85,4 @@ public class Member {
     public void updateCharacterNickname(String newNickname) {
         this.characterNickname = newNickname;
     }
-
-
 }
