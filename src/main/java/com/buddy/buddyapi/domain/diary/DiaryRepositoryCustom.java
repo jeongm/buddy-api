@@ -19,4 +19,8 @@ public interface DiaryRepositoryCustom {
     Optional<Diary> findDetailByDiarySeqAndMemberSeq(Long diarySeq, Long memberSeq);
 
     Slice<Diary> searchMyDiaries(Long memberSeq, String search, Pageable pageable);
+
+    List<String> findDiaryContentsByMemberAndDateRange(Long memberSeq, LocalDate startDate, LocalDate endDate);
+
+    String findTopTagNameByMemberAndDateRange(Long memberSeq, LocalDate startDate, LocalDate endDate);
 }
