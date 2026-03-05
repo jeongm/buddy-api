@@ -130,6 +130,18 @@ public class MemberService {
     }
 
     /**
+     * 현재 비밀번호가 맞는지 검증합니다.
+     */
+    @Transactional(readOnly = true)
+    public void verifyPassword(Long memberSeq, String rawPassword) {
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
+
+        if (!passwordEncoder.matches(rawPassword, member.getPassword())) {
+            throw new BaseException(ResultCode.CURRENT_PASSWORD_MISMATCH);
+        }
+    }
+
+    /**
      * 회원의 비밀번호를 변경합니다.
      * @param memberSeq 비밀번호를 변경할 회원의 고유 식별자
      * @param request 현재비밀번호 및 새 비밀번호를 담은 DTO
@@ -138,12 +150,9 @@ public class MemberService {
     @Transactional
     public void updateMemberPassword(Long memberSeq, UpdatePasswordRequest request) {
 
+        verifyPassword(memberSeq,request.currentPassword());
+
         Member member = memberRepository.findByIdOrThrow(memberSeq);
-
-        if (!passwordEncoder.matches(request.currentPassword(), member.getPassword())) {
-            throw new BaseException(ResultCode.CURRENT_PASSWORD_MISMATCH);
-        }
-
         String encodedNewPassword = passwordEncoder.encode(request.newPassword());
         member.updatePassword(encodedNewPassword);
     }
