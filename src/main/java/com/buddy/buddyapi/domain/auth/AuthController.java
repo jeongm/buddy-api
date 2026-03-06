@@ -3,6 +3,7 @@ package com.buddy.buddyapi.domain.auth;
 import com.buddy.buddyapi.domain.auth.dto.*;
 import com.buddy.buddyapi.domain.member.MemberService;
 import com.buddy.buddyapi.domain.auth.dto.SignUpRequest;
+import com.buddy.buddyapi.domain.auth.dto.PasswordResetDto;
 import com.buddy.buddyapi.global.common.ApiResponse;
 import com.buddy.buddyapi.global.security.CustomUserDetails;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -22,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
-    private final EmailService emailService;
+    private final MailService emailService;
     private final MemberService memberService;
 
     // =========================================================================
@@ -112,5 +113,23 @@ public class AuthController {
 
         return ResponseEntity.ok(ApiResponse.ok("이메일 인증 성공", isVerified));
 
+    }
+
+    @Operation(summary = "비밀번호 찾기 인증번호 발송", description = "가입된 이메일로 6자리 인증번호를 발송합니다.")
+    @PostMapping("/password/reset-code")
+    public ResponseEntity<ApiResponse<Void>> sendPasswordResetCode(
+            @Valid @RequestBody PasswordResetDto.SendCodeRequest request) {
+
+        authService.sendPasswordResetCode(request.email());
+        return ResponseEntity.ok(ApiResponse.ok("이메일로 인증번호가 발송되었습니다.", null));
+    }
+
+    @Operation(summary = "인증번호 검증 및 비밀번호 변경", description = "이메일과 인증번호를 확인한 후 새로운 비밀번호로 변경합니다.")
+    @PatchMapping("/password/reset")
+    public ResponseEntity<ApiResponse<Void>> resetPassword(
+            @Valid @RequestBody PasswordResetDto.ResetRequest request) {
+
+        authService.resetPasswordWithCode(request.email(), request.code(), request.newPassword());
+        return ResponseEntity.ok(ApiResponse.ok("비밀번호가 성공적으로 변경되었습니다.", null));
     }
 }

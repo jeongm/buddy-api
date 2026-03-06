@@ -36,12 +36,23 @@ public class MemberController {
                 memberService.updateNickName(member.memberSeq(), request)));
     }
 
+    @Operation(summary = "현재 비밀번호 확인", description = "비밀번호 변경 전, 현재 비밀번호가 맞는지 1차로 검증합니다.")
+    @PostMapping("/me/password/verify")
+    public ResponseEntity<ApiResponse<Void>> verifyCurrentPassword(
+            @AuthenticationPrincipal CustomUserDetails member,
+            @Valid @RequestBody PasswordUpdateDto.VerifyRequest request) {
+
+        memberService.verifyPassword(member.memberSeq(), request.currentPassword());
+
+        return ResponseEntity.ok(ApiResponse.ok("비밀번호가 확인되었습니다.", null));
+    }
+
     @Operation(summary = "비밀번호 수정", description = "현재 비밀번호를 확인한 후 새로운 비밀번호로 변경합니다.")
     @PatchMapping("/me/password")
     public ResponseEntity<ApiResponse<Void>> updatePassword(
             @AuthenticationPrincipal CustomUserDetails member,
-            @Valid @RequestBody UpdatePasswordRequest request) {
-        memberService.updateMemberPassword(member.memberSeq(), request);
+            @Valid @RequestBody PasswordUpdateDto.UpdateRequest request) {
+        memberService.updateMemberPassword(member.memberSeq(), request.currentPassword(), request.newPassword());
         return ResponseEntity.ok(ApiResponse.ok("비밀번호가 변경되었습니다.", null));
     }
 

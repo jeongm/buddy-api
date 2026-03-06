@@ -15,7 +15,7 @@ import java.time.Duration;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class EmailService {
+public class MailService {
 
     private final JavaMailSender mailSender;
     private final StringRedisTemplate redisTemplate;
@@ -73,6 +73,23 @@ public class EmailService {
         }
         // 없으면 "나 방금 보냈어" 표시 남기기 (60초 유지)
         redisTemplate.opsForValue().set(LIMIT_PREFIX + email, "true", Duration.ofSeconds(60));
+    }
+
+    /**
+     * 비밀번호 재설정 인증번호 이메일을 비동기로 발송합니다.
+     */
+    @Async
+    public void sendPasswordResetCode(String toEmail, String code) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setTo(toEmail);
+        message.setSubject("[Buddy] 비밀번호 찾기 인증번호 안내");
+        message.setText("안녕하세요, Buddy입니다.\n\n" +
+                "비밀번호 재설정을 위한 인증번호입니다.\n" +
+                "앱으로 돌아가 아래의 6자리 숫자를 입력해 주세요.\n\n" +
+                "인증번호: [ " + code + " ]\n\n" +
+                "* 본 인증번호는 5분 동안만 유효합니다.");
+
+        mailSender.send(message);
     }
 
     private String generateCode(){
