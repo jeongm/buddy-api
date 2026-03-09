@@ -1,10 +1,5 @@
 package com.buddy.buddyapi.domain.auth;
 
-import com.buddy.buddyapi.domain.auth.component.GoogleTokenVerifier;
-import com.buddy.buddyapi.domain.auth.component.KakaoTokenVerifier;
-import com.buddy.buddyapi.domain.auth.component.NaverTokenVerifier;
-import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
-import com.buddy.buddyapi.domain.auth.dto.OAuthDto;
 import com.buddy.buddyapi.domain.member.*;
 import com.buddy.buddyapi.domain.auth.dto.MemberLoginRequest;
 import com.buddy.buddyapi.domain.auth.dto.LoginResponse;
@@ -13,19 +8,16 @@ import com.buddy.buddyapi.domain.member.dto.MemberResponse;
 import com.buddy.buddyapi.global.security.JwtTokenProvider;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Duration;
-import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -37,11 +29,6 @@ public class AuthService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
-    private final ObjectMapper objectMapper;
-
-    private final GoogleTokenVerifier googleTokenVerifier;
-    private final KakaoTokenVerifier kakaoTokenVerifier;
-    private final NaverTokenVerifier naverTokenVerifier;
 
     private static final String RESET_CODE_PREFIX = "PWD_RESET_CODE:";
     private static final long RESET_CODE_TTL_MINUTES = 5; // 보안을 위해 5분으로 단축
@@ -81,72 +68,6 @@ public class AuthService {
         }
 
         return buildAuthResponse(member, AuthStatus.SUCCESS);
-    }
-
-    /**
-     * [소셜 로그인 통합] 제공자(Google, Kakao, Naver)의 토큰을 검증하고 서비스 로그인을 처리합니다.
-     * 이미 가입된 이메일이 존재하지만 소셜 연동이 되어있지 않은 경우, 연동 대기 상태(REQUIRES_LINKING)를 반환합니다.
-     *
-     * @param request 제공자 이름(provider)과 인증 토큰(token)
-     * @return 로그인 성공(SUCCESS) 또는 연동 필요(REQUIRES_LINKING) 상태가 포함된 응답 DTO
-     */
-    @Transactional
-    public LoginResponse socialLogin(OAuthDto.LoginRequest request) throws JsonProcessingException {
-        // 1. 검증 및 정보 추출 (verifyOauthToken)
-        OAuthUserInfo userInfo = verifyOauthToken(request.provider(), request.code());
-        Provider provider = Provider.from(request.provider());
-
-        // 기존 회원 여부 확인
-        Optional<Member> optionalMember = memberRepository.findByEmail(userInfo.email());
-
-        // [CASE] 이미 가입된 계정이 있는 경우
-        if(optionalMember.isPresent()) {
-            Member member = optionalMember.get();
-
-            // [CASE] 연동이 필요한 경우 (REQUIRES_LINKING)
-            if(!memberService.hasSocialAccount(member, provider)) {
-                return handleLinkingRequired(request, userInfo);
-            }
-
-            // [CASE] 이미 연동됨 -> 로그인 성공 (SUCCESS)
-            return buildAuthResponse(member, AuthStatus.SUCCESS);
-        }
-
-        // [CASE] 아예 신규 유저 (가입 + 연동 + SUCCESS)
-        Member newMember = memberService.registerSocialMember(userInfo,provider);
-        return buildAuthResponse(newMember, AuthStatus.SUCCESS);
-
-    }
-
-    /**
-     * [소셜 계정 연동 완료] Redis에 임시 저장된 연동 정보를 확인하고, 기존 계정에 소셜 정보를 귀속시킵니다.
-     *
-     * @param key 연동 대기 상태에서 프론트엔드로 전달했던 임시 키 (linkKey)
-     * @return 연동 완료 후 발급된 토큰셋을 포함한 로그인 성공 응답
-     * @throws BaseException 키가 만료되었거나 조작된 경우 발생
-     */
-    @Transactional
-    public LoginResponse linkOauthAccount(String key) throws JsonProcessingException {
-
-        // Redis에서 검증된 진짜 정보 꺼내기
-        String redisKey = "OAUTH_LINK:" + key;
-        String jsonValue = redisTemplate.opsForValue().getAndDelete(redisKey);
-
-        if (jsonValue == null) {
-            throw new BaseException(ResultCode.INVALID_TOKEN);
-        }
-
-        OAuthLinkInfo linkInfo = objectMapper.readValue(jsonValue, OAuthLinkInfo.class);
-
-        Member member = memberRepository.findByEmail(linkInfo.email())
-                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
-
-        Provider provider = Provider.from(linkInfo.provider());
-
-        memberService.linkSocialAccount(member, provider, linkInfo.oauthId());
-
-        return buildAuthResponse(member, AuthStatus.SUCCESS);
-
     }
 
     /**
@@ -227,42 +148,11 @@ public class AuthService {
         member.updatePassword(passwordEncoder.encode(newPassword));
     }
 
+
+
     // =========================================================================
     // 헬퍼 메서드 (Helper Methods)
     // =========================================================================
-
-    /**
-     * 각 소셜 제공자별 알맞은 토큰 검증기(Verifier)를 호출하여 유저 정보를 추출합니다.
-     */
-    private OAuthUserInfo verifyOauthToken(String provider, String token) {
-        return switch (provider.toLowerCase()) {
-            case "google" -> googleTokenVerifier.verify(token);
-            case "kakao" -> kakaoTokenVerifier.verify(token);
-            case "naver" -> naverTokenVerifier.verify(token);
-            default -> throw new BaseException(ResultCode.UNSUPPORTED_PROVIDER);
-        };
-    }
-
-    /**
-     * 소셜 연동이 필요한 유저의 정보를 Redis에 10분간 임시 보관하고, 프론트엔드에 REQUIRES_LINKING 상태를 반환합니다.
-     */
-    private LoginResponse handleLinkingRequired(OAuthDto.LoginRequest request, OAuthUserInfo userInfo) throws JsonProcessingException {
-        String linkKey = UUID.randomUUID().toString();
-        OAuthLinkInfo linkInfo = OAuthLinkInfo.builder()
-                .email(userInfo.email())
-                .provider(request.provider())
-                .oauthId(userInfo.oauthId())
-                .build();
-
-        redisTemplate.opsForValue().set("OAUTH_LINK:" + linkKey,
-                objectMapper.writeValueAsString(linkInfo), Duration.ofMinutes(10));
-
-        return LoginResponse.builder()
-                .status(AuthStatus.REQUIRES_LINKING)
-                .linkKey(linkKey)
-                .build();
-    }
-
 
 
     /**
@@ -280,13 +170,11 @@ public class AuthService {
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getMemberSeq());
 
         return LoginResponse.builder()
-                .status(status)
+                .status(finalStatus)
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .member(MemberResponse.from(member))
                 .build();
     }
-
-
 
 }

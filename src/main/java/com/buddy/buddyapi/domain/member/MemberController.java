@@ -1,5 +1,6 @@
 package com.buddy.buddyapi.domain.member;
 
+import com.buddy.buddyapi.domain.auth.dto.WithdrawRequest;
 import com.buddy.buddyapi.domain.member.dto.*;
 import com.buddy.buddyapi.global.common.ApiResponse;
 import com.buddy.buddyapi.global.security.CustomUserDetails;
@@ -78,9 +79,10 @@ public class MemberController {
     @Operation(summary = "회원 탈퇴")
     @DeleteMapping("/me")
     public ResponseEntity<ApiResponse<String>> deleteAccount(
-            @AuthenticationPrincipal CustomUserDetails member
+            @AuthenticationPrincipal CustomUserDetails member,
+            @RequestBody(required = false) WithdrawRequest request
     ) {
-        memberService.deleteMember(member.memberSeq());
+        memberService.deleteMember(member.memberSeq(), request.socialAccessToken());
         return ResponseEntity.ok(ApiResponse.ok("탈퇴 완료",null));
     }
 

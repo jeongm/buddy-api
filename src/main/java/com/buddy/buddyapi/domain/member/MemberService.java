@@ -1,5 +1,7 @@
 package com.buddy.buddyapi.domain.member;
 
+import com.buddy.buddyapi.domain.OauthService;
+import com.buddy.buddyapi.domain.auth.RefreshTokenRepository;
 import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
 import com.buddy.buddyapi.domain.auth.dto.SignUpRequest;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
@@ -20,6 +22,9 @@ public class MemberService {
     private final OauthAccountRepository oauthAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final BuddyCharacterRepository characterRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
+
+    private final OauthService oauthService;
 
     /**
      * 일반(이메일) 회원가입을 처리하고 새로운 회원을 생성합니다.
@@ -73,41 +78,6 @@ public class MemberService {
 
         return newMember;
     }
-
-    /**
-     * 기존 회원 계정에 새로운 소셜 계정 정보를 연동(추가)합니다.
-     * @param member 소셜 계정을 연동할 대상 기존 회원 엔티티
-     * @param provider 연동할 소셜 제공자 (Google, Kakao, Naver)
-     * @param oauthId 소셜 제공자 측의 고유 식별자 (ID)
-     * @throws BaseException 해당 소셜 제공자로 이미 연동된 계정이 존재할 경우 발생
-     */
-    @Transactional
-    public void linkSocialAccount(Member member, Provider provider, String oauthId) {
-
-        if (hasSocialAccount(member, provider)) {
-            throw new BaseException(ResultCode.ALREADY_LINKED_ACCOUNT);
-        }
-
-        OauthAccount oauthAccount = OauthAccount.builder()
-                .provider(provider)
-                .oauthId(oauthId)
-                .member(member)
-                .build();
-
-        oauthAccountRepository.save(oauthAccount);
-    }
-
-    /**
-     * 특정 회원이 해당 소셜 제공자와 이미 연동되어 있는지 여부를 확인합니다.
-     * @param member 확인할 회원 엔티티
-     * @param provider 소셜 제공자 (Google, Kakao, Naver)
-     * @return 이미 연동되어 있다면 true, 아니면 false 반환
-     */
-    @Transactional(readOnly = true)
-    public boolean hasSocialAccount(Member member, Provider provider) {
-        return oauthAccountRepository.existsByMemberAndProvider(member, provider);
-    }
-
 
 
     /**
@@ -208,13 +178,13 @@ public class MemberService {
      * @param memberSeq 현재 로그인한 회원 정보
      */
     @Transactional
-    public void deleteMember(Long memberSeq) {
+    public void deleteMember(Long memberSeq, String accessToken) {
 
-        // 2. [보안] Redis에 저장된 Refresh Token 삭제
-        // TODO: redisService.deleteRefreshToken(member.getEmail());
+        // 카카오/구글 등 소셜 로그인 '연결 끊기' API 호출
+        oauthService.unlinkSocialAccounts(memberSeq, accessToken);
 
-        // 3. [선택] 카카오/구글 등 소셜 로그인 '연결 끊기' API 호출
-        // TODO: oauthService.unlinkSocialAccounts(member);
+        // Redis에 저장된 Refresh Token 삭제
+        refreshTokenRepository.deleteById(memberSeq);
 
         memberRepository.deleteById(memberSeq);
     }
