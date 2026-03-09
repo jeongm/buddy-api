@@ -39,6 +39,9 @@ public class ChatSession {
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "deletion_notified_at")
+    private LocalDateTime deletionNotifiedAt; // 기본값은 null (알림 안 보냄)
+
     // TODO 현재는 세션이 삭제될 때 해당 세션의 모든 메시지도 함께 삭제됩니다.
     @OneToMany(mappedBy = "chatSession", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ChatMessage> chatMessages = new ArrayList<>();
@@ -55,6 +58,16 @@ public class ChatSession {
             return;
         }
         this.isEnded = true;
+    }
+
+    // 알림 발송 시점을 기록하는 메서드
+    public void markDeletionNotified() {
+        this.deletionNotifiedAt = LocalDateTime.now();
+    }
+
+    // 알림을 이미 보냈는지 확인하는 편의 메서드
+    public boolean isDeletionNotified() {
+        return this.deletionNotifiedAt != null;
     }
 
 }

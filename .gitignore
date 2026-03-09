@@ -48,6 +48,7 @@ application-prod.properties
 .env
 *.key
 *.pem
+firebase-buddyapp-account.json
 
 .cursorignore
 TEST_CONVENTION.md

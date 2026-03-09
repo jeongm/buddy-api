@@ -209,6 +209,13 @@ public class MemberService {
      */
     @Transactional
     public void deleteMember(Long memberSeq) {
+
+        // 2. [보안] Redis에 저장된 Refresh Token 삭제
+        // TODO: redisService.deleteRefreshToken(member.getEmail());
+
+        // 3. [선택] 카카오/구글 등 소셜 로그인 '연결 끊기' API 호출
+        // TODO: oauthService.unlinkSocialAccounts(member);
+
         memberRepository.deleteById(memberSeq);
     }
 
@@ -221,5 +228,13 @@ public class MemberService {
         if(memberRepository.existsByEmail(email)) {
             throw new BaseException(ResultCode.EMAIL_DUPLICATED);
         }
+    }
+
+    @Transactional
+    public void updatePushToken(Long memberSeq, String pushToken) {
+        Member member = memberRepository.findByIdOrThrow(memberSeq);
+
+        // 2. 토큰 업데이트 (더티 체킹으로 자동 UPDATE 쿼리 발생)
+        member.updatePushToken(pushToken);
     }
 }

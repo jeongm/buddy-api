@@ -4,6 +4,7 @@ import com.buddy.buddyapi.domain.member.dto.*;
 import com.buddy.buddyapi.global.common.ApiResponse;
 import com.buddy.buddyapi.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -81,6 +82,17 @@ public class MemberController {
     ) {
         memberService.deleteMember(member.memberSeq());
         return ResponseEntity.ok(ApiResponse.ok("탈퇴 완료",null));
+    }
+
+    @Operation(summary = "FCM 토큰 갱신/저장", description = "로그인 시 발급받은 디바이스의 FCM 토큰을 서버에 저장합니다. (알림 발송용)")
+    @PatchMapping("/push-token")
+    public ResponseEntity<ApiResponse<Void>> updatePushToken(
+            @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails member,
+            @RequestBody PushTokenRequest request) {
+
+        memberService.updatePushToken(member.memberSeq(), request.pushToken());
+
+        return ResponseEntity.ok(ApiResponse.ok(null));
     }
 
 }
