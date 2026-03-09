@@ -35,6 +35,9 @@ public class Member {
     @Column(name = "joined_at", nullable = false, updatable = false)
     private LocalDateTime joinedAt;
 
+    @Column(name = "push_token", length = 255)
+    private String pushToken;
+
     // 사용자는 직접 캐릭터의 별명을 지어줄 수 있음 추후 캐릭터 확장 시 테이블 분리
     @Column(name = "character_nickname", length = 20)
     private String characterNickname;
@@ -85,5 +88,10 @@ public class Member {
     // 캐릭터 별명 변경 메서드
     public void updateCharacterNickname(String newNickname) {
         this.characterNickname = newNickname;
+    }
+
+    // 프론트에서 넘어온 새 토큰으로 갱신하는 메서드
+    public void updatePushToken(String pushToken) {
+        this.pushToken = pushToken;
     }
 }

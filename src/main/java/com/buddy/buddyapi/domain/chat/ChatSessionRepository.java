@@ -2,7 +2,12 @@ package com.buddy.buddyapi.domain.chat;
 
 import com.buddy.buddyapi.domain.member.Member;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> {
@@ -13,5 +18,37 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
 
     // 특정 회원의 특정 세션 조회 (내 세션이 맞는지 검증 포함)
     Optional<ChatSession> findBySessionSeqAndMember_MemberSeq(Long sessionSeq, Long memberSeq);
+
+    // 알림 발송용 : 10시간 지남, 알림 안보냄, 일기로 안 만들어진 채팅방
+    @Query("""
+        SELECT c FROM ChatSession c 
+        WHERE c.createdAt <= :tenHoursAgo 
+          AND c.deletionNotifiedAt IS NULL 
+          AND NOT EXISTS (SELECT 1 FROM Diary d WHERE d.chatSession = c)
+        """)
+    List<ChatSession> findWarningTargets(@Param("tenHoursAgo") LocalDateTime tenHoursAgo);
+
+    // 쓰레기 청소용 : 12시간 지남, 일기로 안 만들어진 채팅방 삭제
+    // 벌크연산(Bulk Delete)으로 최적화(N+1)문제 방지
+    // 🌟 쓰레기 청소 1단계: 자식(메시지) 먼저 삭제 (FK 에러 방지용)
+    @Modifying(clearAutomatically = true)
+    @Query("""
+        DELETE FROM ChatMessage m 
+        WHERE m.chatSession.sessionSeq IN (
+            SELECT c.sessionSeq FROM ChatSession c 
+            WHERE c.createdAt <= :twelveHoursAgo 
+              AND NOT EXISTS (SELECT 1 FROM Diary d WHERE d.chatSession = c)
+        )
+        """)
+    int deleteOrphanMessages(@Param("twelveHoursAgo") LocalDateTime twelveHoursAgo);
+
+    // 🌟 쓰레기 청소 2단계: 부모(세션) 삭제
+    @Modifying(clearAutomatically = true)
+    @Query("""
+        DELETE FROM ChatSession c 
+        WHERE c.createdAt <= :twelveHoursAgo 
+          AND NOT EXISTS (SELECT 1 FROM Diary d WHERE d.chatSession = c)
+        """)
+    int deleteOrphanSessions(@Param("twelveHoursAgo") LocalDateTime twelveHoursAgo);
 
 }
