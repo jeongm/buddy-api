@@ -59,6 +59,7 @@ jobs:
               -e KAKAO_CLIENT_ID=${{ secrets.KAKAO_CLIENT_ID }} \
               -e KAKAO_CLIENT_SECRET=${{ secrets.KAKAO_CLIENT_SECRET }} \
               -e BUDDY_EMAIL_PASSWORD=${{ secrets.BUDDY_EMAIL_PASSWORD }} \
+              -e KAKAO_ADMIN_KEY=${{ secrets.KAKAO_ADMIN_KEY }} \
               ${{ secrets.DOCKER_USERNAME }}/buddy-api
             # 미사용 이미지 삭제 (용량 확보)
             docker image prune -f
