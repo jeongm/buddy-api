@@ -1,5 +1,6 @@
 package com.buddy.buddyapi.domain.auth;
 
+import com.buddy.buddyapi.domain.OauthService;
 import com.buddy.buddyapi.domain.auth.dto.*;
 import com.buddy.buddyapi.domain.member.MemberService;
 import com.buddy.buddyapi.domain.auth.dto.SignUpRequest;
@@ -23,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final OauthService oauthService;
     private final MailService emailService;
     private final MemberService memberService;
 
@@ -56,7 +58,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LoginResponse>> socialLogin(
             @Valid @RequestBody OAuthDto.LoginRequest request
     ) throws JsonProcessingException {
-        LoginResponse result = authService.socialLogin(request);
+        LoginResponse result = oauthService.socialLogin(request);
 
         return ResponseEntity.ok(ApiResponse.ok("소셜 로그인 처리 완료", result));
     }
@@ -65,7 +67,7 @@ public class AuthController {
     @Operation(summary = "소셜 계정 연동 완료", description = "소셜 로그인 시 연동이 필요했던 계정에 대해, 발급받은 linkKey를 전달하여 연동을 완료하고 토큰을 발급받습니다.")    @PostMapping("/social/link")
     public ResponseEntity<ApiResponse<LoginResponse>> linkSocialAccount(
             @RequestBody OAuthDto.OAuthLinkRequest request) throws JsonProcessingException {
-        LoginResponse result = authService.linkOauthAccount(request.key());
+        LoginResponse result = oauthService.linkOauthAccount(request.key());
         return ResponseEntity.ok(ApiResponse.ok("소셜 계정 연동 및 로그인 성공", result));
     }
 

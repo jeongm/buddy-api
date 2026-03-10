@@ -1,5 +1,6 @@
 package com.buddy.buddyapi.domain.member;
 
+import com.buddy.buddyapi.domain.auth.dto.WithdrawRequest;
 import com.buddy.buddyapi.domain.member.dto.*;
 import com.buddy.buddyapi.global.common.ApiResponse;
 import com.buddy.buddyapi.global.security.CustomUserDetails;

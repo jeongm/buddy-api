@@ -124,6 +124,9 @@ spring:
 
 kakao:
   redirect-uri: https://buddy.com/oauth/callback
+  admin-key: ${KAKAO_ADMIN_KEY}
+google:
+  redirect-uri: https://buddy.com/oauth/callback
 
 # =================================================================
 # External API Settings (OpenAI, Cloudinary)
