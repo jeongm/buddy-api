@@ -178,10 +178,10 @@ public class MemberService {
      * @param memberSeq 현재 로그인한 회원 정보
      */
     @Transactional
-    public void deleteMember(Long memberSeq, String accessToken) {
+    public void deleteMember(Long memberSeq) {
 
         // 카카오/구글 등 소셜 로그인 '연결 끊기' API 호출
-        oauthService.unlinkSocialAccounts(memberSeq, accessToken);
+        oauthService.unlinkSocialAccounts(memberSeq);
 
         // Redis에 저장된 Refresh Token 삭제
         refreshTokenRepository.deleteById(memberSeq);

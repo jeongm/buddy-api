@@ -68,7 +68,7 @@ public class OauthService {
      */
     @Transactional
     public LoginResponse socialLogin(OAuthDto.LoginRequest request) throws JsonProcessingException {
-        // 1. 검증 및 정보 추출 (verifyOauthToken)
+
         OAuthUserInfo userInfo = verifyOauthToken(request.provider(), request.code());
         Provider provider = Provider.from(request.provider());
 
@@ -85,6 +85,10 @@ public class OauthService {
             }
 
             // [CASE] 이미 연동됨 -> 로그인 성공 (SUCCESS)
+            OauthAccount account = oauthAccountRepository.findByMemberAndProvider(member, provider)
+                    .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+            account.updateTokens(userInfo.socialAccessToken(), userInfo.socialRefreshToken());
+
             return buildAuthResponse(member, AuthStatus.SUCCESS);
         }
 
@@ -97,6 +101,8 @@ public class OauthService {
         oauthAccountRepository.save(OauthAccount.builder()
                 .provider(provider)
                 .oauthId(userInfo.oauthId())
+                .socialAccessToken(userInfo.socialAccessToken())
+                .socialRefreshToken(userInfo.socialRefreshToken())
                 .member(newMember)
                 .build());
 
@@ -136,6 +142,8 @@ public class OauthService {
         oauthAccountRepository.save(OauthAccount.builder()
                 .provider(provider)
                 .oauthId(linkInfo.oauthId())
+                .socialAccessToken(linkInfo.socialAccessToken())
+                .socialRefreshToken(linkInfo.socialRefreshToken())
                 .member(member)
                 .build());
 
@@ -144,14 +152,15 @@ public class OauthService {
     }
 
     @Transactional
-    public void unlinkSocialAccounts(Long memberSeq, String socialAccessToken) {
+    public void unlinkSocialAccounts(Long memberSeq) {
         List<OauthAccount> linkedAccounts = oauthAccountRepository.findByMember_MemberSeq(memberSeq);
 
         for (OauthAccount account : linkedAccounts) {
+            String dbAccessToken = account.getSocialAccessToken();
             switch (account.getProvider()) {
                 case KAKAO -> unlinkKakao(account.getOauthId());
-                case GOOGLE -> unlinkGoogle(socialAccessToken);
-                case NAVER -> unlinkNaver(socialAccessToken);
+                case GOOGLE -> unlinkGoogle(dbAccessToken);
+                case NAVER -> unlinkNaver(dbAccessToken);
             }
         }
     }
@@ -181,6 +190,8 @@ public class OauthService {
                 .email(userInfo.email())
                 .provider(request.provider())
                 .oauthId(userInfo.oauthId())
+                .socialAccessToken(userInfo.socialAccessToken())
+                .socialRefreshToken(userInfo.socialRefreshToken())
                 .build();
 
         redisTemplate.opsForValue().set("OAUTH_LINK:" + linkKey,

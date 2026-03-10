@@ -79,10 +79,9 @@ public class MemberController {
     @Operation(summary = "회원 탈퇴")
     @DeleteMapping("/me")
     public ResponseEntity<ApiResponse<String>> deleteAccount(
-            @AuthenticationPrincipal CustomUserDetails member,
-            @RequestBody(required = false) WithdrawRequest request
+            @AuthenticationPrincipal CustomUserDetails member
     ) {
-        memberService.deleteMember(member.memberSeq(), request.socialAccessToken());
+        memberService.deleteMember(member.memberSeq());
         return ResponseEntity.ok(ApiResponse.ok("탈퇴 완료",null));
     }
 

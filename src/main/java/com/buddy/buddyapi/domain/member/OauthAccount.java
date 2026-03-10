@@ -25,15 +25,32 @@ public class OauthAccount {
     @Column(name = "oauth_id", nullable = false, length = 255)
     private String oauthId;
 
+    // 소셜 액세스 토큰 (1~2시간 뒤 만료됨)
+    @Column(name = "social_access_token", nullable = true)
+    private String socialAccessToken;
+
+    // 소셜 리프레시 토큰 (나중에 탈퇴할 때 새 액세스 토큰으로 교환할 티켓)
+    @Column(name = "social_refresh_token", nullable = true)
+    private String socialRefreshToken;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_seq", nullable = false)
     private Member member;
 
     @Builder
-    public OauthAccount(Provider provider, String oauthId, Member member) {
+    public OauthAccount(Provider provider, String oauthId, String socialAccessToken, String socialRefreshToken, Member member) {
         this.provider = provider;
         this.oauthId = oauthId;
+        this.socialAccessToken = socialAccessToken;
+        this.socialRefreshToken = socialRefreshToken;
         this.member = member;
+    }
+
+    public void updateTokens(String accessToken, String refreshToken) {
+        this.socialAccessToken = accessToken;
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            this.socialRefreshToken = refreshToken;
+        }
     }
 
 

@@ -3,6 +3,8 @@ package com.buddy.buddyapi.domain.auth.component;
 public record OAuthUserInfo(
         String email,
         String name,
-        String oauthId
+        String oauthId,
+        String socialAccessToken,
+        String socialRefreshToken
 ) {
 }

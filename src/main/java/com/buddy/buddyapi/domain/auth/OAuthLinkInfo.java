@@ -6,5 +6,7 @@ import lombok.Builder;
 public record OAuthLinkInfo(
         String email,
         String provider,
-        String oauthId
+        String oauthId,
+        String socialAccessToken,
+        String socialRefreshToken
 ) {}
