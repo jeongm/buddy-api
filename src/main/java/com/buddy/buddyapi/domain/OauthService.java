@@ -14,6 +14,7 @@ import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.global.security.JwtTokenProvider;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -157,10 +158,12 @@ public class OauthService {
 
         for (OauthAccount account : linkedAccounts) {
             String dbAccessToken = account.getSocialAccessToken();
+            String dbRefreshToken = account.getSocialRefreshToken();
+
             switch (account.getProvider()) {
                 case KAKAO -> unlinkKakao(account.getOauthId());
-                case GOOGLE -> unlinkGoogle(dbAccessToken);
-                case NAVER -> unlinkNaver(dbAccessToken);
+                case GOOGLE -> unlinkGoogle(dbRefreshToken);
+                case NAVER -> unlinkNaver(dbAccessToken, dbRefreshToken);
             }
         }
     }
@@ -262,12 +265,34 @@ public class OauthService {
     /**
      *
      */
-    private void unlinkNaver(String accessToken) {
+    private void unlinkNaver(String accessToken, String refreshToken) {
         if (accessToken == null || accessToken.isBlank()) {
             log.warn("🟡 네이버 연결 끊기 실패: Access Token이 없습니다.");
             return;
         }
 
+        try {
+            // 1. 일단 가지고 있는 Access Token으로 끊어봅니다.
+            boolean isSuccess = sendNaverDeleteRequest(accessToken);
+
+            // 2. 만약 실패했다면? (아마 토큰 만료일 확률이 99%) -> 리프레시 토큰으로 심폐소생술!
+            if (!isSuccess && refreshToken != null && !refreshToken.isBlank()) {
+                log.info("🟡 네이버 Access Token 만료 추정. Refresh Token으로 갱신을 시도합니다.");
+                String newAccessToken = refreshNaverToken(refreshToken);
+
+                if (newAccessToken != null) {
+                    sendNaverDeleteRequest(newAccessToken); // 새 토큰으로 다시 끊기 요청!
+                }
+            }
+        } catch (Exception e) {
+            log.error("🔴 네이버 연결 끊기 최종 실패 원인: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 네이버 실제 삭제 API 찌르기 (내부 헬퍼)
+     */
+    private boolean sendNaverDeleteRequest(String accessToken) {
         try {
             RestTemplate restTemplate = new RestTemplate();
             String reqURL = "https://nid.naver.com/oauth2.0/token";
@@ -276,7 +301,7 @@ public class OauthService {
             headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
             MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-            body.add("grant_type", "delete"); // 네이버는 delete 타입으로 줍니다.
+            body.add("grant_type", "delete");
             body.add("client_id", naverClientId);
             body.add("client_secret", naverClientSecret);
             body.add("access_token", accessToken);
@@ -285,9 +310,42 @@ public class OauthService {
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
             ResponseEntity<String> response = restTemplate.postForEntity(reqURL, request, String.class);
 
-            log.info("🟢 네이버 연결 끊기 성공 (Response: {})", response.getBody());
+            // HTTP 200 이면 성공!
+            if (response.getStatusCode().is2xxSuccessful()) {
+                log.info("🟢 네이버 연결 끊기 성공!");
+                return true;
+            }
+            return false;
         } catch (Exception e) {
-            log.error("🔴 네이버 연결 끊기 실패 원인: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 네이버 토큰 심폐소생술 (토큰 갱신 API)
+     */
+    private String refreshNaverToken(String refreshToken) {
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+            String reqURL = "https://nid.naver.com/oauth2.0/token";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+            body.add("grant_type", "refresh_token"); // 💡 갱신 요청!
+            body.add("client_id", naverClientId);
+            body.add("client_secret", naverClientSecret);
+            body.add("refresh_token", refreshToken);
+
+            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+            ResponseEntity<JsonNode> response = restTemplate.postForEntity(reqURL, request, JsonNode.class);
+
+            // 갱신된 따끈따끈한 새 액세스 토큰 반환!
+            return response.getBody().path("access_token").asText(null);
+        } catch (Exception e) {
+            log.error("🔴 네이버 토큰 갱신 실패: {}", e.getMessage());
+            return null;
         }
     }
 
