@@ -1,7 +1,5 @@
-package com.buddy.buddyapi.domain;
+package com.buddy.buddyapi.domain.auth;
 
-import com.buddy.buddyapi.domain.auth.AuthStatus;
-import com.buddy.buddyapi.domain.auth.OAuthLinkInfo;
 import com.buddy.buddyapi.domain.auth.component.GoogleTokenVerifier;
 import com.buddy.buddyapi.domain.auth.component.KakaoTokenVerifier;
 import com.buddy.buddyapi.domain.auth.component.NaverTokenVerifier;

@@ -8,6 +8,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -26,6 +28,7 @@ public class ChatSession {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_seq", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Member member;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -41,11 +44,6 @@ public class ChatSession {
 
     @Column(name = "deletion_notified_at")
     private LocalDateTime deletionNotifiedAt; // 기본값은 null (알림 안 보냄)
-
-    // TODO 현재는 세션이 삭제될 때 해당 세션의 모든 메시지도 함께 삭제됩니다.
-    @OneToMany(mappedBy = "chatSession", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ChatMessage> chatMessages = new ArrayList<>();
-
 
     @Builder
     public ChatSession(Member member, BuddyCharacter buddyCharacter) {

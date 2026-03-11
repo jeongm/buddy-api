@@ -46,22 +46,8 @@ public class Member {
 
     // TODO 캐릭터 세계관 확장 시 분리하여 관리
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
-    @JoinColumn(name = "character_seq", nullable = true)
+    @JoinColumn(name = "character_seq")
     private BuddyCharacter buddyCharacter;
-
-    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
-    private final List<OauthAccount> oauthAccounts = new ArrayList<>();
-
-    // TODO 케스케이드 수정 - 현재는 일기 데이터도 부모 삭제 시 함께 삭제되도록 변경
-    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
-    private final List<Diary> diaries = new ArrayList<>();
-
-    // TODO casecade 수정 - 현재는 상동
-    @OneToMany(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true)
-    private final List<ChatSession> chatSessions = new ArrayList<>();
-
-    @OneToOne(mappedBy = "member", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private MemberInsight memberInsight;
 
     @Builder
     public Member(String email, String password, String nickname, BuddyCharacter buddyCharacter) {
@@ -70,11 +56,7 @@ public class Member {
         this.nickname = nickname;
         this.buddyCharacter = buddyCharacter;
     }
-    
 
-    public void updateBuddyCharacter(BuddyCharacter buddyCharacter) {
-        this.buddyCharacter = buddyCharacter;
-    }
     public void updatePassword(String password) {
         this.password = password;
     }

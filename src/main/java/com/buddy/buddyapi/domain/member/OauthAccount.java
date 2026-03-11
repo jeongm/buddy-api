@@ -2,6 +2,8 @@ package com.buddy.buddyapi.domain.member;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -35,6 +37,7 @@ public class OauthAccount {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_seq", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Member member;
 
     @Builder
