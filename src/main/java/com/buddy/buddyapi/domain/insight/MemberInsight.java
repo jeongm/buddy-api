@@ -6,6 +6,8 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
 
@@ -22,6 +24,7 @@ public class MemberInsight {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "member_seq", unique = true)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Member member;
 
     // 일주일에 한번 업데이트되며 이전 주의 기록을 바탕으로 함 이전주의 기록이 없을 시 null값 저장

@@ -1,6 +1,6 @@
 package com.buddy.buddyapi.domain.member;
 
-import com.buddy.buddyapi.domain.OauthService;
+import com.buddy.buddyapi.domain.auth.OauthService;
 import com.buddy.buddyapi.domain.auth.RefreshTokenRepository;
 import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
 import com.buddy.buddyapi.domain.auth.dto.SignUpRequest;
