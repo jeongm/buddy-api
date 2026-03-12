@@ -1,6 +1,5 @@
 package com.buddy.buddyapi.domain.auth.component;
 
-import com.buddy.buddyapi.domain.auth.dto.OAuthTokenResponse;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.fasterxml.jackson.annotation.JsonProperty;

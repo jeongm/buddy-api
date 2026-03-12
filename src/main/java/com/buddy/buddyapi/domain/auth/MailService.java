@@ -1,5 +1,6 @@
 package com.buddy.buddyapi.domain.auth;
 
+import com.buddy.buddyapi.domain.auth.enums.EmailPurpose;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import lombok.RequiredArgsConstructor;
@@ -11,6 +12,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -20,49 +22,61 @@ public class MailService {
     private final JavaMailSender mailSender;
     private final StringRedisTemplate redisTemplate;
 
-    private static final String PREFIX = "email_verify:";
-    private static final long LIMIT_TIME = 3 * 60;
+    // 키 Prefix를 목적에 따라 동적으로 생성하기 위해 상수 변경
+    private static final String CODE_PREFIX = "email_code:";
+    private static final String TOKEN_PREFIX = "email_token:";
     private static final String LIMIT_PREFIX = "email_limit:";
 
-    @Async
-    public void sendVerificationCode(String email) {
+    private static final long CODE_LIMIT_TIME_MINUTES = 5;  // 인증번호 입력 제한 시간
+    private static final long TOKEN_LIMIT_TIME_MINUTES = 30; // 티켓(UUID) 유효 시간
 
+
+    /**
+     * [공통] 목적에 맞는 인증 코드를 생성하여 Redis에 저장하고 이메일로 발송합니다.
+     */
+    @Async
+    public void sendCode(String email, EmailPurpose purpose) {
         String code = generateCode();
-        redisTemplate.opsForValue().set(PREFIX + email, code, Duration.ofSeconds(LIMIT_TIME));
+        String redisKey = getCodeKey(email, purpose);
+
+        // Redis에 5분간 저장
+        redisTemplate.opsForValue().set(redisKey, code, Duration.ofMinutes(CODE_LIMIT_TIME_MINUTES));
 
         SimpleMailMessage message = new SimpleMailMessage();
         message.setTo(email);
-        message.setSubject("[Buddy] 이메일 인증 번호입니다.");
-        message.setText("인증번호: " + code + "\n3분 이내에 입력해주세요.");
+
+        if (purpose == EmailPurpose.SIGNUP) {
+            message.setSubject("[Buddy] 회원가입 이메일 인증 번호입니다.");
+            message.setText("Buddy에 오신 것을 환영합니다!\n\n인증번호: [ " + code + " ]\n5분 이내에 입력해주세요.");
+        } else if (purpose == EmailPurpose.PASSWORD_RESET) {
+            message.setSubject("[Buddy] 비밀번호 찾기 인증번호 안내");
+            message.setText("안녕하세요, Buddy입니다.\n\n비밀번호 재설정을 위한 인증번호입니다.\n인증번호: [ " + code + " ]\n5분 이내에 입력해주세요.");
+        }
 
         mailSender.send(message);
-        log.info("이메일 발송 완료: {}", email);
-
+        log.info("[{}] 이메일 발송 완료: {}", purpose.name(), email);
     }
 
-    public boolean verifyCode(String email, String code) {
-        String savedCode = redisTemplate.opsForValue().get(PREFIX + email);
+    /**
+     * [공통] 사용자가 입력한 코드를 검증하고, 성공 시 UUID 티켓을 발급합니다.
+     * @return 검증 성공 시 발급되는 일회용 UUID 티켓
+     */
+    public String verifyCodeAndGetToken(String email, String code, EmailPurpose purpose) {
+        String redisKey = getCodeKey(email, purpose);
+        String savedCode = redisTemplate.opsForValue().get(redisKey);
 
-        // 🚀 TODO 개선: 서비스단에서 예외를 던지도록 수정하는 것을 권장합니다.
-        // 예: emailService.verifyCode() 내부에서 틀리면 throw new BaseException(...) 처리
-
-        if (savedCode == null) {
-            log.warn("인증 번호가 만료되었거나 존재하지 않음: {}", email);
-            return false;
+        if (savedCode == null || !savedCode.equals(code)) {
+            log.warn("[{}] 인증 번호 불일치 또는 만료 - 이메일: {}, 입력: {}, 저장: {}", purpose.name(), email, code, savedCode);
+            throw new BaseException(ResultCode.INVALID_CODE);
         }
 
-        if (savedCode.equals(code)) {
-            redisTemplate.delete(PREFIX + email);
+        redisTemplate.delete(redisKey);
 
-            // 인증 완료 상태를 5분간 저장 (회원가입 로직에서 확인용)
-            redisTemplate.opsForValue().set("verified:" + email, "true", Duration.ofMinutes(5));
+        String verificationToken = UUID.randomUUID().toString();
+        redisTemplate.opsForValue().set(getTokenKey(email, purpose),verificationToken, Duration.ofMinutes(TOKEN_LIMIT_TIME_MINUTES));
 
-            return true;
-        } else {
-            log.warn("인증 번호 불일치 - 입력: {}, 저장: {}", code, savedCode);
-        }
-
-        return false;
+        log.info("[{}] 이메일 인증 성공 및 티켓 발급 완료: {}", purpose.name(), email);
+        return  verificationToken;
     }
 
     // 발송 가능 여부 확인 (동기 메서드) - 연속으로 이메일인증코드 요청하지 않도록 시간에 제한을 둔다
@@ -75,25 +89,17 @@ public class MailService {
         redisTemplate.opsForValue().set(LIMIT_PREFIX + email, "true", Duration.ofSeconds(60));
     }
 
-    /**
-     * 비밀번호 재설정 인증번호 이메일을 비동기로 발송합니다.
-     */
-    @Async
-    public void sendPasswordResetCode(String toEmail, String code) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setTo(toEmail);
-        message.setSubject("[Buddy] 비밀번호 찾기 인증번호 안내");
-        message.setText("안녕하세요, Buddy입니다.\n\n" +
-                "비밀번호 재설정을 위한 인증번호입니다.\n" +
-                "앱으로 돌아가 아래의 6자리 숫자를 입력해 주세요.\n\n" +
-                "인증번호: [ " + code + " ]\n\n" +
-                "* 본 인증번호는 5분 동안만 유효합니다.");
-
-        mailSender.send(message);
-    }
-
     private String generateCode(){
         return String.valueOf((int) (Math.random() * 900000) + 100000);
+    }
+
+    // 목적(Purpose)이 포함된 Redis Key 생성기
+    private String getCodeKey(String email, EmailPurpose purpose) {
+        return CODE_PREFIX + purpose.name() + ":" + email;
+    }
+
+    private String getTokenKey(String email, EmailPurpose purpose) {
+        return TOKEN_PREFIX + purpose.name() + ":" + email;
     }
 
 

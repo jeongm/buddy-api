@@ -1,4 +1,4 @@
-package com.buddy.buddyapi.domain.auth;
+package com.buddy.buddyapi.domain.auth.enums;
 
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;

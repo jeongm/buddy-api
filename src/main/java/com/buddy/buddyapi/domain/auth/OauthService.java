@@ -4,8 +4,9 @@ import com.buddy.buddyapi.domain.auth.component.GoogleTokenVerifier;
 import com.buddy.buddyapi.domain.auth.component.KakaoTokenVerifier;
 import com.buddy.buddyapi.domain.auth.component.NaverTokenVerifier;
 import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
-import com.buddy.buddyapi.domain.auth.dto.LoginResponse;
+import com.buddy.buddyapi.domain.auth.dto.AuthDto;
 import com.buddy.buddyapi.domain.auth.dto.OAuthDto;
+import com.buddy.buddyapi.domain.auth.enums.AuthStatus;
 import com.buddy.buddyapi.domain.member.*;
 import com.buddy.buddyapi.domain.member.dto.MemberResponse;
 import com.buddy.buddyapi.global.exception.BaseException;
@@ -66,7 +67,7 @@ public class OauthService {
      * @return 로그인 성공(SUCCESS) 또는 연동 필요(REQUIRES_LINKING) 상태가 포함된 응답 DTO
      */
     @Transactional
-    public LoginResponse socialLogin(OAuthDto.LoginRequest request) throws JsonProcessingException {
+    public AuthDto.LoginResponse socialLogin(OAuthDto.LoginRequest request) throws JsonProcessingException {
 
         OAuthUserInfo userInfo = verifyOauthToken(request.provider(), request.code());
         Provider provider = Provider.from(request.provider());
@@ -117,7 +118,7 @@ public class OauthService {
      * @throws BaseException 키가 만료되었거나 조작된 경우 발생
      */
     @Transactional
-    public LoginResponse linkOauthAccount(String key) throws JsonProcessingException {
+    public AuthDto.LoginResponse linkOauthAccount(String key) throws JsonProcessingException {
 
         // Redis에서 검증된 진짜 정보 꺼내기
         String redisKey = "OAUTH_LINK:" + key;
@@ -185,7 +186,7 @@ public class OauthService {
     /**
      * 소셜 연동이 필요한 유저의 정보를 Redis에 10분간 임시 보관하고, 프론트엔드에 REQUIRES_LINKING 상태를 반환합니다.
      */
-    private LoginResponse handleLinkingRequired(OAuthDto.LoginRequest request, OAuthUserInfo userInfo) throws JsonProcessingException {
+    private AuthDto.LoginResponse handleLinkingRequired(OAuthDto.LoginRequest request, OAuthUserInfo userInfo) throws JsonProcessingException {
         String linkKey = UUID.randomUUID().toString();
         OAuthLinkInfo linkInfo = OAuthLinkInfo.builder()
                 .email(userInfo.email())
@@ -198,7 +199,7 @@ public class OauthService {
         redisTemplate.opsForValue().set("OAUTH_LINK:" + linkKey,
                 objectMapper.writeValueAsString(linkInfo), Duration.ofMinutes(10));
 
-        return LoginResponse.builder()
+        return AuthDto.LoginResponse.builder()
                 .status(AuthStatus.REQUIRES_LINKING)
                 .linkKey(linkKey)
                 .build();
@@ -350,7 +351,7 @@ public class OauthService {
     /**
      * 공통 응답 생성 로직 (OauthService 용)
      */
-    private LoginResponse buildAuthResponse(Member member, AuthStatus status) {
+    private AuthDto.LoginResponse buildAuthResponse(Member member, AuthStatus status) {
 
         AuthStatus finalStatus = status;
         if (status == AuthStatus.SUCCESS && member.getBuddyCharacter() == null) {
@@ -360,7 +361,7 @@ public class OauthService {
         String accessToken = jwtTokenProvider.createAccessToken(member.getMemberSeq());
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getMemberSeq());
 
-        return LoginResponse.builder()
+        return AuthDto.LoginResponse.builder()
                 // 🚨 주의: 기존 코드에 .status(status) 로 되어있었습니다!
                 // 그래서 캐릭터가 없어도 무조건 SUCCESS가 나가는 버그가 있었어요.
                 // 이걸 finalStatus로 바꿔야 캐릭터 유무에 따라 상태가 제대로 바뀝니다!

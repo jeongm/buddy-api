@@ -3,7 +3,7 @@ package com.buddy.buddyapi.domain.member;
 import com.buddy.buddyapi.domain.auth.OauthService;
 import com.buddy.buddyapi.domain.auth.RefreshTokenRepository;
 import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
-import com.buddy.buddyapi.domain.auth.dto.SignUpRequest;
+import com.buddy.buddyapi.domain.auth.dto.AuthDto;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
 import com.buddy.buddyapi.domain.character.BuddyCharacterRepository;
 import com.buddy.buddyapi.domain.member.dto.*;
@@ -34,7 +34,7 @@ public class MemberService {
      * @throws BaseException 이미 존재하는 이메일이거나, 선택한 캐릭터가 존재하지 않을 경우 발생
      */
     @Transactional
-    public Member registerLocalMember(SignUpRequest request, String encodedPassword) {
+    public Member registerLocalMember(AuthDto.SignUpRequest request, String encodedPassword) {
 
         checkEmailDuplicate(request.email());
 
