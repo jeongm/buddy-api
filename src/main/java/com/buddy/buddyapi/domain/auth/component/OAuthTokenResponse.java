@@ -1,4 +1,4 @@
-package com.buddy.buddyapi.domain.auth.dto;
+package com.buddy.buddyapi.domain.auth.component;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

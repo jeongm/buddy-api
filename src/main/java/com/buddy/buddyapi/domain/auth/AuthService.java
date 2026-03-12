@@ -1,9 +1,9 @@
 package com.buddy.buddyapi.domain.auth;
 
+import com.buddy.buddyapi.domain.auth.dto.AuthDto;
+import com.buddy.buddyapi.domain.auth.enums.AuthStatus;
+import com.buddy.buddyapi.domain.auth.enums.EmailPurpose;
 import com.buddy.buddyapi.domain.member.*;
-import com.buddy.buddyapi.domain.auth.dto.MemberLoginRequest;
-import com.buddy.buddyapi.domain.auth.dto.LoginResponse;
-import com.buddy.buddyapi.domain.auth.dto.SignUpRequest;
 import com.buddy.buddyapi.domain.member.dto.MemberResponse;
 import com.buddy.buddyapi.global.security.JwtTokenProvider;
 import com.buddy.buddyapi.global.exception.BaseException;
@@ -15,34 +15,30 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.concurrent.TimeUnit;
-
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
 
     private final MemberService memberService;
-    private final MailService mailService;
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
 
-    private static final String RESET_CODE_PREFIX = "PWD_RESET_CODE:";
-    private static final long RESET_CODE_TTL_MINUTES = 5; // 보안을 위해 5분으로 단축
-
     @Transactional
-    public LoginResponse signup(SignUpRequest request) {
+    public AuthDto.LoginResponse signup(AuthDto.SignUpRequest request) {
         // 이메일 인증 확인
-        String isVerified = redisTemplate.opsForValue().get("verified:" + request.email());
-        if (!"true".equals(isVerified)) {
-            throw new BaseException(ResultCode.UNAUTHORIZED);
-        }
-        redisTemplate.delete("verified:" + request.email());
+        String tokenKey = "email_token:SIGNUP:" + request.email();
+        String savedToken = redisTemplate.opsForValue().getAndDelete(tokenKey);
 
-        // 비밀번호 암호화
+        if (savedToken == null || !savedToken.equals(request.verificationToken())) {
+            throw new BaseException(ResultCode.UNAUTHORIZED_EMAIL_VERIFICATION); // "이메일 인증이 만료되었거나 올바르지 않습니다."
+        }
+
+        memberService.checkEmailDuplicate(request.email());
+
         String encodedPassword = passwordEncoder.encode(request.password());
 
         Member newMember = memberService.registerLocalMember(request, encodedPassword);
@@ -59,7 +55,7 @@ public class AuthService {
      * @throws BaseException 유저를 찾을 수 없거나 비밀번호가 일치하지 않을 경우 발생
      */
     @Transactional
-    public LoginResponse localLogin(MemberLoginRequest request) {
+    public AuthDto.LoginResponse localLogin(AuthDto.EmailLoginRequest request) {
         Member member = memberRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
 
@@ -78,7 +74,7 @@ public class AuthService {
      * @throws BaseException 토큰이 유효하지 않거나 만료된 경우 발생
      */
     @Transactional
-    public LoginResponse refreshToken(String refreshToken) {
+    public AuthDto.LoginResponse refreshToken(String refreshToken) {
         // 1. 토큰 자체의 유효성 검사 (만료 여부, 서명 등)
         if (!jwtTokenProvider.validateToken(refreshToken)) {
             throw new BaseException(ResultCode.INVALID_TOKEN);
@@ -108,38 +104,15 @@ public class AuthService {
     }
 
     /**
-     * 1단계: 6자리 인증번호 생성, Redis 저장 및 이메일 발송
-     */
-    @Transactional(readOnly = true)
-    public void sendPasswordResetCode(String email) {
-        Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
-
-        if (member.getPassword() == null) {
-            throw new BaseException(ResultCode.OAUTH_MEMBER_CANNOT_RESET_PASSWORD);
-        }
-
-        // 6자리 랜덤 숫자 생성 (000000 ~ 999999)
-        String code = String.format("%06d", new java.security.SecureRandom().nextInt(1000000));
-
-        // Redis 저장 (Key: PWD_RESET_CODE:test@test.com, Value: 123456, TTL: 5분)
-        redisTemplate.opsForValue()
-                .set(RESET_CODE_PREFIX + member.getEmail(), code, RESET_CODE_TTL_MINUTES, TimeUnit.MINUTES);
-
-        // 우체부에게 메일 전송 지시 (인증번호를 그대로 넘깁니다)
-        mailService.sendPasswordResetCode(member.getEmail(), code);
-    }
-
-    /**
-     * 2단계: 인증번호 검증 및 비밀번호 최종 변경
+     * 비밀번호 변경 - 발급된 uuid를 사용합니다
      */
     @Transactional
-    public void resetPasswordWithCode(String email, String code, String newPassword) {
-        String redisKey = RESET_CODE_PREFIX + email;
+    public void resetPassword(String email, String newPassword, String token) {
+        String tokenKey = "email_token:PASSWORD_RESET:" + email;
+        String savedToken = redisTemplate.opsForValue().getAndDelete(tokenKey);
 
-        String savedCode = redisTemplate.opsForValue().getAndDelete(redisKey);
-        if (savedCode == null || !savedCode.equals(code)) {
-            throw new BaseException(ResultCode.EXPIRED_OR_INVALID_CODE);
+        if (savedToken == null || !savedToken.equals(token)) {
+            throw new BaseException(ResultCode.UNAUTHORIZED_EMAIL_VERIFICATION);
         }
 
         Member member = memberRepository.findByEmail(email)
@@ -148,7 +121,21 @@ public class AuthService {
         member.updatePassword(passwordEncoder.encode(newPassword));
     }
 
+    @Transactional(readOnly = true)
+    public void validateEmailForPurpose(String email, EmailPurpose purpose) {
+        if (purpose == EmailPurpose.SIGNUP) {
+            // 회원가입 전: 이미 가입된 이메일이면 에러 뱉기
+            memberService.checkEmailDuplicate(email);
+        } else if (purpose == EmailPurpose.PASSWORD_RESET) {
+            // 비밀번호 찾기 전: 우리 회원인지, 그리고 소셜 로그인 유저가 아닌지(비번이 있는지) 확인
+            Member member = memberRepository.findByEmail(email)
+                    .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
 
+            if (member.getPassword() == null) {
+                throw new BaseException(ResultCode.OAUTH_MEMBER_CANNOT_RESET_PASSWORD);
+            }
+        }
+    }
 
     // =========================================================================
     // 헬퍼 메서드 (Helper Methods)
@@ -159,7 +146,7 @@ public class AuthService {
      * 공통 응답 생성 로직. 토큰셋(Access, Refresh)을 생성하고 AuthStatus를 포함한 LoginResponse를 빌드합니다.
      * 인증은 성공했더라도, 캐릭터가 없다면 무조건 온보딩 상태(REQUIRES_CHARACTER)로 강제 변환합니다.
      */
-    private LoginResponse buildAuthResponse(Member member, AuthStatus status) {
+    private AuthDto.LoginResponse buildAuthResponse(Member member, AuthStatus status) {
 
         AuthStatus finalStatus = status;
         if (status == AuthStatus.SUCCESS && member.getBuddyCharacter() == null) {
@@ -169,7 +156,7 @@ public class AuthService {
         String accessToken = jwtTokenProvider.createAccessToken(member.getMemberSeq());
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getMemberSeq());
 
-        return LoginResponse.builder()
+        return AuthDto.LoginResponse.builder()
                 .status(finalStatus)
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
