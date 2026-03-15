@@ -7,9 +7,11 @@ import com.buddy.buddyapi.domain.auth.dto.AuthDto;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
 import com.buddy.buddyapi.domain.character.BuddyCharacterRepository;
 import com.buddy.buddyapi.domain.member.dto.*;
+import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,12 +21,11 @@ import org.springframework.transaction.annotation.Transactional;
 public class MemberService {
 
     private final MemberRepository memberRepository;
-    private final OauthAccountRepository oauthAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final BuddyCharacterRepository characterRepository;
     private final RefreshTokenRepository refreshTokenRepository;
 
-    private final OauthService oauthService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 일반(이메일) 회원가입을 처리하고 새로운 회원을 생성합니다.
@@ -55,28 +56,19 @@ public class MemberService {
     }
 
     /**
-     * 신규 소셜 로그인 유저를 데이터베이스에 등록하고 연동 정보를 함께 저장합니다.
-     * @param userInfo 소셜 제공자로부터 전달받은 유저 정보 (이메일, 닉네임, 고유 ID 등)
-     * @param provider 소셜 제공자 (Google, Kakao, Naver)
+     * 신규 소셜 로그인 유저를 데이터베이스에 저장합니다.
+     * @param email 소셜 제공자로부터 전달받은 이메일
+     * @param nickname 소셜 제공자로부터 전달받은 닉네임
      * @return 가입 완료된 회원 엔티티 (Member)
      */
     @Transactional
-    public Member registerSocialMember(OAuthUserInfo userInfo, Provider provider) {
-        Member newMember = memberRepository.save(
+    public Member registerSocialMember(String email, String nickname) {
+        return memberRepository.save(
                 Member.builder()
-                        .email(userInfo.email())
-                        .nickname(userInfo.name())
+                        .email(email)
+                        .nickname(nickname)
                         .build()
         );
-
-        oauthAccountRepository.save(OauthAccount.builder()
-                .provider(provider)
-                .oauthId(userInfo.oauthId())
-                .member(newMember).build()
-        );
-
-
-        return newMember;
     }
 
 
@@ -174,21 +166,17 @@ public class MemberService {
     }
 
     /**
-     * 회원 탈퇴
+     * [회원 탈퇴] 소셜 연결을 끊고, 토큰을 파기하며, DB에서 회원을 삭제합니다.
      * @param memberSeq 현재 로그인한 회원 정보
      */
     @Transactional
     public void deleteMember(Long memberSeq) {
 
-        // 카카오/구글 등 소셜 로그인 '연결 끊기' API 호출
-        oauthService.unlinkSocialAccounts(memberSeq);
+        eventPublisher.publishEvent(new MemberWithdrawEvent(memberSeq));
 
-        // Redis에 저장된 Refresh Token 삭제
-        refreshTokenRepository.deleteById(memberSeq);
-
+        // 3. MemberService에게 지시: "이제 우리 DB에서 진짜로 유저 정보 지워!"
         memberRepository.deleteById(memberSeq);
     }
-
     /**
      * 이메일 중복 체크
      * @param email 중복체크할 이메일

@@ -5,10 +5,10 @@ import com.buddy.buddyapi.domain.auth.component.KakaoTokenVerifier;
 import com.buddy.buddyapi.domain.auth.component.NaverTokenVerifier;
 import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
 import com.buddy.buddyapi.domain.auth.dto.AuthDto;
-import com.buddy.buddyapi.domain.auth.dto.OAuthDto;
 import com.buddy.buddyapi.domain.auth.enums.AuthStatus;
 import com.buddy.buddyapi.domain.member.*;
 import com.buddy.buddyapi.domain.member.dto.MemberResponse;
+import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.global.security.JwtTokenProvider;
@@ -18,6 +18,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -31,7 +32,6 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -39,7 +39,6 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class OauthService {
 
-    private final MemberRepository memberRepository;
     private final OauthAccountRepository oauthAccountRepository;
 
     private final JwtTokenProvider jwtTokenProvider;
@@ -60,95 +59,89 @@ public class OauthService {
     private String kakaoAdminKey;
 
     /**
-     * [소셜 로그인 통합] 제공자(Google, Kakao, Naver)의 토큰을 검증하고 서비스 로그인을 처리합니다.
-     * 이미 가입된 이메일이 존재하지만 소셜 연동이 되어있지 않은 경우, 연동 대기 상태(REQUIRES_LINKING)를 반환합니다.
-     *
-     * @param request 제공자 이름(provider)과 인증 토큰(token)
-     * @return 로그인 성공(SUCCESS) 또는 연동 필요(REQUIRES_LINKING) 상태가 포함된 응답 DTO
+     * 각 소셜 제공자별 알맞은 토큰 검증기(Verifier)를 호출하여 유저 정보를 추출합니다.
+     */
+    public OAuthUserInfo verifyOauthToken(String provider, String token) {
+        return switch (provider.toLowerCase()) {
+            case "google" -> googleTokenVerifier.verify(token);
+            case "kakao" -> kakaoTokenVerifier.verify(token);
+            case "naver" -> naverTokenVerifier.verify(token);
+            default -> throw new BaseException(ResultCode.UNSUPPORTED_PROVIDER);
+        };
+    }
+
+    /**
+     * 연동 여부 확인
+     */
+    @Transactional(readOnly = true)
+    public boolean isLinked(Member member, Provider provider) {
+        return oauthAccountRepository.existsByMemberAndProvider(member, provider);
+    }
+
+    /**
+     * 소셜 토큰 갱신
      */
     @Transactional
-    public AuthDto.LoginResponse socialLogin(OAuthDto.LoginRequest request) throws JsonProcessingException {
+    public void updateSocialTokens(Member member, Provider provider, String accessToken, String refreshToken) {
+        OauthAccount account = oauthAccountRepository.findByMemberAndProvider(member, provider)
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+        account.updateTokens(accessToken, refreshToken);
+    }
 
-        OAuthUserInfo userInfo = verifyOauthToken(request.provider(), request.code());
-        Provider provider = Provider.from(request.provider());
-
-        // 기존 회원 여부 확인
-        Optional<Member> optionalMember = memberRepository.findByEmail(userInfo.email());
-
-        // [CASE] 이미 가입된 계정이 있는 경우
-        if(optionalMember.isPresent()) {
-            Member member = optionalMember.get();
-
-            // [CASE] 연동이 필요한 경우 (REQUIRES_LINKING)
-            if(!oauthAccountRepository.existsByMemberAndProvider(member, provider)) {
-                return handleLinkingRequired(request, userInfo);
-            }
-
-            // [CASE] 이미 연동됨 -> 로그인 성공 (SUCCESS)
-            OauthAccount account = oauthAccountRepository.findByMemberAndProvider(member, provider)
-                    .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
-            account.updateTokens(userInfo.socialAccessToken(), userInfo.socialRefreshToken());
-
-            return buildAuthResponse(member, AuthStatus.SUCCESS);
-        }
-
-        // [CASE] 아예 신규 유저 (가입 + 연동 + SUCCESS)
-        Member newMember = memberRepository.save(Member.builder()
-                .email(userInfo.email())
-                .nickname(userInfo.name())
-                .build());
-
+    /**
+     * 4. OauthAccount DB 저장
+     */
+    @Transactional
+    public void saveOauthAccount(Member member, Provider provider, String oauthId, String accessToken, String refreshToken) {
         oauthAccountRepository.save(OauthAccount.builder()
+                .provider(provider)
+                .oauthId(oauthId)
+                .socialAccessToken(accessToken)
+                .socialRefreshToken(refreshToken)
+                .member(member)
+                .build());
+    }
+
+    /**
+     * 연동 필요 상태(REQUIRES_LINKING) Redis 임시 저장 및 응답 생성
+     * 소셜 연동이 필요한 유저의 정보를 Redis에 10분간 임시 보관하고, 프론트엔드에 REQUIRES_LINKING 상태를 반환합니다.
+     */
+    public AuthDto.LoginResponse handleLinkingRequired(String provider, OAuthUserInfo userInfo) throws JsonProcessingException {
+        String linkKey = UUID.randomUUID().toString();
+        OAuthLinkInfo linkInfo = OAuthLinkInfo.builder()
+                .email(userInfo.email())
                 .provider(provider)
                 .oauthId(userInfo.oauthId())
                 .socialAccessToken(userInfo.socialAccessToken())
                 .socialRefreshToken(userInfo.socialRefreshToken())
-                .member(newMember)
-                .build());
+                .build();
 
-        return buildAuthResponse(newMember, AuthStatus.SUCCESS);
+        redisTemplate.opsForValue().set("OAUTH_LINK:" + linkKey,
+                objectMapper.writeValueAsString(linkInfo), Duration.ofMinutes(10));
 
+        return AuthDto.LoginResponse.builder()
+                .status(AuthStatus.REQUIRES_LINKING)
+                .linkKey(linkKey)
+                .build();
     }
 
     /**
-     * [소셜 계정 연동 완료] Redis에 임시 저장된 연동 정보를 확인하고, 기존 계정에 새로운 소셜 정보를 연동합니다.
-     *
-     * @param key 연동 대기 상태에서 프론트엔드로 전달했던 임시 키 (linkKey)
-     * @return 연동 완료 후 발급된 토큰셋을 포함한 로그인 성공 응답
-     * @throws BaseException 키가 만료되었거나 조작된 경우 발생
+     * Redis에서 연동 정보(LinkInfo) 꺼내기
      */
-    @Transactional
-    public AuthDto.LoginResponse linkOauthAccount(String key) throws JsonProcessingException {
-
-        // Redis에서 검증된 진짜 정보 꺼내기
-        String redisKey = "OAUTH_LINK:" + key;
+    public OAuthLinkInfo getAndRemoveLinkInfo(String linkKey) throws JsonProcessingException {
+        String redisKey = "OAUTH_LINK:" + linkKey;
         String jsonValue = redisTemplate.opsForValue().getAndDelete(redisKey);
 
         if (jsonValue == null) {
             throw new BaseException(ResultCode.INVALID_TOKEN);
         }
+        return objectMapper.readValue(jsonValue, OAuthLinkInfo.class);
+    }
 
-        OAuthLinkInfo linkInfo = objectMapper.readValue(jsonValue, OAuthLinkInfo.class);
-
-        Member member = memberRepository.findByEmail(linkInfo.email())
-                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
-
-        Provider provider = Provider.from(linkInfo.provider());
-
-        if (oauthAccountRepository.existsByMemberAndProvider(member, provider)) {
-            throw new BaseException(ResultCode.ALREADY_LINKED_ACCOUNT);
-        }
-
-        oauthAccountRepository.save(OauthAccount.builder()
-                .provider(provider)
-                .oauthId(linkInfo.oauthId())
-                .socialAccessToken(linkInfo.socialAccessToken())
-                .socialRefreshToken(linkInfo.socialRefreshToken())
-                .member(member)
-                .build());
-
-        return buildAuthResponse(member, AuthStatus.SUCCESS);
-
+    @EventListener
+    public void onMemberWithdraw(MemberWithdrawEvent event) {
+        log.info("📢 [OauthService] 탈퇴 이벤트 수신! 소셜 연결을 해제합니다. (memberSeq: {})", event.memberSeq());
+        unlinkSocialAccounts(event.memberSeq());
     }
 
     @Transactional
@@ -170,40 +163,6 @@ public class OauthService {
     // =========================================================================
     // 헬퍼 메서드 (Helper Methods)
     // =========================================================================
-
-    /**
-     * 각 소셜 제공자별 알맞은 토큰 검증기(Verifier)를 호출하여 유저 정보를 추출합니다.
-     */
-    private OAuthUserInfo verifyOauthToken(String provider, String token) {
-        return switch (provider.toLowerCase()) {
-            case "google" -> googleTokenVerifier.verify(token);
-            case "kakao" -> kakaoTokenVerifier.verify(token);
-            case "naver" -> naverTokenVerifier.verify(token);
-            default -> throw new BaseException(ResultCode.UNSUPPORTED_PROVIDER);
-        };
-    }
-
-    /**
-     * 소셜 연동이 필요한 유저의 정보를 Redis에 10분간 임시 보관하고, 프론트엔드에 REQUIRES_LINKING 상태를 반환합니다.
-     */
-    private AuthDto.LoginResponse handleLinkingRequired(OAuthDto.LoginRequest request, OAuthUserInfo userInfo) throws JsonProcessingException {
-        String linkKey = UUID.randomUUID().toString();
-        OAuthLinkInfo linkInfo = OAuthLinkInfo.builder()
-                .email(userInfo.email())
-                .provider(request.provider())
-                .oauthId(userInfo.oauthId())
-                .socialAccessToken(userInfo.socialAccessToken())
-                .socialRefreshToken(userInfo.socialRefreshToken())
-                .build();
-
-        redisTemplate.opsForValue().set("OAUTH_LINK:" + linkKey,
-                objectMapper.writeValueAsString(linkInfo), Duration.ofMinutes(10));
-
-        return AuthDto.LoginResponse.builder()
-                .status(AuthStatus.REQUIRES_LINKING)
-                .linkKey(linkKey)
-                .build();
-    }
 
     /**
      * 카카오 연결 끊기 (Admin Key 방식)
@@ -363,8 +322,6 @@ public class OauthService {
 
         return AuthDto.LoginResponse.builder()
                 // 🚨 주의: 기존 코드에 .status(status) 로 되어있었습니다!
-                // 그래서 캐릭터가 없어도 무조건 SUCCESS가 나가는 버그가 있었어요.
-                // 이걸 finalStatus로 바꿔야 캐릭터 유무에 따라 상태가 제대로 바뀝니다!
                 .status(finalStatus)
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)

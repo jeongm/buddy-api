@@ -23,7 +23,7 @@ public class EmailDto {
             @NotBlank String email,
             @Schema(description = "메일로 받은 6자리 인증코드", example = "123456")
             @NotBlank String code,
-            @Schema(description = "인증 목적", example = "SIGNUP")
+            @Schema(description = "인증 목적", example = "SIGNUP, PASSWORD_RESET")
             @NotNull EmailPurpose purpose
     ) {
     }
