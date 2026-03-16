@@ -51,4 +51,8 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
         """)
     int deleteOrphanSessions(@Param("twelveHoursAgo") LocalDateTime twelveHoursAgo);
 
+    @Modifying(clearAutomatically = true)
+    @Query("DELETE FROM ChatSession cs WHERE cs.member.memberSeq = :memberSeq")
+    void bulkDeleteByMemberSeq(@Param("memberSeq") Long memberSeq);
+
 }

@@ -39,7 +39,7 @@ public class AuthDto {
 
             Long characterSeq,
 
-            @Schema(description = "이메일 인증 통과 시 발급받은 UUID 티켓", example = "550e8400-e29b-41d4-a716-446655440000")
+            @Schema(description = "이메일 인증 통과 시 발급받은 UUID 티켓")
             @NotBlank String verificationToken
     ) {}
 

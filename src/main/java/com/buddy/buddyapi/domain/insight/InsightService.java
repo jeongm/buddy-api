@@ -6,6 +6,7 @@ import com.buddy.buddyapi.domain.insight.dto.TagNameCountResponse;
 import com.buddy.buddyapi.domain.insight.dto.WeeklyIdentityResponse;
 import com.buddy.buddyapi.domain.member.Member;
 import com.buddy.buddyapi.domain.member.MemberRepository;
+import com.buddy.buddyapi.domain.member.MemberService;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,9 +25,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class InsightService {
 
-    private final MemberRepository memberRepository;
     private final InsightRepository insightRepository;
     private final DiaryRepository diaryRepository;
+    private final MemberService memberService;
 
     private final AiService aiService;
 
@@ -38,7 +39,7 @@ public class InsightService {
      */
     @Transactional
     public WeeklyIdentityResponse getWeeklyInsight(Long memberSeq) {
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = memberService.getMemberBySeq(memberSeq);
 
         // 유저의 통계 테이블 조회 (없으면 null)
         MemberInsight insight = insightRepository.findByMember_MemberSeq(memberSeq)

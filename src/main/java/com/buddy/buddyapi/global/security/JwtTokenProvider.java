@@ -1,7 +1,5 @@
 package com.buddy.buddyapi.global.security;
 
-import com.buddy.buddyapi.domain.auth.RefreshToken;
-import com.buddy.buddyapi.domain.auth.RefreshTokenRepository;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
@@ -22,20 +20,17 @@ public class JwtTokenProvider {
     private final long accessTokenValidity;
     private final long refreshTokenValidity;
     private final CustomUserDetailsService userDetailsService;
-    private final RefreshTokenRepository refreshTokenRepository;
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-token-validity}") long accessTokenValidity,
             @Value("${jwt.refresh-token-validity}") long refreshTokenValidity,
-            CustomUserDetailsService userDetailsService,
-            RefreshTokenRepository refreshTokenRepository
+            CustomUserDetailsService userDetailsService
     ) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
         this.accessTokenValidity = accessTokenValidity;
         this.refreshTokenValidity = refreshTokenValidity;
         this.userDetailsService = userDetailsService;
-        this.refreshTokenRepository = refreshTokenRepository;
     }
 
     // Access Token 생성
@@ -45,16 +40,7 @@ public class JwtTokenProvider {
 
     // Refresh Token 생성
     public String createRefreshToken(Long memberSeq) {
-        String token = createToken(memberSeq, refreshTokenValidity);
-
-        // Redis에 저장
-        RefreshToken refreshToken = RefreshToken.builder()
-                .memberSeq(memberSeq)
-                .refreshToken(token)
-                .build();
-
-        refreshTokenRepository.save(refreshToken);
-        return token;
+        return createToken(memberSeq, refreshTokenValidity);
     }
 
     private String createToken(Long memberSeq, long validity) {
@@ -101,11 +87,6 @@ public class JwtTokenProvider {
             return false;
         }
 
-
-
     }
-
-
-
 
 }

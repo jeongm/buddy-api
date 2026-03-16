@@ -4,7 +4,6 @@ import com.buddy.buddyapi.domain.chat.dto.ChatHistoryResponse;
 import com.buddy.buddyapi.domain.chat.dto.ChatSendResponse;
 import com.buddy.buddyapi.global.common.ApiResponse;
 import com.buddy.buddyapi.domain.chat.dto.ChatRequest;
-import com.buddy.buddyapi.domain.chat.dto.ChatMessageDto;
 import com.buddy.buddyapi.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,8 +12,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @Tag(name = "Chat", description = "채팅 API")
 @RestController
@@ -35,7 +32,7 @@ public class ChatController {
     @GetMapping(value = "/{sessionSeq}")
     public ResponseEntity<ApiResponse<ChatHistoryResponse>> getChatHistory(
             @AuthenticationPrincipal CustomUserDetails member,
-            @PathVariable Long sessionSeq
+            @PathVariable("sessionSeq") Long sessionSeq
     ) {
         return ResponseEntity.ok(ApiResponse.ok(chatService.getChatHistory(member.memberSeq(),sessionSeq)));
     }
@@ -44,7 +41,7 @@ public class ChatController {
     @PatchMapping(value = "/{sessionSeq}/end")
     public ResponseEntity<ApiResponse<String>> endSession(
             @AuthenticationPrincipal CustomUserDetails member,
-            @PathVariable Long sessionSeq) {
+            @PathVariable("sessionSeq") Long sessionSeq) {
         chatService.endChatSession(member.memberSeq(), sessionSeq);
         return ResponseEntity.ok(ApiResponse.ok("대화가 성공적으로 종료되었습니다."));
     }

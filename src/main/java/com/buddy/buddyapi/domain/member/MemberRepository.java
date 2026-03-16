@@ -18,9 +18,4 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     @Query("SELECT m FROM Member m WHERE m.memberSeq = :memberSeq")
     Optional<Member> findByIdWithCharacter(@Param("memberSeq") Long memberSeq);
 
-    default Member findByIdOrThrow(Long memberSeq) {
-        return findById(memberSeq)
-                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
-    }
-
 }

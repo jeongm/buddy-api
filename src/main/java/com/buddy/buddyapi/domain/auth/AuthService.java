@@ -1,19 +1,27 @@
 package com.buddy.buddyapi.domain.auth;
 
+import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
 import com.buddy.buddyapi.domain.auth.dto.AuthDto;
+import com.buddy.buddyapi.domain.auth.dto.OAuthDto;
 import com.buddy.buddyapi.domain.auth.enums.AuthStatus;
 import com.buddy.buddyapi.domain.auth.enums.EmailPurpose;
 import com.buddy.buddyapi.domain.member.*;
 import com.buddy.buddyapi.domain.member.dto.MemberResponse;
+import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.security.JwtTokenProvider;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
+
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -21,9 +29,10 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final MemberService memberService;
+    private final OauthService oauthService;
+
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
-    private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
 
@@ -31,7 +40,7 @@ public class AuthService {
     public AuthDto.LoginResponse signup(AuthDto.SignUpRequest request) {
         // 이메일 인증 확인
         String tokenKey = "email_token:SIGNUP:" + request.email();
-        String savedToken = redisTemplate.opsForValue().getAndDelete(tokenKey);
+        String savedToken = redisTemplate.opsForValue().get(tokenKey);
 
         if (savedToken == null || !savedToken.equals(request.verificationToken())) {
             throw new BaseException(ResultCode.UNAUTHORIZED_EMAIL_VERIFICATION); // "이메일 인증이 만료되었거나 올바르지 않습니다."
@@ -43,8 +52,9 @@ public class AuthService {
 
         Member newMember = memberService.registerLocalMember(request, encodedPassword);
 
+        redisTemplate.delete(tokenKey);
         // 회원 가입 완료 시 자동 로그인
-        return buildAuthResponse(newMember, AuthStatus.SUCCESS);
+        return issueTokensAndBuildResponse(newMember, AuthStatus.SUCCESS);
     }
 
     /**
@@ -56,14 +66,82 @@ public class AuthService {
      */
     @Transactional
     public AuthDto.LoginResponse localLogin(AuthDto.EmailLoginRequest request) {
-        Member member = memberRepository.findByEmail(request.email())
-                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+        Member member = memberService.getMemberByEmail(request.email());
 
         if (!passwordEncoder.matches(request.password(), member.getPassword())) {
             throw new BaseException(ResultCode.INVALID_CREDENTIALS);
         }
 
-        return buildAuthResponse(member, AuthStatus.SUCCESS);
+        return issueTokensAndBuildResponse(member, AuthStatus.SUCCESS);
+    }
+
+    /**
+     * [소셜 로그인 통합] 제공자(Google, Kakao, Naver)의 토큰을 검증하고 서비스 로그인을 처리합니다.
+     * 이미 가입된 이메일이 존재하지만 소셜 연동이 되어있지 않은 경우, 연동 대기 상태(REQUIRES_LINKING)를 반환합니다.
+     *
+     * @param request 제공자 이름(provider)과 인증 토큰(token)
+     * @return 로그인 성공(SUCCESS) 또는 연동 필요(REQUIRES_LINKING) 상태가 포함된 응답 DTO
+     */
+    @Transactional
+    public AuthDto.LoginResponse socialLogin(OAuthDto.LoginRequest request) throws JsonProcessingException {
+
+        OAuthUserInfo userInfo = oauthService.verifyOauthToken(request.provider(), request.code());
+        Provider provider = Provider.from(request.provider());
+
+        // 기존 회원 여부 확인
+        Optional<Member> optionalMember = memberService.findMemberByEmail(userInfo.email());
+
+        // [CASE] 이미 가입된 계정이 있는 경우
+        if(optionalMember.isPresent()) {
+            Member member = optionalMember.get();
+
+            // [CASE] 연동이 필요한 경우 (REQUIRES_LINKING)
+            if(!oauthService.isLinked(member, provider)) {
+                return oauthService.handleLinkingRequired(request.provider(), userInfo);
+            }
+
+            // [CASE] 이미 연동됨 -> 로그인 성공 (SUCCESS)
+            oauthService.updateSocialTokens(member,provider,
+                    userInfo.socialAccessToken(), userInfo.socialRefreshToken());
+
+            return issueTokensAndBuildResponse(member, AuthStatus.SUCCESS);
+        }
+
+        // [CASE] 아예 신규 유저 (가입 + 연동 + SUCCESS)
+        Member newMember = memberService.registerSocialMember(userInfo.email(), userInfo.name());
+
+        oauthService.saveOauthAccount(newMember, provider,
+                userInfo.oauthId(), userInfo.socialAccessToken(), userInfo.socialRefreshToken());
+
+        return issueTokensAndBuildResponse(newMember, AuthStatus.SUCCESS);
+
+    }
+
+    /**
+     * [소셜 계정 연동] Redis에 임시 저장된 연동 정보를 확인하고, 기존 계정에 새로운 소셜 정보를 연동합니다.
+     *
+     * @param linkKey 연동 대기 상태에서 프론트엔드로 전달했던 임시 키 (linkKey)
+     * @return 연동 완료 후 발급된 토큰셋을 포함한 로그인 성공 응답
+     * @throws BaseException 키가 만료되었거나 조작된 경우 발생
+     */
+    @Transactional
+    public AuthDto.LoginResponse linkOauthAccount(String linkKey) throws JsonProcessingException {
+
+        OAuthLinkInfo linkInfo = oauthService.getAndRemoveLinkInfo(linkKey);
+
+        Member member = memberService.getMemberByEmail(linkInfo.email());
+
+        Provider provider = Provider.from(linkInfo.provider());
+
+        if (oauthService.isLinked(member, provider)) {
+            throw new BaseException(ResultCode.ALREADY_LINKED_ACCOUNT);
+        }
+
+        oauthService.saveOauthAccount(member, provider,
+                linkInfo.oauthId(), linkInfo.socialAccessToken(), linkInfo.socialRefreshToken());
+
+        return issueTokensAndBuildResponse(member, AuthStatus.SUCCESS);
+
     }
 
     /**
@@ -85,12 +163,12 @@ public class AuthService {
                 .orElseThrow(() -> new BaseException(ResultCode.REFRESH_TOKEN_NOT_FOUND));
 
         // 3. 토큰의 주인(Member)이 실제 존재하는지 확인
-        Member member = memberRepository.findByIdOrThrow(savedToken.getMemberSeq());
+        Member member = memberService.getMemberBySeq(savedToken.getMemberSeq());
 
         // 4. 기존 Redis 토큰 삭제 (새로운 토큰이 발급되므로 기존 토큰 파기)
         refreshTokenRepository.delete(savedToken);
 
-        return buildAuthResponse(member, AuthStatus.SUCCESS);
+        return issueTokensAndBuildResponse(member, AuthStatus.SUCCESS);
     }
 
     /**
@@ -109,16 +187,18 @@ public class AuthService {
     @Transactional
     public void resetPassword(String email, String newPassword, String token) {
         String tokenKey = "email_token:PASSWORD_RESET:" + email;
-        String savedToken = redisTemplate.opsForValue().getAndDelete(tokenKey);
+        String savedToken = redisTemplate.opsForValue().get(tokenKey);
 
         if (savedToken == null || !savedToken.equals(token)) {
             throw new BaseException(ResultCode.UNAUTHORIZED_EMAIL_VERIFICATION);
         }
 
-        Member member = memberRepository.findByEmail(email)
-                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+        Member member = memberService.getMemberByEmail(email);
 
         member.updatePassword(passwordEncoder.encode(newPassword));
+
+        redisTemplate.delete(tokenKey);
+
     }
 
     @Transactional(readOnly = true)
@@ -128,13 +208,22 @@ public class AuthService {
             memberService.checkEmailDuplicate(email);
         } else if (purpose == EmailPurpose.PASSWORD_RESET) {
             // 비밀번호 찾기 전: 우리 회원인지, 그리고 소셜 로그인 유저가 아닌지(비번이 있는지) 확인
-            Member member = memberRepository.findByEmail(email)
-                    .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+            Member member = memberService.getMemberByEmail(email);
 
             if (member.getPassword() == null) {
                 throw new BaseException(ResultCode.OAUTH_MEMBER_CANNOT_RESET_PASSWORD);
             }
         }
+    }
+
+    /**
+     *  탈퇴할 회원의 Redis 리프레시 토큰을 파기합니다.
+     * @param event 회원탈퇴 이벤트 수신
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onMemberWithdraw(MemberWithdrawEvent event) {
+        log.info("📢 [AuthService] 탈퇴 이벤트 수신! Redis 리프레시 토큰을 파기합니다. (memberSeq: {})", event.memberSeq());
+        refreshTokenRepository.deleteById(event.memberSeq());
     }
 
     // =========================================================================
@@ -146,7 +235,7 @@ public class AuthService {
      * 공통 응답 생성 로직. 토큰셋(Access, Refresh)을 생성하고 AuthStatus를 포함한 LoginResponse를 빌드합니다.
      * 인증은 성공했더라도, 캐릭터가 없다면 무조건 온보딩 상태(REQUIRES_CHARACTER)로 강제 변환합니다.
      */
-    private AuthDto.LoginResponse buildAuthResponse(Member member, AuthStatus status) {
+    private AuthDto.LoginResponse issueTokensAndBuildResponse(Member member, AuthStatus status) {
 
         AuthStatus finalStatus = status;
         if (status == AuthStatus.SUCCESS && member.getBuddyCharacter() == null) {
@@ -155,6 +244,13 @@ public class AuthService {
 
         String accessToken = jwtTokenProvider.createAccessToken(member.getMemberSeq());
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getMemberSeq());
+
+        refreshTokenRepository.save(
+                RefreshToken.builder()
+                .memberSeq(member.getMemberSeq())
+                .refreshToken(refreshToken)
+                .build()
+        );
 
         return AuthDto.LoginResponse.builder()
                 .status(finalStatus)

@@ -7,6 +7,8 @@ import com.buddy.buddyapi.domain.chat.ChatSessionRepository;
 import com.buddy.buddyapi.domain.diary.dto.*;
 import com.buddy.buddyapi.domain.member.Member;
 import com.buddy.buddyapi.domain.member.MemberRepository;
+import com.buddy.buddyapi.domain.member.MemberService;
+import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
@@ -14,6 +16,7 @@ import com.buddy.buddyapi.domain.ai.AiService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
@@ -34,7 +37,7 @@ public class DiaryService {
 
     private final DiaryRepository diaryRepository;
     private final TagRepository tagRepository;
-    private final MemberRepository memberRepository;
+    private final MemberService memberService;
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final AiService aiService;
@@ -124,7 +127,7 @@ public class DiaryService {
     @Transactional
     public Long createDiary(Long memberSeq, DiaryCreateRequest request, MultipartFile image) {
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = memberService.getMemberBySeq(memberSeq);
 
         ChatSession chatSession = null;
         if(request.sessionSeq() != null) {
@@ -258,6 +261,18 @@ public class DiaryService {
     public List<TagResponse> getRecentTopTags(Long memberSeq) {
         return diaryRepository.findRecentTopTags(memberSeq);
 
+    }
+
+    @EventListener
+    @Transactional
+    public void handleMemberWithdraw(MemberWithdrawEvent event) {
+        Long memberSeq = event.memberSeq();
+
+        // 다이어리를 지우면서 -> 연결된 '태그' 삭제 -> 연결된 '챗 세션'까지 연쇄 폭발로 안전하게 삭제
+        Long deletedCount = diaryRepository.deleteAllByMember_MemberSeq(event.memberSeq());
+
+        chatSessionRepository.bulkDeleteByMemberSeq(memberSeq);
+        log.info("📢 [DiaryService] 탈퇴 유저(seq: {})의 다이어리 {}개 삭제 완료", event.memberSeq(), deletedCount);
     }
 
     /**

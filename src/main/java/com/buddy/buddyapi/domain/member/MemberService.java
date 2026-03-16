@@ -1,30 +1,29 @@
 package com.buddy.buddyapi.domain.member;
 
-import com.buddy.buddyapi.domain.auth.OauthService;
-import com.buddy.buddyapi.domain.auth.RefreshTokenRepository;
-import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
 import com.buddy.buddyapi.domain.auth.dto.AuthDto;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
 import com.buddy.buddyapi.domain.character.BuddyCharacterRepository;
 import com.buddy.buddyapi.domain.member.dto.*;
+import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Optional;
 
 @RequiredArgsConstructor
 @Service
 public class MemberService {
 
     private final MemberRepository memberRepository;
-    private final OauthAccountRepository oauthAccountRepository;
     private final PasswordEncoder passwordEncoder;
     private final BuddyCharacterRepository characterRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
 
-    private final OauthService oauthService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 일반(이메일) 회원가입을 처리하고 새로운 회원을 생성합니다.
@@ -55,30 +54,54 @@ public class MemberService {
     }
 
     /**
-     * 신규 소셜 로그인 유저를 데이터베이스에 등록하고 연동 정보를 함께 저장합니다.
-     * @param userInfo 소셜 제공자로부터 전달받은 유저 정보 (이메일, 닉네임, 고유 ID 등)
-     * @param provider 소셜 제공자 (Google, Kakao, Naver)
+     * Email로 회원을 정보를 가져옵니다.
+     * @param email 조회할 회원의 고유 식별자
+     * @return 조회한 회원 엔티티 (Member)
+     */
+    @Transactional(readOnly = true)
+    public Member getMemberByEmail(String email) {
+        return memberRepository.findByEmail(email)
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+    }
+
+
+    /**
+     * [조회] 이메일로 회원을 찾습니다. (회원이 없을 수도 있는 로직용)
+     */
+    @Transactional(readOnly = true)
+    public Optional<Member> findMemberByEmail(String email) {
+        return memberRepository.findByEmail(email);
+    }
+
+    /**
+     * PK로 회원을 정보를 가져옵니다.
+     * @param memberSeq 조회할 회원의 고유 식별자
+     * @return 조회한 회원 엔티티 (Member)
+     */
+    @Transactional(readOnly = true)
+    public Member getMemberBySeq(Long memberSeq) {
+        return memberRepository.findById(memberSeq)
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+    }
+
+    /**
+     * 신규 소셜 로그인 유저를 데이터베이스에 저장합니다.
+     * @param email 소셜 제공자로부터 전달받은 이메일
+     * @param name 소셜 제공자로부터 전달받은 닉네임
      * @return 가입 완료된 회원 엔티티 (Member)
      */
     @Transactional
-    public Member registerSocialMember(OAuthUserInfo userInfo, Provider provider) {
-        Member newMember = memberRepository.save(
+    public Member registerSocialMember(String email, String name) {
+
+        String nickname = (name != null && !name.isBlank()) ? name : generateDefaultNickname(email);
+
+        return memberRepository.save(
                 Member.builder()
-                        .email(userInfo.email())
-                        .nickname(userInfo.name())
+                        .email(email)
+                        .nickname(nickname)
                         .build()
         );
-
-        oauthAccountRepository.save(OauthAccount.builder()
-                .provider(provider)
-                .oauthId(userInfo.oauthId())
-                .member(newMember).build()
-        );
-
-
-        return newMember;
     }
-
 
     /**
      * 회원의 닉네임을 변경합니다.
@@ -90,7 +113,7 @@ public class MemberService {
     @Transactional
     public UpdateNicknameResponse updateNickName(Long memberSeq, UpdateNicknameRequest request) {
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = getMemberBySeq(memberSeq);
 
         member.updateNickname(request.nickname());
 
@@ -102,7 +125,7 @@ public class MemberService {
      */
     @Transactional(readOnly = true)
     public void verifyPassword(Long memberSeq, String rawPassword) {
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = getMemberBySeq(memberSeq);
 
         if (!passwordEncoder.matches(rawPassword, member.getPassword())) {
             throw new BaseException(ResultCode.CURRENT_PASSWORD_MISMATCH);
@@ -120,7 +143,7 @@ public class MemberService {
     public void updateMemberPassword(Long memberSeq, String currentPassword, String newPassword) {
         verifyPassword(memberSeq,currentPassword);
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = getMemberBySeq(memberSeq);
         String encodedNewPassword = passwordEncoder.encode(newPassword);
         member.updatePassword(encodedNewPassword);
     }
@@ -149,7 +172,7 @@ public class MemberService {
     @Transactional
     public void changeMyCharacter(Long memberSeq, CharacterChangeRequest request) {
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = getMemberBySeq(memberSeq);
 
         //캐릭터는 가짜 프록시 객체로 가져옴 (SELECT 발생 안 함)
         // DB에 가지 않고, id값만 가진 껍데기 객체를 만듭니다.
@@ -168,27 +191,23 @@ public class MemberService {
      */
     @Transactional
     public void updateCharacterNickname(Long memberSeq, String newName) {
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = getMemberBySeq(memberSeq);
         member.updateCharacterNickname(newName);
         memberRepository.save(member);
     }
 
     /**
-     * 회원 탈퇴
+     * [회원 탈퇴] 소셜 연결을 끊고, 토큰을 파기하며, DB에서 회원을 삭제합니다.
      * @param memberSeq 현재 로그인한 회원 정보
      */
     @Transactional
     public void deleteMember(Long memberSeq) {
 
-        // 카카오/구글 등 소셜 로그인 '연결 끊기' API 호출
-        oauthService.unlinkSocialAccounts(memberSeq);
+        eventPublisher.publishEvent(new MemberWithdrawEvent(memberSeq));
 
-        // Redis에 저장된 Refresh Token 삭제
-        refreshTokenRepository.deleteById(memberSeq);
-
+        // MemberService에게 지시: "이제 우리 DB에서 진짜로 유저 정보 지워!"
         memberRepository.deleteById(memberSeq);
     }
-
     /**
      * 이메일 중복 체크
      * @param email 중복체크할 이메일
@@ -202,9 +221,20 @@ public class MemberService {
 
     @Transactional
     public void updatePushToken(Long memberSeq, String pushToken) {
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = getMemberBySeq(memberSeq);
 
         // 2. 토큰 업데이트 (더티 체킹으로 자동 UPDATE 쿼리 발생)
         member.updatePushToken(pushToken);
+    }
+
+
+    // 이메일 앞자리를 따거나, 랜덤 문자열로 임시 닉네임을 만듭니다.
+    private String generateDefaultNickname(String email) {
+        if (email != null && email.contains("@")) {
+            String prefix = email.substring(0, email.indexOf("@"));
+            return prefix.length() > 10 ? prefix.substring(0, 10) : prefix;
+        }
+        // 이메일도 없다면 최후의 수단 (임의의 UUID 부여)
+        return "Buddy_" + java.util.UUID.randomUUID().toString().substring(0, 6);
     }
 }

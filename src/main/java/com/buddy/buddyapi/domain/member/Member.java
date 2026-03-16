@@ -1,9 +1,6 @@
 package com.buddy.buddyapi.domain.member;
 
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
-import com.buddy.buddyapi.domain.chat.ChatSession;
-import com.buddy.buddyapi.domain.diary.Diary;
-import com.buddy.buddyapi.domain.insight.MemberInsight;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Builder;
@@ -12,8 +9,6 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
