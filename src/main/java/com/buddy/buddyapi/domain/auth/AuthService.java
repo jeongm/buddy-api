@@ -88,7 +88,7 @@ public class AuthService {
         OAuthUserInfo userInfo = oauthService.verifyOauthToken(request.provider(), request.code());
         Provider provider = Provider.from(request.provider());
 
-        // 기존 회원 여부 확인 ->
+        // 기존 회원 여부 확인
         Optional<Member> optionalMember = memberService.findMemberByEmail(userInfo.email());
 
         // [CASE] 이미 가입된 계정이 있는 경우
