@@ -41,7 +41,6 @@ public class OauthService {
 
     private final OauthAccountRepository oauthAccountRepository;
 
-    private final JwtTokenProvider jwtTokenProvider;
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
 
@@ -306,28 +305,5 @@ public class OauthService {
             return null;
         }
     }
-
-    /**
-     * 공통 응답 생성 로직 (OauthService 용)
-     */
-    private AuthDto.LoginResponse buildAuthResponse(Member member, AuthStatus status) {
-
-        AuthStatus finalStatus = status;
-        if (status == AuthStatus.SUCCESS && member.getBuddyCharacter() == null) {
-            finalStatus = AuthStatus.REQUIRES_CHARACTER;
-        }
-
-        String accessToken = jwtTokenProvider.createAccessToken(member.getMemberSeq());
-        String refreshToken = jwtTokenProvider.createRefreshToken(member.getMemberSeq());
-
-        return AuthDto.LoginResponse.builder()
-                // 🚨 주의: 기존 코드에 .status(status) 로 되어있었습니다!
-                .status(finalStatus)
-                .accessToken(accessToken)
-                .refreshToken(refreshToken)
-                .member(MemberResponse.from(member))
-                .build();
-    }
-
 
 }

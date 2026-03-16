@@ -13,6 +13,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 @RequiredArgsConstructor
 @Service
 public class MemberService {
@@ -52,13 +54,47 @@ public class MemberService {
     }
 
     /**
+     * Email로 회원을 정보를 가져옵니다.
+     * @param email 조회할 회원의 고유 식별자
+     * @return 조회한 회원 엔티티 (Member)
+     */
+    @Transactional(readOnly = true)
+    public Member getMemberByEmail(String email) {
+        return memberRepository.findByEmail(email)
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+    }
+
+
+    /**
+     * [조회] 이메일로 회원을 찾습니다. (회원이 없을 수도 있는 로직용)
+     */
+    @Transactional(readOnly = true)
+    public Optional<Member> findMemberByEmail(String email) {
+        return memberRepository.findByEmail(email);
+    }
+
+    /**
+     * PK로 회원을 정보를 가져옵니다.
+     * @param memberSeq 조회할 회원의 고유 식별자
+     * @return 조회한 회원 엔티티 (Member)
+     */
+    @Transactional(readOnly = true)
+    public Member getMemberBySeq(Long memberSeq) {
+        return memberRepository.findById(memberSeq)
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+    }
+
+    /**
      * 신규 소셜 로그인 유저를 데이터베이스에 저장합니다.
      * @param email 소셜 제공자로부터 전달받은 이메일
-     * @param nickname 소셜 제공자로부터 전달받은 닉네임
+     * @param name 소셜 제공자로부터 전달받은 닉네임
      * @return 가입 완료된 회원 엔티티 (Member)
      */
     @Transactional
-    public Member registerSocialMember(String email, String nickname) {
+    public Member registerSocialMember(String email, String name) {
+
+        String nickname = (name != null && !name.isBlank()) ? name : generateDefaultNickname(email);
+
         return memberRepository.save(
                 Member.builder()
                         .email(email)
@@ -66,7 +102,6 @@ public class MemberService {
                         .build()
         );
     }
-
 
     /**
      * 회원의 닉네임을 변경합니다.
@@ -78,7 +113,7 @@ public class MemberService {
     @Transactional
     public UpdateNicknameResponse updateNickName(Long memberSeq, UpdateNicknameRequest request) {
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = getMemberBySeq(memberSeq);
 
         member.updateNickname(request.nickname());
 
@@ -90,7 +125,7 @@ public class MemberService {
      */
     @Transactional(readOnly = true)
     public void verifyPassword(Long memberSeq, String rawPassword) {
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = getMemberBySeq(memberSeq);
 
         if (!passwordEncoder.matches(rawPassword, member.getPassword())) {
             throw new BaseException(ResultCode.CURRENT_PASSWORD_MISMATCH);
@@ -108,7 +143,7 @@ public class MemberService {
     public void updateMemberPassword(Long memberSeq, String currentPassword, String newPassword) {
         verifyPassword(memberSeq,currentPassword);
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = getMemberBySeq(memberSeq);
         String encodedNewPassword = passwordEncoder.encode(newPassword);
         member.updatePassword(encodedNewPassword);
     }
@@ -137,7 +172,7 @@ public class MemberService {
     @Transactional
     public void changeMyCharacter(Long memberSeq, CharacterChangeRequest request) {
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = getMemberBySeq(memberSeq);
 
         //캐릭터는 가짜 프록시 객체로 가져옴 (SELECT 발생 안 함)
         // DB에 가지 않고, id값만 가진 껍데기 객체를 만듭니다.
@@ -156,7 +191,7 @@ public class MemberService {
      */
     @Transactional
     public void updateCharacterNickname(Long memberSeq, String newName) {
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = getMemberBySeq(memberSeq);
         member.updateCharacterNickname(newName);
         memberRepository.save(member);
     }
@@ -170,7 +205,7 @@ public class MemberService {
 
         eventPublisher.publishEvent(new MemberWithdrawEvent(memberSeq));
 
-        // 3. MemberService에게 지시: "이제 우리 DB에서 진짜로 유저 정보 지워!"
+        // MemberService에게 지시: "이제 우리 DB에서 진짜로 유저 정보 지워!"
         memberRepository.deleteById(memberSeq);
     }
     /**
@@ -186,9 +221,20 @@ public class MemberService {
 
     @Transactional
     public void updatePushToken(Long memberSeq, String pushToken) {
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = getMemberBySeq(memberSeq);
 
         // 2. 토큰 업데이트 (더티 체킹으로 자동 UPDATE 쿼리 발생)
         member.updatePushToken(pushToken);
+    }
+
+
+    // 이메일 앞자리를 따거나, 랜덤 문자열로 임시 닉네임을 만듭니다.
+    private String generateDefaultNickname(String email) {
+        if (email != null && email.contains("@")) {
+            String prefix = email.substring(0, email.indexOf("@"));
+            return prefix.length() > 10 ? prefix.substring(0, 10) : prefix;
+        }
+        // 이메일도 없다면 최후의 수단 (임의의 UUID 부여)
+        return "Buddy_" + java.util.UUID.randomUUID().toString().substring(0, 6);
     }
 }

@@ -7,6 +7,7 @@ import com.buddy.buddyapi.domain.chat.ChatSessionRepository;
 import com.buddy.buddyapi.domain.diary.dto.*;
 import com.buddy.buddyapi.domain.member.Member;
 import com.buddy.buddyapi.domain.member.MemberRepository;
+import com.buddy.buddyapi.domain.member.MemberService;
 import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.exception.BaseException;
@@ -36,7 +37,7 @@ public class DiaryService {
 
     private final DiaryRepository diaryRepository;
     private final TagRepository tagRepository;
-    private final MemberRepository memberRepository;
+    private final MemberService memberService;
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
     private final AiService aiService;
@@ -126,7 +127,7 @@ public class DiaryService {
     @Transactional
     public Long createDiary(Long memberSeq, DiaryCreateRequest request, MultipartFile image) {
 
-        Member member = memberRepository.findByIdOrThrow(memberSeq);
+        Member member = memberService.getMemberBySeq(memberSeq);
 
         ChatSession chatSession = null;
         if(request.sessionSeq() != null) {
