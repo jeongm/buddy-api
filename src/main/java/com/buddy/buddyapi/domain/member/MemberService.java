@@ -1,8 +1,5 @@
 package com.buddy.buddyapi.domain.member;
 
-import com.buddy.buddyapi.domain.auth.OauthService;
-import com.buddy.buddyapi.domain.auth.RefreshTokenRepository;
-import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
 import com.buddy.buddyapi.domain.auth.dto.AuthDto;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
 import com.buddy.buddyapi.domain.character.BuddyCharacterRepository;
@@ -23,7 +20,6 @@ public class MemberService {
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
     private final BuddyCharacterRepository characterRepository;
-    private final RefreshTokenRepository refreshTokenRepository;
 
     private final ApplicationEventPublisher eventPublisher;
 

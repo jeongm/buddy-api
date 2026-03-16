@@ -2,6 +2,8 @@ package com.buddy.buddyapi.domain.diary;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.io.Serializable;
 
@@ -17,6 +19,7 @@ public class DiaryTag {
     @MapsId("diarySeq")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "diary_seq")
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Diary diary;
 
     @MapsId("tagSeq")
