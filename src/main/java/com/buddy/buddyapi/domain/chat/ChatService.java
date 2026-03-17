@@ -7,36 +7,50 @@ import com.buddy.buddyapi.domain.chat.dto.ChatMessageDto;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
 import com.buddy.buddyapi.domain.chat.dto.ChatSendResponse;
 import com.buddy.buddyapi.domain.member.Member;
+import com.buddy.buddyapi.domain.member.MemberService;
+import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
-import com.buddy.buddyapi.domain.character.BuddyCharacterRepository;
-import com.buddy.buddyapi.domain.member.MemberRepository;
 import com.buddy.buddyapi.domain.ai.AiPrompt;
 import com.buddy.buddyapi.domain.ai.AiService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ChatService {
-    private final MemberRepository memberRepository;
+
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
-    private final BuddyCharacterRepository buddyCharacterRepository;
+
+    private final MemberService memberService;
     private final AiService aiService;
+
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+
     private final String CHAT_KEY_PREFIX = "chat:history:";
+
+    /**
+     * sessionSeq, memberSeq를 통해 해당 맴버의 해당 챗세션을 가져옴
+     */
+    @Transactional(readOnly = true)
+    public ChatSession getChatSessionEntity(Long sessionSeq, Long memberSeq) {
+        return chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionSeq, memberSeq)
+                .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
+    }
 
     /**
      * 버디(AI 캐릭터)에게 메시지를 전송하고 응답을 받습니다.
@@ -68,9 +82,44 @@ public class ChatService {
     }
 
     /**
+     * 특정 세션의 대화 내용을 외부 서비스(예: DiaryService)에서 사용할 수 있도록
+     * 문자열 형태로 포맷팅하여 제공합니다.
+     * @return "USER: 내용 \n ASSISTANT: 내용" 형태의 문자열
+     */
+    public String getFormattedChatHistory(Long sessionSeq, Long memberSeq) {
+        // 세션 조회 (내 세션인지, 종료된 세션인지 확인)
+        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionSeq, memberSeq)
+                .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
+
+        // 해당 세션의 모든 메시지 시간순 조회
+        // TODO user의 내용으로만 작성할지 캐릭터까지 들어가게 작성할지 -> 일단 user내용으로만 작성하도록 수정해보자
+        List<ChatMessage> messages = chatMessageRepository.findAllByChatSessionOrderByCreatedAtAsc(session);
+
+        if (messages.isEmpty()) {
+            throw new BaseException(ResultCode.EMPTY_CHAT_HISTORY); // 대화가 없으면 일기 생성 불가
+        }
+
+        // AI에게 전달할 대화 텍스트 포맷팅
+        // 예: "USER: 오늘 힘들어 / ASSISTANT: 무슨 일이야?
+        return messages.stream()
+                .map(m -> String.format("%s: %s", m.getRole(), m.getContent()))
+                .collect(Collectors.joining("\n"));
+    }
+
+    /**
+     * 회원 탈퇴 시 해당 회원의 모든 채팅 세션을 벌크 삭제합니다.
+     * [이벤트 기반 처리]
+     */
+    @EventListener
+    @Transactional
+    public void handleMemberWithdraw(MemberWithdrawEvent event) {
+        Long memberSeq = event.memberSeq();
+        chatSessionRepository.bulkDeleteByMemberSeq(memberSeq);
+    }
+
+    /**
      * AI 서비스를 호출하여 캐릭터의 성격이 반영된 답변을 생성합니다.
-     * * @param session     현재 대화 세션 (캐릭터 정보 포함)
-     *
+     * @param session     현재 대화 세션 (캐릭터 정보 포함)
      * @param userContent 사용자가 입력한 메시지 내용
      * @return AI가 생성한 답변 문자열
      */
@@ -152,8 +201,7 @@ public class ChatService {
      */
     private ChatSession getOrCreateSession(Long memberSeq, Long sessionSeq) {
 
-        Member member = memberRepository.findByIdWithCharacter(memberSeq)
-                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+        Member member = memberService.getMemberWithCharacter(memberSeq);
 
         if(sessionSeq != null) {
             return chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionSeq, memberSeq)
@@ -172,10 +220,11 @@ public class ChatService {
      */
     private ChatSession createNewSession(Member member) {
 
-        Long characterSeq = member.getBuddyCharacter().getCharacterSeq();
+        BuddyCharacter character = member.getBuddyCharacter();
 
-        BuddyCharacter character = buddyCharacterRepository.findById(characterSeq)
-                .orElseThrow(() -> new BaseException(ResultCode.CHARACTER_NOT_FOUND));
+        if (character == null) {
+            throw new BaseException(ResultCode.CHARACTER_NOT_FOUND);
+        }
 
         // 사용자가 현재 설정한 캐릭터를 가져와서 세션 생성
         ChatSession session = ChatSession.builder()
@@ -246,7 +295,5 @@ public class ChatService {
 
         chatSessionRepository.save(session);
     }
-
-
 
 }

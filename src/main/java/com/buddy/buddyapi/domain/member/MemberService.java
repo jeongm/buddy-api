@@ -2,7 +2,7 @@ package com.buddy.buddyapi.domain.member;
 
 import com.buddy.buddyapi.domain.auth.dto.AuthDto;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
-import com.buddy.buddyapi.domain.character.BuddyCharacterRepository;
+import com.buddy.buddyapi.domain.character.BuddyCharacterService;
 import com.buddy.buddyapi.domain.member.dto.*;
 import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.exception.BaseException;
@@ -21,7 +21,8 @@ public class MemberService {
 
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
-    private final BuddyCharacterRepository characterRepository;
+
+    private final BuddyCharacterService characterService;
 
     private final ApplicationEventPublisher eventPublisher;
 
@@ -39,8 +40,7 @@ public class MemberService {
 
         BuddyCharacter selectedCharacter = null;
         if (request.characterSeq() != null) {
-            selectedCharacter = characterRepository.findById(request.characterSeq())
-                    .orElseThrow(() -> new BaseException(ResultCode.CHARACTER_NOT_FOUND));
+            selectedCharacter = characterService.getCharacter(request.characterSeq());
         }
 
         Member newMember = Member.builder()
@@ -81,6 +81,15 @@ public class MemberService {
     @Transactional(readOnly = true)
     public Member getMemberBySeq(Long memberSeq) {
         return memberRepository.findById(memberSeq)
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+    }
+
+    /**
+     * [조회] PK로 회원과 설정된 캐릭터 정보를 함께 가져옵니다.
+     */
+    @Transactional(readOnly = true)
+    public Member getMemberWithCharacter(Long memberSeq) {
+        return memberRepository.findByIdWithCharacter(memberSeq)
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
     }
 
@@ -176,7 +185,7 @@ public class MemberService {
 
         //캐릭터는 가짜 프록시 객체로 가져옴 (SELECT 발생 안 함)
         // DB에 가지 않고, id값만 가진 껍데기 객체를 만듭니다.
-        BuddyCharacter newCharacter = characterRepository.getReferenceById(request.characterSeq());
+        BuddyCharacter newCharacter = characterService.getCharacterProxy(request.characterSeq());
 
         member.changeCharacter(newCharacter);
 

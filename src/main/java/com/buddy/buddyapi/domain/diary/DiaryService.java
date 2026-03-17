@@ -1,12 +1,8 @@
 package com.buddy.buddyapi.domain.diary;
 
-import com.buddy.buddyapi.domain.chat.ChatMessage;
-import com.buddy.buddyapi.domain.chat.ChatMessageRepository;
-import com.buddy.buddyapi.domain.chat.ChatSession;
-import com.buddy.buddyapi.domain.chat.ChatSessionRepository;
+import com.buddy.buddyapi.domain.chat.*;
 import com.buddy.buddyapi.domain.diary.dto.*;
 import com.buddy.buddyapi.domain.member.Member;
-import com.buddy.buddyapi.domain.member.MemberRepository;
 import com.buddy.buddyapi.domain.member.MemberService;
 import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.aspect.Timer;
@@ -27,7 +23,6 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -37,12 +32,13 @@ public class DiaryService {
 
     private final DiaryRepository diaryRepository;
     private final TagRepository tagRepository;
+
     private final MemberService memberService;
-    private final ChatSessionRepository chatSessionRepository;
-    private final ChatMessageRepository chatMessageRepository;
     private final AiService aiService;
-    private final ObjectMapper objectMapper;
+    private final ChatService chatService;
     private final ImageService imageService;
+
+    private final ObjectMapper objectMapper;
 
     /**
      * 일기를 목록입니다. 검색어가 있을 시 검색된 일기 목록을 보여줍니다.
@@ -71,23 +67,7 @@ public class DiaryService {
     @Transactional(readOnly = true)
     public DiaryPreviewResponse generateDiaryFromChat(Long memberSeq, DiaryGenerateRequest request) {
 
-        // 세션 조회 (내 세션인지, 종료된 세션인지 확인)
-        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(request.sessionSeq(), memberSeq)
-                .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
-
-        // 해당 세션의 모든 메시지 시간순 조회
-        // TODO user의 내용으로만 작성할지 캐릭터까지 들어가게 작성할지 -> 일단 user내용으로만 작성하도록 수정해보자
-        List<ChatMessage> messages = chatMessageRepository.findAllByChatSessionOrderByCreatedAtAsc(session);
-
-        if (messages.isEmpty()) {
-            throw new BaseException(ResultCode.EMPTY_CHAT_HISTORY); // 대화가 없으면 일기 생성 불가
-        }
-
-        // AI에게 전달할 대화 텍스트 포맷팅
-        // 예: "USER: 오늘 힘들어 / ASSISTANT: 무슨 일이야?
-        String fullConversation = messages.stream()
-                .map(m -> String.format("%s: %s", m.getRole(), m.getContent()))
-                .collect(Collectors.joining("\n"));
+        String fullConversation = chatService.getFormattedChatHistory(request.sessionSeq(), memberSeq);
 
         // AI 서비스 호출 (페르소나와 대화 내용 전달)
         String rawResponse = aiService.getDiaryDraft(
@@ -131,8 +111,7 @@ public class DiaryService {
 
         ChatSession chatSession = null;
         if(request.sessionSeq() != null) {
-            chatSession = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(request.sessionSeq(), memberSeq)
-                    .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
+            chatSession = chatService.getChatSessionEntity(request.sessionSeq(), memberSeq);
         }
 
         // 이미지 파일이 있으면 저장하고 경로 반환받기
@@ -266,12 +245,10 @@ public class DiaryService {
     @EventListener
     @Transactional
     public void handleMemberWithdraw(MemberWithdrawEvent event) {
-        Long memberSeq = event.memberSeq();
 
         // 다이어리를 지우면서 -> 연결된 '태그' 삭제 -> 연결된 '챗 세션'까지 연쇄 폭발로 안전하게 삭제
         Long deletedCount = diaryRepository.deleteAllByMember_MemberSeq(event.memberSeq());
 
-        chatSessionRepository.bulkDeleteByMemberSeq(memberSeq);
         log.info("📢 [DiaryService] 탈퇴 유저(seq: {})의 다이어리 {}개 삭제 완료", event.memberSeq(), deletedCount);
     }
 

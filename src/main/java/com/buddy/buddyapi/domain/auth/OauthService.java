@@ -153,8 +153,10 @@ public class OauthService {
 
             switch (account.getProvider()) {
                 case KAKAO -> unlinkKakao(account.getOauthId());
-                case GOOGLE -> unlinkGoogle(dbRefreshToken);
                 case NAVER -> unlinkNaver(dbAccessToken, dbRefreshToken);
+                case GOOGLE -> {
+                    log.info("구글 연동은 프론트에서 처리");
+                }
             }
         }
     }
@@ -188,34 +190,6 @@ public class OauthService {
             log.info("🟢 카카오 연결 끊기 성공: {}", response.getBody());
         } catch (Exception e) {
             log.error("🔴 카카오 연결 끊기 실패: oauthId={}, 원인={}", oauthId, e.getMessage());
-        }
-    }
-
-    /**
-     *
-     */
-    private void unlinkGoogle(String accessToken) {
-        if (accessToken == null || accessToken.isBlank()) {
-            log.warn("🟡 구글 연결 끊기 실패: Access Token이 없습니다.");
-            return;
-        }
-
-        try {
-            RestTemplate restTemplate = new RestTemplate();
-            String reqURL = "https://oauth2.googleapis.com/revoke";
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-
-            MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
-            body.add("token", accessToken); // 구글은 token 하나만 던져주면 됩니다.
-
-            HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
-            ResponseEntity<String> response = restTemplate.postForEntity(reqURL, request, String.class);
-
-            log.info("🟢 구글 연결 끊기 성공 (Status: {})", response.getStatusCode());
-        } catch (Exception e) {
-            log.error("🔴 구글 연결 끊기 실패 원인: {}", e.getMessage());
         }
     }
 

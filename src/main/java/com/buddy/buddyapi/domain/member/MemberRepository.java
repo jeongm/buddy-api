@@ -1,7 +1,5 @@
 package com.buddy.buddyapi.domain.member;
 
-import com.buddy.buddyapi.global.exception.BaseException;
-import com.buddy.buddyapi.global.exception.ResultCode;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -10,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.Optional;
 
 public interface MemberRepository extends JpaRepository<Member, Long> {
+
     Optional<Member> findByEmail(String email);
 
     boolean existsByEmail(String email);
