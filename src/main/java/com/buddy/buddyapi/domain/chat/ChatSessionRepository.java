@@ -55,4 +55,9 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
     @Query("DELETE FROM ChatSession cs WHERE cs.member.memberSeq = :memberSeq")
     void bulkDeleteByMemberSeq(@Param("memberSeq") Long memberSeq);
 
+    // 여러 채팅 세션의 알림 발송 시간을 현재 시간으로 한 번에(Bulk) 업데이트
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE ChatSession cs SET cs.deletionNotifiedAt = CURRENT_TIMESTAMP WHERE cs.sessionSeq IN :sessionIds")
+    void bulkMarkAsNotified(@Param("sessionids") List<Long> sessionIds);
+
 }

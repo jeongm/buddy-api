@@ -24,7 +24,6 @@ public class ChatRetentionScheduler {
      */
     @Scheduled(cron = "0 30 * * * *")
 //    @Scheduled(fixedDelay = 10000) // 테스트용 10초마다 알림
-    @Transactional
     public void sendWarningPushNotifications() {
 //        LocalDateTime tenHoursAgo = LocalDateTime.now().minusMinutes(1);
         LocalDateTime tenHoursAgo = LocalDateTime.now().minusHours(10);
@@ -35,27 +34,31 @@ public class ChatRetentionScheduler {
             return;
         }
 
-        for (ChatSession session : warningTargets) {
-            // 🌟 1. 해당 세션을 만든 유저의 기기 토큰 가져오기
-            String targetToken = session.getMember().getPushToken();
+        List<String> targetTokens = warningTargets.stream()
+                .map(session -> session.getMember().getPushToken())
+                .filter(token -> token != null && !token.isBlank())
+                .toList();
 
-            // 🌟 2. 토큰이 정상적으로 있을 때만 알림 쏘기
-            if (targetToken != null && !targetToken.isBlank()) {
-                String title = "버디가 기다리고 있어요! 🥺";
-                String body = "대화가 곧 지워질 예정이에요. 대화를 일기로 저장해볼까요?";
+        List<Long> targetSessionIds = warningTargets.stream()
+                .map(ChatSession::getSessionSeq)
+                .toList();
 
-                // 👉 추가할 로그: 어떤 토큰으로 쏘는지 확인!
-                log.info("🎯 푸시 알림 발송 시도! 대상 토큰: {}", targetToken);
-
-                // 나중에 딥링크(특정 화면으로 이동)가 필요하면 FcmService를 수정해서 넘겨주면 됩니다.
-                fcmService.sendPush(targetToken, title, body);
-            }
-            // 알림 보낸 시간 저장
-            session.markDeletionNotified();
-
+        if(!targetTokens.isEmpty()) {
+            fcmService.sendPushBulk(targetTokens, "버디가 기다리고 있어요", "대화가 곧 지워질 예정이에요 일기로 남겨볼까요?");
+            log.info("PUSH 알림 발송 대상 유저 수: {}명", targetTokens.size());
         }
 
-        log.info("🔔 소멸 경고 알림 발송 대상: {}개의 채팅방", warningTargets.size());
+
+        // 알림 발송 완료 처리 - 발송 시간 업데이트
+        if(!targetSessionIds.isEmpty()) {
+            markSessionsAsNotified(targetSessionIds);
+        }
+    }
+
+
+    @Transactional
+    public void markSessionsAsNotified(List<Long> sessionIds) {
+        chatSessionRepository.bulkMarkAsNotified(sessionIds);
     }
 
     /**
@@ -74,4 +77,7 @@ public class ChatRetentionScheduler {
             log.info("🧹 잉여 메시지 청소 완료: 12시간이 경과된 채팅 메시지{}개, 세션 {}개를 영구 삭제했습니다.", deletedMessages, deletedSessions);
         }
     }
+
+
+
 }
