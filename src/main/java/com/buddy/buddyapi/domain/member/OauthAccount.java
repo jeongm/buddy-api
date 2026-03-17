@@ -17,8 +17,8 @@ public class OauthAccount {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "oauth_account_seq")
-    private Long OauthAccountSeq;
+    @Column(name = "oauth_account_id")
+    private Long OauthAccountId;
 
     @Enumerated(EnumType.STRING) // Enum타입을 DB에 문자열(Varchar)로 저장
     @Column(name = "provider", nullable = false, length = 10)
@@ -36,7 +36,7 @@ public class OauthAccount {
     private String socialRefreshToken;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_seq", nullable = false)
+    @JoinColumn(name = "member_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Member member;
 

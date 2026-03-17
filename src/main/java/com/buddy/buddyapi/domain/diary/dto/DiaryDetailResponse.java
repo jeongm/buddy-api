@@ -9,28 +9,28 @@ import java.util.List;
 
 @Builder
 public record DiaryDetailResponse(
-        Long diarySeq,
+        Long diaryId,
         String title,
         String content,
         String imageUrl,
         LocalDate diaryDate,
         LocalDateTime createdAt,
         List<TagResponse> tags,
-        Long sessionSeq
+        Long sessionId
 
         ) {
     public static DiaryDetailResponse from(Diary diary) {
         return DiaryDetailResponse.builder()
-                .diarySeq(diary.getDiarySeq())
+                .diaryId(diary.getDiaryId())
                 .title(diary.getTitle())
                 .content(diary.getContent())
                 .imageUrl(diary.getImageUrl())
                 .diaryDate(diary.getDiaryDate())
                 .createdAt(diary.getCreatedAt())
                 .tags(diary.getDiaryTags().stream()
-                        .map(dt -> new TagResponse(dt.getTag().getTagSeq(), dt.getTag().getName()))
+                        .map(dt -> new TagResponse(dt.getTag().getTagId(), dt.getTag().getName()))
                         .toList())
-                .sessionSeq(diary.getChatSession() != null ? diary.getChatSession().getSessionSeq() : null)
+                .sessionId(diary.getChatSession() != null ? diary.getChatSession().getSessionId() : null)
                 .build();
     }
 

@@ -163,7 +163,7 @@ public class AuthService {
                 .orElseThrow(() -> new BaseException(ResultCode.REFRESH_TOKEN_NOT_FOUND));
 
         // 3. 토큰의 주인(Member)이 실제 존재하는지 확인
-        Member member = memberService.getMemberBySeq(savedToken.getMemberSeq());
+        Member member = memberService.getMemberById(savedToken.getMemberId());
 
         // 4. 기존 Redis 토큰 삭제 (새로운 토큰이 발급되므로 기존 토큰 파기)
         refreshTokenRepository.delete(savedToken);
@@ -174,11 +174,11 @@ public class AuthService {
     /**
      * [로그아웃] Redis에 저장된 사용자의 리프레시 토큰을 삭제하여 로그아웃 처리합니다.
      *
-     * @param memberSeq 로그아웃을 요청한 사용자의 PK
+     * @param memberId 로그아웃을 요청한 사용자의 PK
      */
     @Transactional
-    public void logout(Long memberSeq) {
-        refreshTokenRepository.deleteById(memberSeq);
+    public void logout(Long memberId) {
+        refreshTokenRepository.deleteById(memberId);
     }
 
     /**
@@ -222,8 +222,8 @@ public class AuthService {
      */
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onMemberWithdraw(MemberWithdrawEvent event) {
-        log.info("📢 [AuthService] 탈퇴 이벤트 수신! Redis 리프레시 토큰을 파기합니다. (memberSeq: {})", event.memberSeq());
-        refreshTokenRepository.deleteById(event.memberSeq());
+        log.info("📢 [AuthService] 탈퇴 이벤트 수신! Redis 리프레시 토큰을 파기합니다. (memberId: {})", event.memberId());
+        refreshTokenRepository.deleteById(event.memberId());
     }
 
     // =========================================================================
@@ -242,12 +242,12 @@ public class AuthService {
             finalStatus = AuthStatus.REQUIRES_CHARACTER;
         }
 
-        String accessToken = jwtTokenProvider.createAccessToken(member.getMemberSeq());
-        String refreshToken = jwtTokenProvider.createRefreshToken(member.getMemberSeq());
+        String accessToken = jwtTokenProvider.createAccessToken(member.getMemberId());
+        String refreshToken = jwtTokenProvider.createRefreshToken(member.getMemberId());
 
         refreshTokenRepository.save(
                 RefreshToken.builder()
-                .memberSeq(member.getMemberSeq())
+                .memberId(member.getMemberId())
                 .refreshToken(refreshToken)
                 .build()
         );

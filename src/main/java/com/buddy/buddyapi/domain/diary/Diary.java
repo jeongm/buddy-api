@@ -24,8 +24,8 @@ public class Diary {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "diary_seq")
-    private Long diarySeq;
+    @Column(name = "diary_id")
+    private Long diaryId;
 
     @Column(length = 100)
     private String title;
@@ -40,12 +40,12 @@ public class Diary {
     private String imageUrl;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_seq", nullable = false)
+    @JoinColumn(name = "member_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Member member;
 
     @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
-    @JoinColumn(name = "session_seq")
+    @JoinColumn(name = "session_id")
     private ChatSession chatSession;
 
     @OneToMany(mappedBy = "diary", cascade = CascadeType.ALL, orphanRemoval = true)

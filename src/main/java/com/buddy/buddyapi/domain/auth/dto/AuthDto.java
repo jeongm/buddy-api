@@ -37,7 +37,7 @@ public class AuthDto {
             @Size(min = 1, max = 15, message = "닉네임은 15자 이하여야 합니다.")
             String nickname,
 
-            Long characterSeq,
+            Long characterId,
 
             @Schema(description = "이메일 인증 통과 시 발급받은 UUID 티켓")
             @NotBlank String verificationToken

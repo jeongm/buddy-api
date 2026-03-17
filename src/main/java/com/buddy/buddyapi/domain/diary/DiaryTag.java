@@ -16,15 +16,15 @@ public class DiaryTag {
     @EmbeddedId
     private DiaryTagPK diaryTagPK = new DiaryTagPK();
 
-    @MapsId("diarySeq")
+    @MapsId("diaryId")
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "diary_seq")
+    @JoinColumn(name = "diary_id")
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Diary diary;
 
-    @MapsId("tagSeq")
+    @MapsId("tagId")
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tag_seq")
+    @JoinColumn(name = "tag_id")
     private Tag tag;
 
     @Getter
@@ -34,8 +34,8 @@ public class DiaryTag {
     @Embeddable
     @EqualsAndHashCode
     public static class DiaryTagPK implements Serializable {
-        private Long diarySeq;
-        private Long tagSeq;
+        private Long diaryId;
+        private Long tagId;
     }
 
     @Builder

@@ -7,11 +7,9 @@ import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
 import com.buddy.buddyapi.domain.auth.dto.AuthDto;
 import com.buddy.buddyapi.domain.auth.enums.AuthStatus;
 import com.buddy.buddyapi.domain.member.*;
-import com.buddy.buddyapi.domain.member.dto.MemberResponse;
 import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
-import com.buddy.buddyapi.global.security.JwtTokenProvider;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -139,13 +137,13 @@ public class OauthService {
 
     @EventListener
     public void onMemberWithdraw(MemberWithdrawEvent event) {
-        log.info("📢 [OauthService] 탈퇴 이벤트 수신! 소셜 연결을 해제합니다. (memberSeq: {})", event.memberSeq());
-        unlinkSocialAccounts(event.memberSeq());
+        log.info("📢 [OauthService] 탈퇴 이벤트 수신! 소셜 연결을 해제합니다. (memberId: {})", event.memberId());
+        unlinkSocialAccounts(event.memberId());
     }
 
     @Transactional
-    public void unlinkSocialAccounts(Long memberSeq) {
-        List<OauthAccount> linkedAccounts = oauthAccountRepository.findByMember_MemberSeq(memberSeq);
+    public void unlinkSocialAccounts(Long memberId) {
+        List<OauthAccount> linkedAccounts = oauthAccountRepository.findByMember_MemberId(memberId);
 
         for (OauthAccount account : linkedAccounts) {
             String dbAccessToken = account.getSocialAccessToken();

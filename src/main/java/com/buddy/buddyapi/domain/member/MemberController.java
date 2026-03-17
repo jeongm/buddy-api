@@ -24,7 +24,7 @@ public class MemberController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<MemberResponse>> getMyInfo(
             @AuthenticationPrincipal CustomUserDetails member) {
-        return ResponseEntity.ok(ApiResponse.ok("내 정보 조회 성공", memberService.getUserDetails(member.memberSeq())));
+        return ResponseEntity.ok(ApiResponse.ok("내 정보 조회 성공", memberService.getUserDetails(member.memberId())));
     }
 
     @Operation(summary = "닉네임 수정", description = "사용자의 닉네임을 변경합니다.")
@@ -34,7 +34,7 @@ public class MemberController {
             @Valid @RequestBody UpdateNicknameRequest request
             ) {
         return ResponseEntity.ok(ApiResponse.ok("닉네임이 변경되었습니다",
-                memberService.updateNickName(member.memberSeq(), request)));
+                memberService.updateNickName(member.memberId(), request)));
     }
 
     @Operation(summary = "현재 비밀번호 확인", description = "비밀번호 변경 전, 현재 비밀번호가 맞는지 1차로 검증합니다.")
@@ -43,7 +43,7 @@ public class MemberController {
             @AuthenticationPrincipal CustomUserDetails member,
             @Valid @RequestBody PasswordUpdateDto.VerifyRequest request) {
 
-        memberService.verifyPassword(member.memberSeq(), request.currentPassword());
+        memberService.verifyPassword(member.memberId(), request.currentPassword());
 
         return ResponseEntity.ok(ApiResponse.ok("비밀번호가 확인되었습니다.", null));
     }
@@ -53,7 +53,7 @@ public class MemberController {
     public ResponseEntity<ApiResponse<Void>> updatePassword(
             @AuthenticationPrincipal CustomUserDetails member,
             @Valid @RequestBody PasswordUpdateDto.UpdateRequest request) {
-        memberService.updateMemberPassword(member.memberSeq(), request.currentPassword(), request.newPassword());
+        memberService.updateMemberPassword(member.memberId(), request.currentPassword(), request.newPassword());
         return ResponseEntity.ok(ApiResponse.ok("비밀번호가 변경되었습니다.", null));
     }
 
@@ -62,7 +62,7 @@ public class MemberController {
     public ResponseEntity<ApiResponse<String>> changeCharacter(
             @AuthenticationPrincipal CustomUserDetails member ,
             @Valid @RequestBody CharacterChangeRequest request) {
-        memberService.changeMyCharacter(member.memberSeq(), request);
+        memberService.changeMyCharacter(member.memberId(), request);
         return ResponseEntity.ok(ApiResponse.ok("캐릭터 변경 성공"));
     }
 
@@ -71,7 +71,7 @@ public class MemberController {
     public ResponseEntity<ApiResponse<String>> updateCharacterName(
             @AuthenticationPrincipal CustomUserDetails member,
             @Valid @RequestBody CharacterNameRequest request) {
-        memberService.updateCharacterNickname(member.memberSeq(), request.characterName());
+        memberService.updateCharacterNickname(member.memberId(), request.characterName());
         return ResponseEntity.ok(ApiResponse.ok("캐릭터 이름이 변경되었습니다."));
     }
 
@@ -80,7 +80,7 @@ public class MemberController {
     public ResponseEntity<ApiResponse<String>> deleteAccount(
             @AuthenticationPrincipal CustomUserDetails member
     ) {
-        memberService.deleteMember(member.memberSeq());
+        memberService.deleteMember(member.memberId());
         return ResponseEntity.ok(ApiResponse.ok("탈퇴 완료",null));
     }
 
@@ -90,7 +90,7 @@ public class MemberController {
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails member,
             @RequestBody PushTokenRequest request) {
 
-        memberService.updatePushToken(member.memberSeq(), request.pushToken());
+        memberService.updatePushToken(member.memberId(), request.pushToken());
 
         return ResponseEntity.ok(ApiResponse.ok(null));
     }

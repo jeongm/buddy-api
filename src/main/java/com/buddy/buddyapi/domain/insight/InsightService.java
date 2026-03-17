@@ -5,7 +5,6 @@ import com.buddy.buddyapi.domain.diary.DiaryRepository;
 import com.buddy.buddyapi.domain.insight.dto.TagNameCountResponse;
 import com.buddy.buddyapi.domain.insight.dto.WeeklyIdentityResponse;
 import com.buddy.buddyapi.domain.member.Member;
-import com.buddy.buddyapi.domain.member.MemberRepository;
 import com.buddy.buddyapi.domain.member.MemberService;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
@@ -38,11 +37,11 @@ public class InsightService {
      * 주간 아이덴티티(칭호) 조회 및 생성 (Lazy Evaluation)
      */
     @Transactional
-    public WeeklyIdentityResponse getWeeklyInsight(Long memberSeq) {
-        Member member = memberService.getMemberBySeq(memberSeq);
+    public WeeklyIdentityResponse getWeeklyInsight(Long memberId) {
+        Member member = memberService.getMemberById(memberId);
 
         // 유저의 통계 테이블 조회 (없으면 null)
-        MemberInsight insight = insightRepository.findByMember_MemberSeq(memberSeq)
+        MemberInsight insight = insightRepository.findByMember_MemberId(memberId)
                 .orElse(null);
 
 
@@ -63,7 +62,7 @@ public class InsightService {
         LocalDate endOfLastWeek = LocalDate.now().minusWeeks(1).with(DayOfWeek.SUNDAY);
 
         // 저번 주 일기 긁어오기
-        List<String> diaryContents = diaryRepository.findDiaryContentsByMemberAndDateRange(memberSeq, startOfLastWeek, endOfLastWeek);
+        List<String> diaryContents = diaryRepository.findDiaryContentsByMemberAndDateRange(memberId, startOfLastWeek, endOfLastWeek);
         // 저번 주에 쓴 일기가 없을 시
         if (diaryContents.isEmpty()) {
             return updateAndSaveInsight(insight,null,null); // 프론트엔드엔 null이 담긴 예쁜 DTO가 감
@@ -80,18 +79,18 @@ public class InsightService {
 
     /**
      * 지난주(월~일) 동안 가장 많이 사용한 태그 Top 5와 빈도수를 조회합니다.
-     * @param memberSeq 현재 로그인한 회원 정보
+     * @param memberId 현재 로그인한 회원 정보
      * @return 태그 이름과 사용 횟수가 담긴 DTO 리스트
      */
     @Transactional(readOnly = true)
-    public List<TagNameCountResponse> getLastWeekTopTags(Long memberSeq) {
+    public List<TagNameCountResponse> getLastWeekTopTags(Long memberId) {
 
         // 1. 지난주 월~일 날짜 계산
         LocalDate lastMonday = LocalDate.now().minusWeeks(1).with(DayOfWeek.MONDAY);
         LocalDate lastSunday = LocalDate.now().minusWeeks(1).with(DayOfWeek.SUNDAY);
 
         // 2. QueryDSL 레포지토리 호출 (5개 제한)
-        return diaryRepository.findTopTagsByMemberAndDateRange(memberSeq, lastMonday, lastSunday, 5);
+        return diaryRepository.findTopTagsByMemberAndDateRange(memberId, lastMonday, lastSunday, 5);
     }
 
     /**

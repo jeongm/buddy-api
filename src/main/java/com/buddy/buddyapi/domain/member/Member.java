@@ -17,8 +17,8 @@ import java.time.LocalDateTime;
 public class Member {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "member_seq")
-    private Long memberSeq;
+    @Column(name = "member_id")
+    private Long memberId;
 
     @Column(unique = true, nullable = false, length = 255)
     private String email;
@@ -41,7 +41,7 @@ public class Member {
 
     // TODO 캐릭터 세계관 확장 시 분리하여 관리
     @ManyToOne(fetch = FetchType.LAZY, optional = true)
-    @JoinColumn(name = "character_seq")
+    @JoinColumn(name = "character_id")
     private BuddyCharacter buddyCharacter;
 
     @Builder

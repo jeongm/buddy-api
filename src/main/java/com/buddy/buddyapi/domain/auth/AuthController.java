@@ -89,7 +89,7 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
             @AuthenticationPrincipal CustomUserDetails member) {
-        authService.logout(member.memberSeq());
+        authService.logout(member.memberId());
 
         return ResponseEntity.ok(ApiResponse.ok("로그아웃 성공", null));
     }

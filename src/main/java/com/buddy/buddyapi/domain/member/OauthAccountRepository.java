@@ -8,7 +8,7 @@ import java.util.Optional;
 public interface OauthAccountRepository extends JpaRepository<OauthAccount, Long> {
     boolean existsByMemberAndProvider(Member member, Provider provider);
 
-    List<OauthAccount> findByMember_MemberSeq(Long memberSeq);
+    List<OauthAccount> findByMember_MemberId(Long memberId);
 
     Optional<OauthAccount> findByMemberAndProvider(Member member, Provider provider);
 

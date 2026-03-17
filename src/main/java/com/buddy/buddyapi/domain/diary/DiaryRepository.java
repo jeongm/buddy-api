@@ -9,12 +9,12 @@ import java.util.Optional;
 
 public interface DiaryRepository extends JpaRepository<Diary, Long>, DiaryRepositoryCustom {
 
-    Optional<Diary> findByDiarySeqAndMember_MemberSeq(Long diarySeq, Long memberSeq);
+    Optional<Diary> findByDiaryIdAndMember_MemberId(Long diaryId, Long memberId);
 
-    Long deleteAllByMember_MemberSeq(Long memberSeq);
+    Long deleteAllByMember_MemberId(Long memberId);
 
     @Modifying(clearAutomatically = true)
-    @Query("DELETE FROM Diary d WHERE d.member.memberSeq = :memberSeq")
-    void bulkDeleteByMemberSeq(@Param("memberSeq") Long memberSeq);
+    @Query("DELETE FROM Diary d WHERE d.member.memberId = :memberId")
+    void bulkDeleteByMemberId(@Param("memberId") Long memberId);
 
 }

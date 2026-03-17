@@ -24,8 +24,8 @@ public class CustomUserDetailsService implements UserDetailsService {
         return CustomUserDetails.from(member);
     }
 
-    public UserDetails loadUserByMemberSeq(Long memberSeq) throws UsernameNotFoundException {
-        Member member = memberRepository.findById(memberSeq)
+    public UserDetails loadUserByMemberId(Long memberId) throws UsernameNotFoundException {
+        Member member = memberRepository.findById(memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
 
         return CustomUserDetails.from(member);

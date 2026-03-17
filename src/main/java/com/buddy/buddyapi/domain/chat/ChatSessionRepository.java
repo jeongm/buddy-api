@@ -17,7 +17,7 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
     Optional<ChatSession> findFirstByMemberAndIsEndedFalseOrderByCreatedAtDesc(Member member);
 
     // 특정 회원의 특정 세션 조회 (내 세션이 맞는지 검증 포함)
-    Optional<ChatSession> findBySessionSeqAndMember_MemberSeq(Long sessionSeq, Long memberSeq);
+    Optional<ChatSession> findBySessionIdAndMember_MemberId(Long sessionId, Long memberId);
 
     // 알림 발송용 : 10시간 지남, 알림 안보냄, 일기로 안 만들어진 채팅방
     @Query("""
@@ -34,8 +34,8 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
     @Modifying(clearAutomatically = true)
     @Query("""
         DELETE FROM ChatMessage m 
-        WHERE m.chatSession.sessionSeq IN (
-            SELECT c.sessionSeq FROM ChatSession c 
+        WHERE m.chatSession.sessionId IN (
+            SELECT c.sessionId FROM ChatSession c 
             WHERE c.createdAt <= :twelveHoursAgo 
               AND NOT EXISTS (SELECT 1 FROM Diary d WHERE d.chatSession = c)
         )
@@ -52,12 +52,12 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
     int deleteOrphanSessions(@Param("twelveHoursAgo") LocalDateTime twelveHoursAgo);
 
     @Modifying(clearAutomatically = true)
-    @Query("DELETE FROM ChatSession cs WHERE cs.member.memberSeq = :memberSeq")
-    void bulkDeleteByMemberSeq(@Param("memberSeq") Long memberSeq);
+    @Query("DELETE FROM ChatSession cs WHERE cs.member.memberId = :memberId")
+    void bulkDeleteByMemberId(@Param("memberId") Long memberId);
 
     // 여러 채팅 세션의 알림 발송 시간을 현재 시간으로 한 번에(Bulk) 업데이트
     @Modifying(clearAutomatically = true)
-    @Query("UPDATE ChatSession cs SET cs.deletionNotifiedAt = CURRENT_TIMESTAMP WHERE cs.sessionSeq IN :sessionIds")
+    @Query("UPDATE ChatSession cs SET cs.deletionNotifiedAt = CURRENT_TIMESTAMP WHERE cs.sessionId IN :sessionIds")
     void bulkMarkAsNotified(@Param("sessionids") List<Long> sessionIds);
 
 }

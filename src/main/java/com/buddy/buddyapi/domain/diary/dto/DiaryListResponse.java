@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record DiaryListResponse(
-        Long diarySeq,
+        Long diaryId,
         String title,
         String summary,
         LocalDateTime createdAt,
@@ -22,7 +22,7 @@ public record DiaryListResponse(
                 ? content.substring(0,60) + "..." : content;
 
         return new DiaryListResponse(
-                diary.getDiarySeq(),
+                diary.getDiaryId(),
                 diary.getTitle(),
                 summary,
                 diary.getCreatedAt(),

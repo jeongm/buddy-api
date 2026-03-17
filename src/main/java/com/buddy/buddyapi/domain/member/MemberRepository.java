@@ -14,7 +14,7 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     boolean existsByEmail(String email);
 
     @EntityGraph(attributePaths = {"buddyCharacter"})
-    @Query("SELECT m FROM Member m WHERE m.memberSeq = :memberSeq")
-    Optional<Member> findByIdWithCharacter(@Param("memberSeq") Long memberSeq);
+    @Query("SELECT m FROM Member m WHERE m.memberId = :memberId")
+    Optional<Member> findByIdWithCharacter(@Param("memberId") Long memberId);
 
 }

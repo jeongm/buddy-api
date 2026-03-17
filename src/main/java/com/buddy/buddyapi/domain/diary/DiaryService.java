@@ -42,15 +42,15 @@ public class DiaryService {
 
     /**
      * 일기를 목록입니다. 검색어가 있을 시 검색된 일기 목록을 보여줍니다.
-     * @param memberSeq 현재 로그인한 회원 정보
+     * @param memberId 현재 로그인한 회원 정보
      * @param search 검색하고 싶은 내용
      * @param pageable 원하는 페이지
      * @return
      */
     @Transactional(readOnly = true)
-    public Slice<DiaryListResponse> getDiaryList(Long memberSeq, String search, Pageable pageable) {
+    public Slice<DiaryListResponse> getDiaryList(Long memberId, String search, Pageable pageable) {
 
-        Slice<Diary> diarySlice = diaryRepository.searchMyDiaries(memberSeq, search, pageable);
+        Slice<Diary> diarySlice = diaryRepository.searchMyDiaries(memberId, search, pageable);
 
         return diarySlice.map(DiaryListResponse::from);
     }
@@ -58,16 +58,16 @@ public class DiaryService {
     /**
      * 채팅 내역을 기반으로 AI 일기 초안을 생성합니다. (DB 저장 안 함)
      *
-     * @param memberSeq  현재 로그인한 회원 정보
+     * @param memberId  현재 로그인한 회원 정보
      * @param request 일기 생성을 위한 세션 ID가 포함된 요청 DTO
      * @return AI가 생성한 일기 제목, 본문, 추천 태그 정보를 담은 프리뷰 응답 DTO
      * @throws BaseException 세션을 찾을 수 없거나 대화 내역이 비어있을 경우 발생
      */
     @Timer
     @Transactional(readOnly = true)
-    public DiaryPreviewResponse generateDiaryFromChat(Long memberSeq, DiaryGenerateRequest request) {
+    public DiaryPreviewResponse generateDiaryFromChat(Long memberId, DiaryGenerateRequest request) {
 
-        String fullConversation = chatService.getFormattedChatHistory(request.sessionSeq(), memberSeq);
+        String fullConversation = chatService.getFormattedChatHistory(request.sessionId(), memberId);
 
         // AI 서비스 호출 (페르소나와 대화 내용 전달)
         String rawResponse = aiService.getDiaryDraft(
@@ -83,14 +83,14 @@ public class DiaryService {
     /**
      * 특정 날짜에 작성된 일기 목록을 조회합니다.
      *
-     * @param memberSeq 현재 로그인한 회원 정보
+     * @param memberId 현재 로그인한 회원 정보
      * @param date   조회하고자 하는 날짜 (yyyy-MM-dd)
      * @return 해당 날짜에 작성된 일기 리스트 (최신순)
      */
     @Transactional(readOnly = true)
-    public List<DiaryListResponse> getDiariesByDate(Long memberSeq, LocalDate date) {
+    public List<DiaryListResponse> getDiariesByDate(Long memberId, LocalDate date) {
 
-        return diaryRepository.findAllByMemberAndDiaryDate(memberSeq, date)
+        return diaryRepository.findAllByMemberAndDiaryDate(memberId, date)
                 .stream()
                 .map(DiaryListResponse::from)
                 .toList();
@@ -99,19 +99,19 @@ public class DiaryService {
     /**
      * 사용자가 최종 확정한 일기 데이터를 DB에 저장합니다.
      *
-     * @param memberSeq  현재 로그인한 회원 정보
+     * @param memberId  현재 로그인한 회원 정보
      * @param request 저장할 일기 제목, 내용, 이미지, 태그 ID 리스트 등을 담은 DTO
      * @return 생성된 일기의 고유 식별자 (ID)
      * @throws BaseException 요청한 태그 ID가 존재하지 않을 경우 발생
      */
     @Transactional
-    public Long createDiary(Long memberSeq, DiaryCreateRequest request, MultipartFile image) {
+    public Long createDiary(Long memberId, DiaryCreateRequest request, MultipartFile image) {
 
-        Member member = memberService.getMemberBySeq(memberSeq);
+        Member member = memberService.getMemberById(memberId);
 
         ChatSession chatSession = null;
-        if(request.sessionSeq() != null) {
-            chatSession = chatService.getChatSessionEntity(request.sessionSeq(), memberSeq);
+        if(request.sessionId() != null) {
+            chatSession = chatService.getChatSessionEntity(request.sessionId(), memberId);
         }
 
         // 이미지 파일이 있으면 저장하고 경로 반환받기
@@ -135,21 +135,21 @@ public class DiaryService {
             diary.addTags(tags);
         }
 
-        return diaryRepository.save(diary).getDiarySeq();
+        return diaryRepository.save(diary).getDiaryId();
     }
 
     /**
      * 기존에 작성된 일기 내용을 수정합니다.
      *
-     * @param memberSeq   현재 로그인한 회원 정보
-     * @param diarySeq 수정할 일기의 고유 식별자
+     * @param memberId   현재 로그인한 회원 정보
+     * @param diaryId 수정할 일기의 고유 식별자
      * @param request  수정할 제목, 내용, 이미지, 태그 리스트 등을 담은 DTO
      * @throws BaseException 일기를 찾을 수 없거나 본인 일기가 아닐 경우 발생
      */
     @Transactional
-    public void updateDiary(Long memberSeq, Long diarySeq, DiaryUpdateRequest request, MultipartFile newImage) {
+    public void updateDiary(Long memberId, Long diaryId, DiaryUpdateRequest request, MultipartFile newImage) {
 
-        Diary diary = diaryRepository.findByDiarySeqAndMember_MemberSeq(diarySeq, memberSeq)
+        Diary diary = diaryRepository.findByDiaryIdAndMember_MemberId(diaryId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
         String oldImageUrl = diary.getImageUrl();
@@ -177,13 +177,13 @@ public class DiaryService {
 
     /**
      * 특정 일기 삭제
-     *  @param memberSeq   현재 로그인한 회원 정보정보
-     *  @param diarySeq    삭제할 일기의 고유 식별자
+     *  @param memberId   현재 로그인한 회원 정보정보
+     *  @param diaryId    삭제할 일기의 고유 식별자
      */
     @Transactional
-    public void deleteDiary(Long memberSeq, Long diarySeq) {
+    public void deleteDiary(Long memberId, Long diaryId) {
 
-        Diary diary = diaryRepository.findByDiarySeqAndMember_MemberSeq(diarySeq, memberSeq)
+        Diary diary = diaryRepository.findByDiaryIdAndMember_MemberId(diaryId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
         diaryRepository.delete(diary);
@@ -198,14 +198,14 @@ public class DiaryService {
     /**
      * 일기의 상세 내용을 조회합니다.
      *
-     * @param memberSeq   현재 로그인한 회원 정보
-     * @param diarySeq 조회할 일기의 고유 식별자
+     * @param memberId   현재 로그인한 회원 정보
+     * @param diaryId 조회할 일기의 고유 식별자
      * @return 일기 상세 정보 및 연관된 태그 정보를 포함한 DTO
      * @throws BaseException 일기를 찾을 수 없거나 본인 일기가 아닐 경우 발생
      */
     @Transactional(readOnly = true)
-    public DiaryDetailResponse getDiaryDetail(Long memberSeq, Long diarySeq) {
-        Diary diary = diaryRepository.findDetailByDiarySeqAndMemberSeq(diarySeq, memberSeq)
+    public DiaryDetailResponse getDiaryDetail(Long memberId, Long diaryId) {
+        Diary diary = diaryRepository.findDetailByDiaryIdAndMemberId(diaryId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
         return DiaryDetailResponse.from(diary);
@@ -213,13 +213,13 @@ public class DiaryService {
 
     /**
      *
-     * @param memberSeq 현재 로그인한 회원 정보
+     * @param memberId 현재 로그인한 회원 정보
      * @param year 조회할 년도
      * @param month 조회할 월
      * @return 조회 년월의 일기 개수 리스트
      */
     @Transactional(readOnly = true)
-    public List<MonthlyDiaryCountResponse> getMonthlyDiaryStats(Long memberSeq, int year, int month) {
+    public List<MonthlyDiaryCountResponse> getMonthlyDiaryStats(Long memberId, int year, int month) {
 
         // 해당 월의 시작일 (예: 2024-03-01)
         YearMonth yearMonth = YearMonth.of(year, month);
@@ -228,17 +228,17 @@ public class DiaryService {
         // 해당 월의 마지막 날 (예: 2024-03-31)
         LocalDate endDate = yearMonth.atEndOfMonth();
 
-        return diaryRepository.findAllMonthlyCount(memberSeq, startDate, endDate);
+        return diaryRepository.findAllMonthlyCount(memberId, startDate, endDate);
     }
 
     /**
      * 일기 목록에서 최근 사용한 태그를 보여줍니다.
-     * @param memberSeq 현재 로그인한 회원 정보
+     * @param memberId 현재 로그인한 회원 정보
      * @return 최근 30일 이내 가장 많이 사용한 태그 10개 (1. 빈도 수 2. 작성 순)
      */
     @Transactional(readOnly = true)
-    public List<TagResponse> getRecentTopTags(Long memberSeq) {
-        return diaryRepository.findRecentTopTags(memberSeq);
+    public List<TagResponse> getRecentTopTags(Long memberId) {
+        return diaryRepository.findRecentTopTags(memberId);
 
     }
 
@@ -247,9 +247,9 @@ public class DiaryService {
     public void handleMemberWithdraw(MemberWithdrawEvent event) {
 
         // 다이어리를 지우면서 -> 연결된 '태그' 삭제 -> 연결된 '챗 세션'까지 연쇄 폭발로 안전하게 삭제
-        Long deletedCount = diaryRepository.deleteAllByMember_MemberSeq(event.memberSeq());
+        Long deletedCount = diaryRepository.deleteAllByMember_MemberId(event.memberId());
 
-        log.info("📢 [DiaryService] 탈퇴 유저(seq: {})의 다이어리 {}개 삭제 완료", event.memberSeq(), deletedCount);
+        log.info("📢 [DiaryService] 탈퇴 유저(Id: {})의 다이어리 {}개 삭제 완료", event.memberId(), deletedCount);
     }
 
     /**

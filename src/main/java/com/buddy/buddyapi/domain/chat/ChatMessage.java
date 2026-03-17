@@ -19,11 +19,11 @@ public class ChatMessage {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "message_seq")
-    private Long messageSeq;
+    @Column(name = "message_id")
+    private Long messageId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "session_seq", nullable = false)
+    @JoinColumn(name = "session_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
     private ChatSession chatSession;
 

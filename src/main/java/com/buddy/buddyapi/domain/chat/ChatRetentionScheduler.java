@@ -40,7 +40,7 @@ public class ChatRetentionScheduler {
                 .toList();
 
         List<Long> targetSessionIds = warningTargets.stream()
-                .map(ChatSession::getSessionSeq)
+                .map(ChatSession::getSessionId)
                 .toList();
 
         if(!targetTokens.isEmpty()) {

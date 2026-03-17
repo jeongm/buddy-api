@@ -25,14 +25,14 @@ public class BuddyCharacterService {
                 .toList();
     }
 
-    public BuddyCharacter getCharacter(Long characterSeq) {
-        return characterRepository.findById(characterSeq)
+    public BuddyCharacter getCharacter(Long characterId) {
+        return characterRepository.findById(characterId)
                 .orElseThrow(() -> new BaseException(ResultCode.CHARACTER_NOT_FOUND));
     }
 
     // 가짜 프록시 객체만 필요할 때 (캐릭터 변경 용 - SELECT 쿼리 X)
-    public BuddyCharacter getCharacterProxy(Long characterSeq) {
-        return characterRepository.getReferenceById(characterSeq);
+    public BuddyCharacter getCharacterProxy(Long characterId) {
+        return characterRepository.getReferenceById(characterId);
     }
 
 

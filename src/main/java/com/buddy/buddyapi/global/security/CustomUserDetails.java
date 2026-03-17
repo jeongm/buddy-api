@@ -11,7 +11,7 @@ import java.util.Collections;
 import java.util.Map;
 
 public record CustomUserDetails(
-        Long memberSeq,
+        Long memberId,
         String email,
         String password, // 인증 시에만 사용됨
         Map<String, Object> attributes,
@@ -22,7 +22,7 @@ public record CustomUserDetails(
     public static CustomUserDetails from(Member member) {
 
         return new CustomUserDetails(
-                member.getMemberSeq(),
+                member.getMemberId(),
                 member.getEmail(),
                 member.getPassword(),
                 null,
@@ -34,7 +34,7 @@ public record CustomUserDetails(
     public static CustomUserDetails of(Member member, Map<String,Object> attributes) {
 
         return new CustomUserDetails(
-                member.getMemberSeq(),
+                member.getMemberId(),
                 member.getEmail(),
                 null,
                 attributes,
@@ -50,14 +50,14 @@ public record CustomUserDetails(
 
     @Override
     public String getName() {
-        return String.valueOf(memberSeq);
+        return String.valueOf(memberId);
     }
 
 
     // --- UserDetails ---
     @Override
     public String getUsername() {
-        return String.valueOf(memberSeq);
+        return String.valueOf(memberId);
     }
 
     @Override
