@@ -231,6 +231,8 @@ public class MemberService {
 
         eventPublisher.publishEvent(new MemberWithdrawEvent(memberId));
 
+        notificationSettingService.deleteSettingOnWithdrawal(memberId);
+
         // MemberService에게 지시: "이제 우리 DB에서 진짜로 유저 정보 지워!"
         memberRepository.deleteById(memberId);
     }

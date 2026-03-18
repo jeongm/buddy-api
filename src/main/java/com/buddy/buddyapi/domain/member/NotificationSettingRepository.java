@@ -16,4 +16,6 @@ public interface NotificationSettingRepository extends JpaRepository<Notificatio
             "AND m.pushToken IS NOT NULL")
     List<NotificationSetting> findTargetSettingsForDailyPush();
 
+    void deleteByMember_MemberId(Long memberId);
+
 }

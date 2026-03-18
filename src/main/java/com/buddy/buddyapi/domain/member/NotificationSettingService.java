@@ -38,4 +38,12 @@ public class NotificationSettingService {
         setting.updateNightAlert(isNightAgreed);
         setting.updateDailyAlert(isNightAgreed);
     }
+
+    /**
+     * [회원 탈퇴] 회원의 알림 설정을 DB에서 물리적으로 삭제합니다.
+     */
+    @Transactional
+    public void deleteSettingOnWithdrawal(Long memberId) {
+        settingRepository.deleteByMember_MemberId(memberId);
+    }
 }
