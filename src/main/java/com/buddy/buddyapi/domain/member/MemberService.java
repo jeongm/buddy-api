@@ -23,34 +23,51 @@ public class MemberService {
     private final PasswordEncoder passwordEncoder;
 
     private final BuddyCharacterService characterService;
+    private final NotificationSettingService notificationSettingService;
 
     private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 일반(이메일) 회원가입을 처리하고 새로운 회원을 생성합니다.
-     * @param request 회원가입 정보 (이메일, 비밀번호, 닉네임, 캐릭터 번호 등)
+     * @param request 회원가입 정보 (이메일, 비밀번호)
      * @param encodedPassword 시큐리티를 통해 암호화된 비밀번호
-     * @return 가입 완료된 회원의 식별자(PK) 정보를 담은 DTO
-     * @throws BaseException 이미 존재하는 이메일이거나, 선택한 캐릭터가 존재하지 않을 경우 발생
+     * @return 가입 완료된 회원(Member) 엔티티
+     * @throws BaseException 이미 존재하는 이메일인 경우 발생
      */
     @Transactional
     public Member registerLocalMember(AuthDto.SignUpRequest request, String encodedPassword) {
 
         checkEmailDuplicate(request.email());
 
-        BuddyCharacter selectedCharacter = null;
-        if (request.characterId() != null) {
-            selectedCharacter = characterService.getCharacter(request.characterId());
-        }
+        String tempNickname = generateDefaultNickname(request.email());
 
         Member newMember = Member.builder()
                 .email(request.email())
                 .password(encodedPassword)
-                .nickname(request.nickname())
-                .buddyCharacter(selectedCharacter)
+                .nickname(tempNickname)
+                .buddyCharacter(null)
                 .build();
 
         return memberRepository.save(newMember);
+    }
+
+    /**
+     * [로그인 온보딩 완료]
+     * 가입 직후 캐릭터가 없는 유저의 초기 설정(닉네임, 캐릭터, 알림 동의)을 한 트랜잭션으로 처리합니다.
+     * @param memberId 유저 식별자(PK)
+     * @param request 온보딩 요청 DTO (유저 닉네임, 캐릭터ID, 캐릭터 별명, 야간 알림 동의 여부)
+     */
+    @Transactional
+    public void completeOnboarding(Long memberId, OnboardingRequest request) {
+        Member member = getMemberById(memberId);
+        BuddyCharacter myCharacter = characterService.getCharacter(request.characterId());
+
+        member.updateNickname(request.nickname());
+        member.changeCharacter(myCharacter);
+        member.updateCharacterNickname(request.characterName());
+
+        notificationSettingService.updateSocialOnboardingSettings(memberId, request.isNightAgreed());
+
     }
 
     /**
@@ -237,7 +254,9 @@ public class MemberService {
     }
 
 
-    // 이메일 앞자리를 따거나, 랜덤 문자열로 임시 닉네임을 만듭니다.
+    /**
+     * 임시 닉네임, 이메일 앞자리를 따거나, 랜덤 문자열로 임시 닉네임을 만듭니다.
+     */
     private String generateDefaultNickname(String email) {
         if (email != null && email.contains("@")) {
             String prefix = email.substring(0, email.indexOf("@"));

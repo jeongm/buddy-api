@@ -27,6 +27,17 @@ public class MemberController {
         return ResponseEntity.ok(ApiResponse.ok("내 정보 조회 성공", memberService.getUserDetails(member.memberId())));
     }
 
+    @Operation(summary = "로그인 온보딩 완료", description = "초기 닉네임, 캐릭터, 알림 설정을 한 번에 완료합니다.")
+    @PatchMapping("/me/onboarding")
+    public ResponseEntity<ApiResponse<Void>> completeOnboarding(
+            @AuthenticationPrincipal CustomUserDetails member,
+            @Valid @RequestBody OnboardingRequest request) {
+
+        memberService.completeOnboarding(member.memberId(), request);
+
+        return ResponseEntity.ok(ApiResponse.ok("온보딩이 완료되었습니다.", null));
+    }
+
     @Operation(summary = "닉네임 수정", description = "사용자의 닉네임을 변경합니다.")
     @PatchMapping("/me/nickname")
     public ResponseEntity<ApiResponse<UpdateNicknameResponse>> updateNickname(
@@ -70,7 +81,7 @@ public class MemberController {
     @PatchMapping("/me/character-name")
     public ResponseEntity<ApiResponse<String>> updateCharacterName(
             @AuthenticationPrincipal CustomUserDetails member,
-            @Valid @RequestBody CharacterNameRequest request) {
+            @Valid @RequestBody UpdateCharacterNameRequest request) {
         memberService.updateCharacterNickname(member.memberId(), request.characterName());
         return ResponseEntity.ok(ApiResponse.ok("캐릭터 이름이 변경되었습니다."));
     }

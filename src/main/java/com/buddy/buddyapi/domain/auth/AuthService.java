@@ -30,12 +30,24 @@ public class AuthService {
 
     private final MemberService memberService;
     private final OauthService oauthService;
+    private final NotificationSettingService notificationSettingService;
 
     private final JwtTokenProvider jwtTokenProvider;
     private final RefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final StringRedisTemplate redisTemplate;
 
+    /**
+     * [일반(이메일) 회원가입 통합 로직]
+     * 이메일 인증을 마친 사용자의 회원가입을 처리합니다.
+     * 순수 계정(임시 닉네임, 캐릭터 null)만 생성한 뒤, 온보딩(캐릭터/닉네임 설정) 단계 진입을 위해
+     * 기본(깡통) 알림 설정을 생성하고 자동 로그인(토큰 발급) 처리를 수행합니다.
+     * (헬퍼 메서드를 통해 프론트엔드에 온보딩 필요 상태인 'REQUIRES_CHARACTER'를 반환합니다.)
+     *
+     * @param request 일반 회원가입 요청 DTO (이메일, 비밀번호, 인증 토큰)
+     * @return 발급된 토큰셋(Access, Refresh)과 온보딩 필요 상태(REQUIRES_CHARACTER)를 포함한 응답 DTO
+     * @throws BaseException 이메일 인증 토큰이 유효하지 않거나 만료된 경우, 또는 이미 가입된 이메일일 경우 발생
+     */
     @Transactional
     public AuthDto.LoginResponse signup(AuthDto.SignUpRequest request) {
         // 이메일 인증 확인
@@ -51,6 +63,8 @@ public class AuthService {
         String encodedPassword = passwordEncoder.encode(request.password());
 
         Member newMember = memberService.registerLocalMember(request, encodedPassword);
+
+        notificationSettingService.createDefaultSetting(newMember, false);
 
         redisTemplate.delete(tokenKey);
         // 회원 가입 완료 시 자동 로그인
@@ -107,11 +121,13 @@ public class AuthService {
             return issueTokensAndBuildResponse(member, AuthStatus.SUCCESS);
         }
 
-        // [CASE] 아예 신규 유저 (가입 + 연동 + SUCCESS)
+        // [CASE] 아예 신규 유저 (가입 + 연동 + REQUIRES_CHARACTER)
         Member newMember = memberService.registerSocialMember(userInfo.email(), userInfo.name());
 
         oauthService.saveOauthAccount(newMember, provider,
                 userInfo.oauthId(), userInfo.socialAccessToken(), userInfo.socialRefreshToken());
+
+        notificationSettingService.createDefaultSetting(newMember, false);
 
         return issueTokensAndBuildResponse(newMember, AuthStatus.SUCCESS);
 
