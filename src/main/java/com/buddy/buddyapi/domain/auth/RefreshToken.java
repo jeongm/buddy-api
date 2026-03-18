@@ -14,7 +14,7 @@ import org.springframework.data.redis.core.index.Indexed;
 public class RefreshToken {
 
     @Id
-    private Long memberSeq;
+    private Long memberId;
 
     @Indexed
     private String refreshToken;

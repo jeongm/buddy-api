@@ -2,7 +2,7 @@ package com.buddy.buddyapi.domain.member;
 
 import com.buddy.buddyapi.domain.auth.dto.AuthDto;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
-import com.buddy.buddyapi.domain.character.BuddyCharacterRepository;
+import com.buddy.buddyapi.domain.character.BuddyCharacterService;
 import com.buddy.buddyapi.domain.member.dto.*;
 import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.exception.BaseException;
@@ -21,36 +21,53 @@ public class MemberService {
 
     private final MemberRepository memberRepository;
     private final PasswordEncoder passwordEncoder;
-    private final BuddyCharacterRepository characterRepository;
+
+    private final BuddyCharacterService characterService;
+    private final NotificationSettingService notificationSettingService;
 
     private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 일반(이메일) 회원가입을 처리하고 새로운 회원을 생성합니다.
-     * @param request 회원가입 정보 (이메일, 비밀번호, 닉네임, 캐릭터 번호 등)
+     * @param request 회원가입 정보 (이메일, 비밀번호)
      * @param encodedPassword 시큐리티를 통해 암호화된 비밀번호
-     * @return 가입 완료된 회원의 식별자(PK) 정보를 담은 DTO
-     * @throws BaseException 이미 존재하는 이메일이거나, 선택한 캐릭터가 존재하지 않을 경우 발생
+     * @return 가입 완료된 회원(Member) 엔티티
+     * @throws BaseException 이미 존재하는 이메일인 경우 발생
      */
     @Transactional
     public Member registerLocalMember(AuthDto.SignUpRequest request, String encodedPassword) {
 
         checkEmailDuplicate(request.email());
 
-        BuddyCharacter selectedCharacter = null;
-        if (request.characterSeq() != null) {
-            selectedCharacter = characterRepository.findById(request.characterSeq())
-                    .orElseThrow(() -> new BaseException(ResultCode.CHARACTER_NOT_FOUND));
-        }
+        String tempNickname = generateDefaultNickname(request.email());
 
         Member newMember = Member.builder()
                 .email(request.email())
                 .password(encodedPassword)
-                .nickname(request.nickname())
-                .buddyCharacter(selectedCharacter)
+                .nickname(tempNickname)
+                .buddyCharacter(null)
                 .build();
 
         return memberRepository.save(newMember);
+    }
+
+    /**
+     * [로그인 온보딩 완료]
+     * 가입 직후 캐릭터가 없는 유저의 초기 설정(닉네임, 캐릭터, 알림 동의)을 한 트랜잭션으로 처리합니다.
+     * @param memberId 유저 식별자(PK)
+     * @param request 온보딩 요청 DTO (유저 닉네임, 캐릭터ID, 캐릭터 별명, 야간 알림 동의 여부)
+     */
+    @Transactional
+    public void completeOnboarding(Long memberId, OnboardingRequest request) {
+        Member member = getMemberById(memberId);
+        BuddyCharacter myCharacter = characterService.getCharacter(request.characterId());
+
+        member.updateNickname(request.nickname());
+        member.changeCharacter(myCharacter);
+        member.updateCharacterNickname(request.characterName());
+
+        notificationSettingService.updateSocialOnboardingSettings(memberId, request.isNightAgreed());
+
     }
 
     /**
@@ -75,12 +92,21 @@ public class MemberService {
 
     /**
      * PK로 회원을 정보를 가져옵니다.
-     * @param memberSeq 조회할 회원의 고유 식별자
+     * @param memberId 조회할 회원의 고유 식별자
      * @return 조회한 회원 엔티티 (Member)
      */
     @Transactional(readOnly = true)
-    public Member getMemberBySeq(Long memberSeq) {
-        return memberRepository.findById(memberSeq)
+    public Member getMemberById(Long memberId) {
+        return memberRepository.findById(memberId)
+                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+    }
+
+    /**
+     * [조회] PK로 회원과 설정된 캐릭터 정보를 함께 가져옵니다.
+     */
+    @Transactional(readOnly = true)
+    public Member getMemberWithCharacter(Long memberId) {
+        return memberRepository.findByIdWithCharacter(memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
     }
 
@@ -105,15 +131,15 @@ public class MemberService {
 
     /**
      * 회원의 닉네임을 변경합니다.
-     * @param memberSeq 변경할 회원의 고유 식별자
+     * @param memberId 변경할 회원의 고유 식별자
      * @param request 새로운 닉네임 정보를 담은 DTO
      * @return 변경된 닉네임 결과 DTO
      * @throws BaseException 해당 회원이 존재하지 않을 경우 발생
      */
     @Transactional
-    public UpdateNicknameResponse updateNickName(Long memberSeq, UpdateNicknameRequest request) {
+    public UpdateNicknameResponse updateNickName(Long memberId, UpdateNicknameRequest request) {
 
-        Member member = getMemberBySeq(memberSeq);
+        Member member = getMemberById(memberId);
 
         member.updateNickname(request.nickname());
 
@@ -124,8 +150,8 @@ public class MemberService {
      * 현재 비밀번호가 맞는지 검증합니다.
      */
     @Transactional(readOnly = true)
-    public void verifyPassword(Long memberSeq, String rawPassword) {
-        Member member = getMemberBySeq(memberSeq);
+    public void verifyPassword(Long memberId, String rawPassword) {
+        Member member = getMemberById(memberId);
 
         if (!passwordEncoder.matches(rawPassword, member.getPassword())) {
             throw new BaseException(ResultCode.CURRENT_PASSWORD_MISMATCH);
@@ -134,16 +160,16 @@ public class MemberService {
 
     /**
      * 회원의 비밀번호를 변경합니다.
-     * @param memberSeq 비밀번호를 변경할 회원의 고유 식별자
+     * @param memberId 비밀번호를 변경할 회원의 고유 식별자
      * @param currentPassword 현재비밀번호
      * @param newPassword 새 비밀번호를 담은 DTO
      * @throws BaseException 기존 비밀번호가 일치하지 않거나 유저가 없을 경우 발생
      */
     @Transactional
-    public void updateMemberPassword(Long memberSeq, String currentPassword, String newPassword) {
-        verifyPassword(memberSeq,currentPassword);
+    public void updateMemberPassword(Long memberId, String currentPassword, String newPassword) {
+        verifyPassword(memberId,currentPassword);
 
-        Member member = getMemberBySeq(memberSeq);
+        Member member = getMemberById(memberId);
         String encodedNewPassword = passwordEncoder.encode(newPassword);
         member.updatePassword(encodedNewPassword);
     }
@@ -151,13 +177,13 @@ public class MemberService {
     /**
      * 내 정보(상세 프로필)를 조회합니다.
      *
-     * @param memberSeq 조회할 회원의 고유 식별자
+     * @param memberId 조회할 회원의 고유 식별자
      * @return 회원의 이메일, 닉네임, 캐릭터 정보 등을 포함한 DTO
      * @throws BaseException 해당 회원이 존재하지 않을 경우 발생
      */
     @Transactional(readOnly = true)
-    public MemberResponse getUserDetails(Long memberSeq) {
-        Member member = memberRepository.findByIdWithCharacter(memberSeq)
+    public MemberResponse getUserDetails(Long memberId) {
+        Member member = memberRepository.findByIdWithCharacter(memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
         return MemberResponse.from(member);
     }
@@ -165,18 +191,18 @@ public class MemberService {
     /**
      * 회원이 사용할 버디 캐릭터를 변경합니다.
      *
-     * @param memberSeq 현재 로그인한 회원 정보
+     * @param memberId 현재 로그인한 회원 정보
      * @param request    변경하고자 하는 캐릭터의 식별자가 담긴 DTO
      * @throws BaseException 존재하지 않는 캐릭터 ID이거나 회원을 찾을 수 없을 경우 발생
      */
     @Transactional
-    public void changeMyCharacter(Long memberSeq, CharacterChangeRequest request) {
+    public void changeMyCharacter(Long memberId, CharacterChangeRequest request) {
 
-        Member member = getMemberBySeq(memberSeq);
+        Member member = getMemberById(memberId);
 
         //캐릭터는 가짜 프록시 객체로 가져옴 (SELECT 발생 안 함)
         // DB에 가지 않고, id값만 가진 껍데기 객체를 만듭니다.
-        BuddyCharacter newCharacter = characterRepository.getReferenceById(request.characterSeq());
+        BuddyCharacter newCharacter = characterService.getCharacterProxy(request.characterId());
 
         member.changeCharacter(newCharacter);
 
@@ -185,28 +211,39 @@ public class MemberService {
     /**
      * 현재 사용 중인 버디 캐릭터의 별명(애칭)을 변경합니다.
      *
-     * @param memberSeq  현재 로그인한 회원 정보
+     * @param memberId  현재 로그인한 회원 정보
      * @param newName 새로 설정할 캐릭터의 별명
      * @throws BaseException 회원을 찾을 수 없을 경우 발생
      */
     @Transactional
-    public void updateCharacterNickname(Long memberSeq, String newName) {
-        Member member = getMemberBySeq(memberSeq);
+    public void updateCharacterNickname(Long memberId, String newName) {
+        Member member = getMemberById(memberId);
         member.updateCharacterNickname(newName);
         memberRepository.save(member);
     }
 
     /**
-     * [회원 탈퇴] 소셜 연결을 끊고, 토큰을 파기하며, DB에서 회원을 삭제합니다.
-     * @param memberSeq 현재 로그인한 회원 정보
+     * [회원 탈퇴] DB에서 회원을 삭제하고 외부 자원 정리를 예약합니다.
+     *
+     * <pre>
+     * [트랜잭션 내부 - 즉시 실행]
+     *   1. DiaryService  : Cloudinary 삭제 대상 URL 수집 → DiaryImagesCleanupEvent 예약
+     *   2. OauthService  : 소셜 계정 정보 스냅샷 수집   → SocialUnlinkEvent 예약
+     *   3. memberRepository.deleteById() → DB @OnDelete CASCADE가 모든 자식 정리
+     *      (ChatSession, ChatMessage, Diary, DiaryTag, NotificationSetting, OauthAccount, MemberInsight)
+     *
+     * [트랜잭션 커밋 후 - AFTER_COMMIT]
+     *   4. AuthService   : Redis Refresh Token 삭제
+     *   5. ImageService  : Cloudinary 이미지 일괄 삭제
+     *   6. OauthService  : 소셜 연동 해제 API 호출
+     * </pre>
+     *
+     * @param memberId 탈퇴할 회원의 식별자
      */
     @Transactional
-    public void deleteMember(Long memberSeq) {
-
-        eventPublisher.publishEvent(new MemberWithdrawEvent(memberSeq));
-
-        // MemberService에게 지시: "이제 우리 DB에서 진짜로 유저 정보 지워!"
-        memberRepository.deleteById(memberSeq);
+    public void deleteMember(Long memberId) {
+        eventPublisher.publishEvent(new MemberWithdrawEvent(memberId));
+        memberRepository.deleteById(memberId);
     }
     /**
      * 이메일 중복 체크
@@ -220,15 +257,17 @@ public class MemberService {
     }
 
     @Transactional
-    public void updatePushToken(Long memberSeq, String pushToken) {
-        Member member = getMemberBySeq(memberSeq);
+    public void updatePushToken(Long memberId, String pushToken) {
+        Member member = getMemberById(memberId);
 
         // 2. 토큰 업데이트 (더티 체킹으로 자동 UPDATE 쿼리 발생)
         member.updatePushToken(pushToken);
     }
 
 
-    // 이메일 앞자리를 따거나, 랜덤 문자열로 임시 닉네임을 만듭니다.
+    /**
+     * 임시 닉네임, 이메일 앞자리를 따거나, 랜덤 문자열로 임시 닉네임을 만듭니다.
+     */
     private String generateDefaultNickname(String email) {
         if (email != null && email.contains("@")) {
             String prefix = email.substring(0, email.indexOf("@"));

@@ -33,12 +33,6 @@ public class AuthDto {
             @Size(min = 8, max = 20, message = "비밀번호는 8자에서 20자 사이여야 합니다.")
             String password,
 
-            @NotBlank(message = "닉네임을 입력해주세요")
-            @Size(min = 1, max = 15, message = "닉네임은 15자 이하여야 합니다.")
-            String nickname,
-
-            Long characterSeq,
-
             @Schema(description = "이메일 인증 통과 시 발급받은 UUID 티켓")
             @NotBlank String verificationToken
     ) {}

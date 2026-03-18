@@ -29,7 +29,7 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
      * 월별 일기 작성 일자 별 개수 조회 (캘린더 잔디용)
      */
     @Override
-    public List<MonthlyDiaryCountResponse> findAllMonthlyCount(Long memberSeq, LocalDate startDate, LocalDate endDate) {
+    public List<MonthlyDiaryCountResponse> findAllMonthlyCount(Long memberId, LocalDate startDate, LocalDate endDate) {
         return queryFactory
                 .select(Projections.constructor(MonthlyDiaryCountResponse.class,
                         diary.diaryDate,
@@ -37,7 +37,7 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
                 ))
                 .from(diary)
                 .where(
-                        diary.member.memberSeq.eq(memberSeq),
+                        diary.member.memberId.eq(memberId),
                         diary.diaryDate.between(startDate, endDate)
                 )
                 .groupBy(diary.diaryDate)
@@ -48,14 +48,14 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
      * 특정 날짜의 일기 상세 조회 (태그까지 Fetch Join)
      */
     @Override
-    public List<Diary> findAllByMemberAndDiaryDate(Long memberSeq, LocalDate date) {
+    public List<Diary> findAllByMemberAndDiaryDate(Long memberId, LocalDate date) {
         return queryFactory
                 .selectFrom(diary)
                 .distinct()
                 .leftJoin(diary.diaryTags, diaryTag).fetchJoin()
                 .leftJoin(diaryTag.tag, tag).fetchJoin()
                 .where(
-                        diary.member.memberSeq.eq(memberSeq),
+                        diary.member.memberId.eq(memberId),
                         diary.diaryDate.eq(date)
                 )
                 .orderBy(diary.createdAt.desc())
@@ -67,7 +67,7 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
      * 일기 상세 조회 - ai작성시 chatSession도 함께 넘겨줌
      */
     @Override
-    public Optional<Diary> findDetailByDiarySeqAndMemberSeq(Long diarySeq, Long memberSeq) {
+    public Optional<Diary> findDetailByDiaryIdAndMemberId(Long diaryId, Long memberId) {
         return Optional.ofNullable(
                 queryFactory
                         .selectFrom(diary)
@@ -75,7 +75,7 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
                         .leftJoin(diary.chatSession).fetchJoin()
                         .leftJoin(diary.diaryTags, diaryTag).fetchJoin()
                         .leftJoin(diaryTag.tag, tag). fetchJoin()
-                        .where(diary.diarySeq.eq(diarySeq), diary.member.memberSeq.eq(memberSeq))
+                        .where(diary.diaryId.eq(diaryId), diary.member.memberId.eq(memberId))
                         .fetchOne()
         );
     }
@@ -84,7 +84,7 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
      * 일기 목록 무한 스크롤 및 검색 (Querydsl 동적 쿼리)
      */
     @Override
-    public Slice<Diary> searchMyDiaries(Long memberSeq, String search, Pageable pageable) {
+    public Slice<Diary> searchMyDiaries(Long memberId, String search, Pageable pageable) {
 
         int pageSize = pageable.getPageSize();
 
@@ -95,7 +95,7 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
                 .leftJoin(diary.diaryTags, diaryTag)
                 .leftJoin(diaryTag.tag, tag)
                 .where(
-                        diary.member.memberSeq.eq(memberSeq),
+                        diary.member.memberId.eq(memberId),
                         searchContains(search) // 👈 마법의 동적 조건 메서드!
                 )
                 // 컨트롤러에서 설정한 기본 정렬 조건(diaryDate DESC)을 하드코딩으로 고정해 두면 편합니다.
@@ -118,12 +118,12 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
      * 원하는 기간동안의 일기를 내용만 조회
      */
     @Override
-    public List<String> findDiaryContentsByMemberAndDateRange(Long memberSeq, LocalDate startDate, LocalDate endDate) {
+    public List<String> findDiaryContentsByMemberAndDateRange(Long memberId, LocalDate startDate, LocalDate endDate) {
         return queryFactory
                 .select(diary.content)
                 .from(diary)
                 .where(
-                        diary.member.memberSeq.eq(memberSeq),
+                        diary.member.memberId.eq(memberId),
                         diary.diaryDate.between(startDate, endDate)
                 )
                 .fetch();
@@ -137,25 +137,25 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
      * 1순위: 태그가 일기에 사용된 총 빈도수 (내림차순)
      * 2순위: 빈도수가 동률일 경우, 가장 최근 날짜에 작성된 일기에 쓰인 태그를 우선 (최신순)
      *
-     * @param memberSeq 통계를 조회할 사용자의 고유 식별자(PK)
-     * @return 태그 식별자(tagSeq)와 이름(name)을 담은 TagResponse 리스트 (최대 10개)
+     * @param memberId 통계를 조회할 사용자의 고유 식별자(PK)
+     * @return 태그 식별자(tagId)와 이름(name)을 담은 TagResponse 리스트 (최대 10개)
      */
     @Override
-    public List<TagResponse> findRecentTopTags(Long memberSeq) {
+    public List<TagResponse> findRecentTopTags(Long memberId) {
         LocalDate thirtyDaysAgo = LocalDate.now().minusDays(30);
 
         return queryFactory
                 .select(Projections.constructor(TagResponse.class,
-                        tag.tagSeq,
+                        tag.tagId,
                         tag.name))
                 .from(diary)
                 .join(diary.diaryTags, diaryTag)
                 .join(diaryTag.tag, tag)
                 .where(
-                        diary.member.memberSeq.eq(memberSeq),
+                        diary.member.memberId.eq(memberId),
                         diary.diaryDate.goe(thirtyDaysAgo)
                 )
-                .groupBy(tag.tagSeq, tag.name)
+                .groupBy(tag.tagId, tag.name)
                 .orderBy(tag.count().desc(), diary.diaryDate.max().desc())
                 .limit(10)
                 .fetch();
@@ -166,7 +166,7 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
      */
 
     @Override
-    public List<TagNameCountResponse> findTopTagsByMemberAndDateRange(Long memberSeq, LocalDate startDate, LocalDate endDate, int limit) {
+    public List<TagNameCountResponse> findTopTagsByMemberAndDateRange(Long memberId, LocalDate startDate, LocalDate endDate, int limit) {
         return queryFactory
                 .select(
                         Projections.constructor(TagNameCountResponse.class,
@@ -177,10 +177,10 @@ public class DiaryRepositoryImpl implements DiaryRepositoryCustom{
                 .join(diary.diaryTags, diaryTag)
                 .join(diaryTag.tag, tag)
                 .where(
-                        diary.member.memberSeq.eq(memberSeq),
+                        diary.member.memberId.eq(memberId),
                         diary.diaryDate.between(startDate,endDate)
                 )
-                .groupBy(tag.tagSeq, tag.name)
+                .groupBy(tag.tagId, tag.name)
                 .orderBy(tag.count().desc())
                 .limit(limit)
                 .fetch();

@@ -12,8 +12,6 @@ import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Getter
@@ -23,16 +21,16 @@ public class ChatSession {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "session_seq")
-    private Long sessionSeq;
+    @Column(name = "session_id")
+    private Long sessionId;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_seq", nullable = false)
+    @JoinColumn(name = "member_id", nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Member member;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "character_seq", nullable = false)
+    @JoinColumn(name = "character_id", nullable = false)
     private BuddyCharacter buddyCharacter;
 
     @Column(name = "is_ended", nullable = false)

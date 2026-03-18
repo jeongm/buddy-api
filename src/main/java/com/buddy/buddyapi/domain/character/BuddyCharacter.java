@@ -14,8 +14,8 @@ public class BuddyCharacter {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "character_seq")
-    private Long characterSeq;
+    @Column(name = "character_Id")
+    private Long characterId;
 
     @Column(unique = true, nullable = false, length = 100)
     private String name;

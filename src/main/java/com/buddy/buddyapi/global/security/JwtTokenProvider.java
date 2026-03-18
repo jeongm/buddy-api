@@ -34,21 +34,21 @@ public class JwtTokenProvider {
     }
 
     // Access Token 생성
-    public String createAccessToken(Long memberSeq) {
-        return createToken(memberSeq, accessTokenValidity);
+    public String createAccessToken(Long memberId) {
+        return createToken(memberId, accessTokenValidity);
     }
 
     // Refresh Token 생성
-    public String createRefreshToken(Long memberSeq) {
-        return createToken(memberSeq, refreshTokenValidity);
+    public String createRefreshToken(Long memberId) {
+        return createToken(memberId, refreshTokenValidity);
     }
 
-    private String createToken(Long memberSeq, long validity) {
+    private String createToken(Long memberId, long validity) {
         Date now = new Date();
         Date expiration = new Date(now.getTime() + validity);
 
         return Jwts.builder()
-                .setSubject(String.valueOf(memberSeq))
+                .setSubject(String.valueOf(memberId))
                 .setIssuedAt(now)
                 .setExpiration(expiration)
                 .signWith(key, SignatureAlgorithm.HS256)
@@ -64,10 +64,10 @@ public class JwtTokenProvider {
                 .getBody();
 
         // 이전에 구현한 UserServiceImpl의 loadUserByUsername을 호츌하여 유저 정보를 가져옵니다.
-        // 여기서는 간단하게 memberSeq(Subject)만 추출하여 사용하거나
+        // 여기서는 간단하게 memberId(Subject)만 추출하여 사용하거나
         // UserDetailsService를 주입받아 사용하도록 구성할 수 있습니다.
-        String memberSeqStr = claims.getSubject();
-        UserDetails userDetails = userDetailsService.loadUserByMemberSeq(Long.parseLong(memberSeqStr));
+        String memberIdStr = claims.getSubject();
+        UserDetails userDetails = userDetailsService.loadUserByMemberId(Long.parseLong(memberIdStr));
         // UserDetailsService를 주입받아 처리
 
         return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());

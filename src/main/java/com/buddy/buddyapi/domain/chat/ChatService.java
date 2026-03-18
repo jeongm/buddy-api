@@ -7,11 +7,10 @@ import com.buddy.buddyapi.domain.chat.dto.ChatMessageDto;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
 import com.buddy.buddyapi.domain.chat.dto.ChatSendResponse;
 import com.buddy.buddyapi.domain.member.Member;
+import com.buddy.buddyapi.domain.member.MemberService;
 import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
-import com.buddy.buddyapi.domain.character.BuddyCharacterRepository;
-import com.buddy.buddyapi.domain.member.MemberRepository;
 import com.buddy.buddyapi.domain.ai.AiPrompt;
 import com.buddy.buddyapi.domain.ai.AiService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,33 +22,46 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ChatService {
-    private final MemberRepository memberRepository;
+
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
-    private final BuddyCharacterRepository buddyCharacterRepository;
+
+    private final MemberService memberService;
     private final AiService aiService;
+
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+
     private final String CHAT_KEY_PREFIX = "chat:history:";
 
     /**
+     * sessionId, memberId를 통해 해당 맴버의 해당 챗세션을 가져옴
+     */
+    @Transactional(readOnly = true)
+    public ChatSession getChatSessionEntity(Long sessionId, Long memberId) {
+        return chatSessionRepository.findBySessionIdAndMember_MemberId(sessionId, memberId)
+                .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
+    }
+
+    /**
      * 버디(AI 캐릭터)에게 메시지를 전송하고 응답을 받습니다.
-     * @param memberSeq  현재 로그인한 회원 정보
+     * @param memberId  현재 로그인한 회원 정보
      * @param request 전송할 메시지 내용 및 세션 ID가 담긴 DTO
      * @return AI의 응답 메시지와 세션 ID를 포함한 응답 DTO
      */
     @Timer
     @Transactional
-    public ChatSendResponse sendMessage(Long memberSeq, ChatRequest request) {
+    public ChatSendResponse sendMessage(Long memberId, ChatRequest request) {
 
         // 1. 세션 조회 또는 생성 (세션 ID가 없거나 종료된 세션이면 새로 생성)
-        ChatSession session = getOrCreateSession(memberSeq, request.sessionSeq());
+        ChatSession session = getOrCreateSession(memberId, request.sessionId());
 
         // 2. 사용자 메시지 저장
         saveMessage(session, SenderRole.USER, request.content());
@@ -61,16 +73,40 @@ public class ChatService {
         ChatMessage aiMessage = saveMessage(session, SenderRole.ASSISTANT, aiContent);
 
         // 5. Redis에 대화내용 저장
-        saveContextToRedis(session.getSessionSeq(), request.content(), aiContent);
+        saveContextToRedis(session.getSessionId(), request.content(), aiContent);
 
-        return ChatSendResponse.of(session.getSessionSeq(), ChatMessageDto.from(aiMessage));
+        return ChatSendResponse.of(session.getSessionId(), ChatMessageDto.from(aiMessage));
 
     }
 
     /**
+     * 특정 세션의 대화 내용을 외부 서비스(예: DiaryService)에서 사용할 수 있도록
+     * 문자열 형태로 포맷팅하여 제공합니다.
+     * @return "USER: 내용 \n ASSISTANT: 내용" 형태의 문자열
+     */
+    public String getFormattedChatHistory(Long sessionId, Long memberId) {
+        // 세션 조회 (내 세션인지, 종료된 세션인지 확인)
+        ChatSession session = chatSessionRepository.findBySessionIdAndMember_MemberId(sessionId, memberId)
+                .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
+
+        // 해당 세션의 모든 메시지 시간순 조회
+        // TODO user의 내용으로만 작성할지 캐릭터까지 들어가게 작성할지 -> 일단 user내용으로만 작성하도록 수정해보자
+        List<ChatMessage> messages = chatMessageRepository.findAllByChatSessionOrderByCreatedAtAsc(session);
+
+        if (messages.isEmpty()) {
+            throw new BaseException(ResultCode.EMPTY_CHAT_HISTORY); // 대화가 없으면 일기 생성 불가
+        }
+
+        // AI에게 전달할 대화 텍스트 포맷팅
+        // 예: "USER: 오늘 힘들어 / ASSISTANT: 무슨 일이야?
+        return messages.stream()
+                .map(m -> String.format("%s: %s", m.getRole(), m.getContent()))
+                .collect(Collectors.joining("\n"));
+    }
+
+    /**
      * AI 서비스를 호출하여 캐릭터의 성격이 반영된 답변을 생성합니다.
-     * * @param session     현재 대화 세션 (캐릭터 정보 포함)
-     *
+     * @param session     현재 대화 세션 (캐릭터 정보 포함)
      * @param userContent 사용자가 입력한 메시지 내용
      * @return AI가 생성한 답변 문자열
      */
@@ -87,7 +123,7 @@ public class ChatService {
                 String.format(AiPrompt.CHAT_SYSTEM_PROMPT, characterPersonality,characterName)));
 
         // Redis에서 과거 대화 가져오기
-        fullMessages.addAll(getContextFromRedis(session.getSessionSeq()));
+        fullMessages.addAll(getContextFromRedis(session.getSessionId()));
 
         // 현재 사용자의 질문 추가
         fullMessages.add(new OpenAiRequest.Message("user", userContent));
@@ -98,11 +134,11 @@ public class ChatService {
 
     /**
      * Redis에서 저장된 JSON 대화 내역을 객체 리스트로 변환
-     * @param sessionSeq 현재 대화 세션
+     * @param sessionId 현재 대화 세션
      * @return Redis에서 저장된 JSON 대화 내역 ~10개
      */
-    private List<OpenAiRequest.Message> getContextFromRedis(Long sessionSeq) {
-        String key = CHAT_KEY_PREFIX + sessionSeq;
+    private List<OpenAiRequest.Message> getContextFromRedis(Long sessionId) {
+        String key = CHAT_KEY_PREFIX + sessionId;
         List<String> jsonHistory = redisTemplate.opsForList().range(key, 0, -1);
         List<OpenAiRequest.Message> history = new ArrayList<>();
 
@@ -121,12 +157,12 @@ public class ChatService {
 
     /**
      * 대화 내역을 JSON으로 변환하여 Redis에 저장하고, 관리(Trim/Expire)
-     * @param sessionSeq 현재 대화 세션
+     * @param sessionId 현재 대화 세션
      * @param userMessage 현재 유저 메시지
      * @param aiMessage 응답 메시지
      */
-    private void saveContextToRedis(Long sessionSeq, String userMessage, String aiMessage) {
-        String key = CHAT_KEY_PREFIX + sessionSeq;
+    private void saveContextToRedis(Long sessionId, String userMessage, String aiMessage) {
+        String key = CHAT_KEY_PREFIX + sessionId;
 
         try{
             String userJson = objectMapper.writeValueAsString(new OpenAiRequest.Message("user", userMessage));
@@ -146,17 +182,16 @@ public class ChatService {
 
     /**
      * 기존 대화 세션을 조회하거나, 없을 경우 새로운 세션을 생성합니다.
-     * @param memberSeq    현재 로그인한 회원 정보
-     * @param sessionSeq 조회할 세션의 고유 식별자 (null 가능)
+     * @param memberId    현재 로그인한 회원 정보
+     * @param sessionId 조회할 세션의 고유 식별자 (null 가능)
      * @return 활성화된 대화 세션 엔티티
      */
-    private ChatSession getOrCreateSession(Long memberSeq, Long sessionSeq) {
+    private ChatSession getOrCreateSession(Long memberId, Long sessionId) {
 
-        Member member = memberRepository.findByIdWithCharacter(memberSeq)
-                .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
+        Member member = memberService.getMemberWithCharacter(memberId);
 
-        if(sessionSeq != null) {
-            return chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionSeq, memberSeq)
+        if(sessionId != null) {
+            return chatSessionRepository.findBySessionIdAndMember_MemberId(sessionId, memberId)
                     .filter(s -> !s.isEnded()) // 종료되지 않은 세션만 사용
                     .orElseGet(() -> createNewSession(member));
         }
@@ -172,10 +207,11 @@ public class ChatService {
      */
     private ChatSession createNewSession(Member member) {
 
-        Long characterSeq = member.getBuddyCharacter().getCharacterSeq();
+        BuddyCharacter character = member.getBuddyCharacter();
 
-        BuddyCharacter character = buddyCharacterRepository.findById(characterSeq)
-                .orElseThrow(() -> new BaseException(ResultCode.CHARACTER_NOT_FOUND));
+        if (character == null) {
+            throw new BaseException(ResultCode.CHARACTER_NOT_FOUND);
+        }
 
         // 사용자가 현재 설정한 캐릭터를 가져와서 세션 생성
         ChatSession session = ChatSession.builder()
@@ -206,14 +242,14 @@ public class ChatService {
     /**
      * 특정 세션의 이전 대화 기록을 조회합니다.
      * * @param member    현재 로그인한 회원 정보
-     * @param sessionSeq 조회할 세션의 고유 식별자
+     * @param sessionId 조회할 세션의 고유 식별자
      * @return 과거 메시지 내역 리스트 (최신순)
      * @throws BaseException 해당 세션이 존재하지 않거나 본인 세션이 아닐 경우 발생
      */
-    public ChatHistoryResponse getChatHistory(Long memberSeq, Long sessionSeq) {
+    public ChatHistoryResponse getChatHistory(Long memberId, Long sessionId) {
 
         // 내 세션인지 검증함께
-        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionSeq, memberSeq)
+        ChatSession session = chatSessionRepository.findBySessionIdAndMember_MemberId(sessionId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
         // 메시지 목록을 과거순으로 조회하여 DTO로 변환
@@ -222,19 +258,19 @@ public class ChatService {
                 .map(ChatMessageDto::from)
                 .toList();
 
-        return ChatHistoryResponse.of(session.getSessionSeq(), session.getBuddyCharacter().getCharacterSeq(), messages);
+        return ChatHistoryResponse.of(session.getSessionId(), session.getBuddyCharacter().getCharacterId(), messages);
     }
 
     /**
      * 진행 중인 대화 세션을 종료 상태로 변경합니다.
      * * @param member    현재 로그인한 회원 정보
-     * @param sessionSeq 종료할 세션의 고유 식별자
+     * @param sessionId 종료할 세션의 고유 식별자
      * @throws BaseException 해당 세션이 존재하지 않거나 본인 세션이 아닐 경우 발생
      */
     @Transactional
-    public void endChatSession(Long memberSeq, Long sessionSeq){
+    public void endChatSession(Long memberId, Long sessionId){
 
-        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(sessionSeq, memberSeq)
+        ChatSession session = chatSessionRepository.findBySessionIdAndMember_MemberId(sessionId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
         // 2. 이미 종료된 세션인지 체크 (선택 사항)
@@ -246,7 +282,5 @@ public class ChatService {
 
         chatSessionRepository.save(session);
     }
-
-
 
 }

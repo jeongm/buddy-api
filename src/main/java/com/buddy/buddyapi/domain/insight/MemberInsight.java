@@ -19,11 +19,11 @@ public class MemberInsight {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "insight_seq")
-    private Long insightSeq;
+    @Column(name = "insight_id")
+    private Long insightId;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_seq", unique = true)
+    @JoinColumn(name = "member_id", unique = true)
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Member member;
 

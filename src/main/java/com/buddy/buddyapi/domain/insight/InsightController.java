@@ -28,7 +28,7 @@ public class InsightController {
     public ResponseEntity<ApiResponse<List<TagNameCountResponse>>> getLastWeekTopTags(
             @AuthenticationPrincipal CustomUserDetails member
     ) {
-        List<TagNameCountResponse> result = insightService.getLastWeekTopTags(member.memberSeq());
+        List<TagNameCountResponse> result = insightService.getLastWeekTopTags(member.memberId());
 
         return ResponseEntity.ok(ApiResponse.ok("태그 조회 성공",result));
     }
@@ -41,7 +41,7 @@ public class InsightController {
     public ResponseEntity<ApiResponse<WeeklyIdentityResponse>> getMyWeeklyIdentity(
             @AuthenticationPrincipal CustomUserDetails member) {
 
-        WeeklyIdentityResponse response = insightService.getWeeklyInsight(member.memberSeq());
+        WeeklyIdentityResponse response = insightService.getWeeklyInsight(member.memberId());
 
         return ResponseEntity.ok(ApiResponse.ok(response));
     }

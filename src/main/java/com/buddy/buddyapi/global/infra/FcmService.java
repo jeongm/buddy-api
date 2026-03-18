@@ -1,16 +1,19 @@
 package com.buddy.buddyapi.global.infra;
 
-import com.google.firebase.messaging.FirebaseMessaging;
-import com.google.firebase.messaging.Message;
-import com.google.firebase.messaging.Notification;
+import com.google.firebase.messaging.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+
+import java.util.List;
 
 @Slf4j
 @Service
 public class FcmService {
 
-    public void sendPush(String targetToken, String title, String body) {
+    /**
+     * 한 명에게 푸시 알림
+     */
+    public void sendPushOne(String targetToken, String title, String body) {
         // 토큰이 없으면 보낼 수 없음
         if (targetToken == null || targetToken.isEmpty()) {
             return;
@@ -23,7 +26,6 @@ public class FcmService {
                         .setTitle(title)
                         .setBody(body)
                         .build())
-                // .putData("link", "buddyapp://chat/123") // 딥링크 같은 추가 데이터도 넣을 수 있어요!
                 .build();
 
         try {
@@ -34,4 +36,30 @@ public class FcmService {
             log.error("푸시 알림 전송 실패: 토큰={}, 원인={}", targetToken, e.getMessage());
         }
     }
+
+    /**
+     * 여러 명(최대 500명)에게 한 번의 API 호출로 푸시 알림
+     */
+    public void sendPushBulk(List<String> targetTokens, String title, String body) {
+        if(targetTokens == null || targetTokens.isEmpty()) {
+            return;
+        }
+
+        MulticastMessage message = MulticastMessage.builder()
+                .addAllTokens(targetTokens)
+                .setNotification(Notification.builder()
+                        .setTitle(title)
+                        .setBody(body)
+                        .build())
+                .build();
+
+        try {
+            BatchResponse response = FirebaseMessaging.getInstance().sendEachForMulticast(message);
+            log.info("대량 푸시 알림 전송 완료! (성공: {}, 실패: {}",
+                    response.getSuccessCount(), response.getFailureCount());
+        } catch (FirebaseMessagingException e) {
+            log.error("대량 푸시 알림 전송 실패: 원인={}", e.getMessage());
+        }
+    }
+
 }

@@ -1,12 +1,9 @@
 package com.buddy.buddyapi.domain.diary;
 
-import com.buddy.buddyapi.domain.chat.ChatMessage;
-import com.buddy.buddyapi.domain.chat.ChatMessageRepository;
-import com.buddy.buddyapi.domain.chat.ChatSession;
-import com.buddy.buddyapi.domain.chat.ChatSessionRepository;
+import com.buddy.buddyapi.domain.chat.*;
 import com.buddy.buddyapi.domain.diary.dto.*;
+import com.buddy.buddyapi.domain.diary.event.DiaryImagesCleanupEvent;
 import com.buddy.buddyapi.domain.member.Member;
-import com.buddy.buddyapi.domain.member.MemberRepository;
 import com.buddy.buddyapi.domain.member.MemberService;
 import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.aspect.Timer;
@@ -16,6 +13,7 @@ import com.buddy.buddyapi.domain.ai.AiService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -27,7 +25,6 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -37,24 +34,26 @@ public class DiaryService {
 
     private final DiaryRepository diaryRepository;
     private final TagRepository tagRepository;
+
     private final MemberService memberService;
-    private final ChatSessionRepository chatSessionRepository;
-    private final ChatMessageRepository chatMessageRepository;
     private final AiService aiService;
-    private final ObjectMapper objectMapper;
+    private final ChatService chatService;
     private final ImageService imageService;
+
+    private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 일기를 목록입니다. 검색어가 있을 시 검색된 일기 목록을 보여줍니다.
-     * @param memberSeq 현재 로그인한 회원 정보
+     * @param memberId 현재 로그인한 회원 정보
      * @param search 검색하고 싶은 내용
      * @param pageable 원하는 페이지
-     * @return
+     * @return 다이어리 목록 (이미지, 100자가량의 내용, 제목, 태그)
      */
     @Transactional(readOnly = true)
-    public Slice<DiaryListResponse> getDiaryList(Long memberSeq, String search, Pageable pageable) {
+    public Slice<DiaryListResponse> getDiaryList(Long memberId, String search, Pageable pageable) {
 
-        Slice<Diary> diarySlice = diaryRepository.searchMyDiaries(memberSeq, search, pageable);
+        Slice<Diary> diarySlice = diaryRepository.searchMyDiaries(memberId, search, pageable);
 
         return diarySlice.map(DiaryListResponse::from);
     }
@@ -62,32 +61,16 @@ public class DiaryService {
     /**
      * 채팅 내역을 기반으로 AI 일기 초안을 생성합니다. (DB 저장 안 함)
      *
-     * @param memberSeq  현재 로그인한 회원 정보
+     * @param memberId  현재 로그인한 회원 정보
      * @param request 일기 생성을 위한 세션 ID가 포함된 요청 DTO
      * @return AI가 생성한 일기 제목, 본문, 추천 태그 정보를 담은 프리뷰 응답 DTO
      * @throws BaseException 세션을 찾을 수 없거나 대화 내역이 비어있을 경우 발생
      */
     @Timer
     @Transactional(readOnly = true)
-    public DiaryPreviewResponse generateDiaryFromChat(Long memberSeq, DiaryGenerateRequest request) {
+    public DiaryPreviewResponse generateDiaryFromChat(Long memberId, DiaryGenerateRequest request) {
 
-        // 세션 조회 (내 세션인지, 종료된 세션인지 확인)
-        ChatSession session = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(request.sessionSeq(), memberSeq)
-                .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
-
-        // 해당 세션의 모든 메시지 시간순 조회
-        // TODO user의 내용으로만 작성할지 캐릭터까지 들어가게 작성할지 -> 일단 user내용으로만 작성하도록 수정해보자
-        List<ChatMessage> messages = chatMessageRepository.findAllByChatSessionOrderByCreatedAtAsc(session);
-
-        if (messages.isEmpty()) {
-            throw new BaseException(ResultCode.EMPTY_CHAT_HISTORY); // 대화가 없으면 일기 생성 불가
-        }
-
-        // AI에게 전달할 대화 텍스트 포맷팅
-        // 예: "USER: 오늘 힘들어 / ASSISTANT: 무슨 일이야?
-        String fullConversation = messages.stream()
-                .map(m -> String.format("%s: %s", m.getRole(), m.getContent()))
-                .collect(Collectors.joining("\n"));
+        String fullConversation = chatService.getFormattedChatHistory(request.sessionId(), memberId);
 
         // AI 서비스 호출 (페르소나와 대화 내용 전달)
         String rawResponse = aiService.getDiaryDraft(
@@ -103,14 +86,14 @@ public class DiaryService {
     /**
      * 특정 날짜에 작성된 일기 목록을 조회합니다.
      *
-     * @param memberSeq 현재 로그인한 회원 정보
+     * @param memberId 현재 로그인한 회원 정보
      * @param date   조회하고자 하는 날짜 (yyyy-MM-dd)
      * @return 해당 날짜에 작성된 일기 리스트 (최신순)
      */
     @Transactional(readOnly = true)
-    public List<DiaryListResponse> getDiariesByDate(Long memberSeq, LocalDate date) {
+    public List<DiaryListResponse> getDiariesByDate(Long memberId, LocalDate date) {
 
-        return diaryRepository.findAllByMemberAndDiaryDate(memberSeq, date)
+        return diaryRepository.findAllByMemberAndDiaryDate(memberId, date)
                 .stream()
                 .map(DiaryListResponse::from)
                 .toList();
@@ -119,20 +102,19 @@ public class DiaryService {
     /**
      * 사용자가 최종 확정한 일기 데이터를 DB에 저장합니다.
      *
-     * @param memberSeq  현재 로그인한 회원 정보
+     * @param memberId  현재 로그인한 회원 정보
      * @param request 저장할 일기 제목, 내용, 이미지, 태그 ID 리스트 등을 담은 DTO
      * @return 생성된 일기의 고유 식별자 (ID)
      * @throws BaseException 요청한 태그 ID가 존재하지 않을 경우 발생
      */
     @Transactional
-    public Long createDiary(Long memberSeq, DiaryCreateRequest request, MultipartFile image) {
+    public Long createDiary(Long memberId, DiaryCreateRequest request, MultipartFile image) {
 
-        Member member = memberService.getMemberBySeq(memberSeq);
+        Member member = memberService.getMemberById(memberId);
 
         ChatSession chatSession = null;
-        if(request.sessionSeq() != null) {
-            chatSession = chatSessionRepository.findBySessionSeqAndMember_MemberSeq(request.sessionSeq(), memberSeq)
-                    .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
+        if(request.sessionId() != null) {
+            chatSession = chatService.getChatSessionEntity(request.sessionId(), memberId);
         }
 
         // 이미지 파일이 있으면 저장하고 경로 반환받기
@@ -156,21 +138,21 @@ public class DiaryService {
             diary.addTags(tags);
         }
 
-        return diaryRepository.save(diary).getDiarySeq();
+        return diaryRepository.save(diary).getDiaryId();
     }
 
     /**
      * 기존에 작성된 일기 내용을 수정합니다.
      *
-     * @param memberSeq   현재 로그인한 회원 정보
-     * @param diarySeq 수정할 일기의 고유 식별자
+     * @param memberId   현재 로그인한 회원 정보
+     * @param diaryId 수정할 일기의 고유 식별자
      * @param request  수정할 제목, 내용, 이미지, 태그 리스트 등을 담은 DTO
      * @throws BaseException 일기를 찾을 수 없거나 본인 일기가 아닐 경우 발생
      */
     @Transactional
-    public void updateDiary(Long memberSeq, Long diarySeq, DiaryUpdateRequest request, MultipartFile newImage) {
+    public void updateDiary(Long memberId, Long diaryId, DiaryUpdateRequest request, MultipartFile newImage) {
 
-        Diary diary = diaryRepository.findByDiarySeqAndMember_MemberSeq(diarySeq, memberSeq)
+        Diary diary = diaryRepository.findByDiaryIdAndMember_MemberId(diaryId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
         String oldImageUrl = diary.getImageUrl();
@@ -198,13 +180,13 @@ public class DiaryService {
 
     /**
      * 특정 일기 삭제
-     *  @param memberSeq   현재 로그인한 회원 정보정보
-     *  @param diarySeq    삭제할 일기의 고유 식별자
+     *  @param memberId   현재 로그인한 회원 정보정보
+     *  @param diaryId    삭제할 일기의 고유 식별자
      */
     @Transactional
-    public void deleteDiary(Long memberSeq, Long diarySeq) {
+    public void deleteDiary(Long memberId, Long diaryId) {
 
-        Diary diary = diaryRepository.findByDiarySeqAndMember_MemberSeq(diarySeq, memberSeq)
+        Diary diary = diaryRepository.findByDiaryIdAndMember_MemberId(diaryId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
         diaryRepository.delete(diary);
@@ -219,14 +201,14 @@ public class DiaryService {
     /**
      * 일기의 상세 내용을 조회합니다.
      *
-     * @param memberSeq   현재 로그인한 회원 정보
-     * @param diarySeq 조회할 일기의 고유 식별자
+     * @param memberId   현재 로그인한 회원 정보
+     * @param diaryId 조회할 일기의 고유 식별자
      * @return 일기 상세 정보 및 연관된 태그 정보를 포함한 DTO
      * @throws BaseException 일기를 찾을 수 없거나 본인 일기가 아닐 경우 발생
      */
     @Transactional(readOnly = true)
-    public DiaryDetailResponse getDiaryDetail(Long memberSeq, Long diarySeq) {
-        Diary diary = diaryRepository.findDetailByDiarySeqAndMemberSeq(diarySeq, memberSeq)
+    public DiaryDetailResponse getDiaryDetail(Long memberId, Long diaryId) {
+        Diary diary = diaryRepository.findDetailByDiaryIdAndMemberId(diaryId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
         return DiaryDetailResponse.from(diary);
@@ -234,13 +216,13 @@ public class DiaryService {
 
     /**
      *
-     * @param memberSeq 현재 로그인한 회원 정보
+     * @param memberId 현재 로그인한 회원 정보
      * @param year 조회할 년도
      * @param month 조회할 월
      * @return 조회 년월의 일기 개수 리스트
      */
     @Transactional(readOnly = true)
-    public List<MonthlyDiaryCountResponse> getMonthlyDiaryStats(Long memberSeq, int year, int month) {
+    public List<MonthlyDiaryCountResponse> getMonthlyDiaryStats(Long memberId, int year, int month) {
 
         // 해당 월의 시작일 (예: 2024-03-01)
         YearMonth yearMonth = YearMonth.of(year, month);
@@ -249,30 +231,40 @@ public class DiaryService {
         // 해당 월의 마지막 날 (예: 2024-03-31)
         LocalDate endDate = yearMonth.atEndOfMonth();
 
-        return diaryRepository.findAllMonthlyCount(memberSeq, startDate, endDate);
+        return diaryRepository.findAllMonthlyCount(memberId, startDate, endDate);
     }
 
     /**
      * 일기 목록에서 최근 사용한 태그를 보여줍니다.
-     * @param memberSeq 현재 로그인한 회원 정보
+     * @param memberId 현재 로그인한 회원 정보
      * @return 최근 30일 이내 가장 많이 사용한 태그 10개 (1. 빈도 수 2. 작성 순)
      */
     @Transactional(readOnly = true)
-    public List<TagResponse> getRecentTopTags(Long memberSeq) {
-        return diaryRepository.findRecentTopTags(memberSeq);
+    public List<TagResponse> getRecentTopTags(Long memberId) {
+        return diaryRepository.findRecentTopTags(memberId);
 
     }
 
+    /**
+     * [회원 탈퇴] DB 삭제 전 Cloudinary 이미지 URL을 수집하고 정리 이벤트를 예약합니다.
+     * @EventListener 는 즉시 동기 실행되므로, memberRepository.deleteById() 보다 먼저 실행됩니다.
+     * 덕분에 아직 살아있는 Diary에서 URL을 안전하게 읽을 수 있습니다.
+     * Diary의 DB 삭제는 Member 삭제 시 @OnDelete(CASCADE)가 처리합니다.
+     */
     @EventListener
-    @Transactional
+    @Transactional(readOnly = true)
     public void handleMemberWithdraw(MemberWithdrawEvent event) {
-        Long memberSeq = event.memberSeq();
+        Long memberId = event.memberId();
 
-        // 다이어리를 지우면서 -> 연결된 '태그' 삭제 -> 연결된 '챗 세션'까지 연쇄 폭발로 안전하게 삭제
-        Long deletedCount = diaryRepository.deleteAllByMember_MemberSeq(event.memberSeq());
+        List<String> imageUrls = diaryRepository.findImageUrlsByMemberId(memberId);
 
-        chatSessionRepository.bulkDeleteByMemberSeq(memberSeq);
-        log.info("📢 [DiaryService] 탈퇴 유저(seq: {})의 다이어리 {}개 삭제 완료", event.memberSeq(), deletedCount);
+        if (!imageUrls.isEmpty()) {
+            // 트랜잭션 커밋 후 Cloudinary 삭제를 위해 이벤트 예약
+            eventPublisher.publishEvent(new DiaryImagesCleanupEvent(imageUrls));
+        }
+
+        log.info("📢 [DiaryService] 탈퇴 유저(Id: {})의 Cloudinary 이미지 {}개 삭제 예약",
+                memberId, imageUrls.size());
     }
 
     /**

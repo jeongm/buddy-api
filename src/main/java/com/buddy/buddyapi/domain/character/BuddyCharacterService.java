@@ -1,6 +1,8 @@
 package com.buddy.buddyapi.domain.character;
 
 import com.buddy.buddyapi.domain.character.dto.CharacterResponse;
+import com.buddy.buddyapi.global.exception.BaseException;
+import com.buddy.buddyapi.global.exception.ResultCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -21,6 +23,16 @@ public class BuddyCharacterService {
         return characterRepository.findAll().stream()
                 .map(CharacterResponse::from)
                 .toList();
+    }
+
+    public BuddyCharacter getCharacter(Long characterId) {
+        return characterRepository.findById(characterId)
+                .orElseThrow(() -> new BaseException(ResultCode.CHARACTER_NOT_FOUND));
+    }
+
+    // 가짜 프록시 객체만 필요할 때 (캐릭터 변경 용 - SELECT 쿼리 X)
+    public BuddyCharacter getCharacterProxy(Long characterId) {
+        return characterRepository.getReferenceById(characterId);
     }
 
 

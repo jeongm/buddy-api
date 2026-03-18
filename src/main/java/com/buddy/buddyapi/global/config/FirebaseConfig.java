@@ -26,7 +26,7 @@ public class FirebaseConfig {
 
             if (FirebaseApp.getApps().isEmpty()) {
                 FirebaseApp.initializeApp(options);
-                log.info("🔥 Firebase 연동 성공!");
+                log.info("Firebase 연동 성공");
             }
         } catch (Exception e) {
             log.error("Firebase 초기화 중 에러 발생", e);

@@ -36,7 +36,7 @@ VALUES (
 
 
 ---- 1. 테스트 계정 변수 저장 (H2 문법에 맞게 수정)
---SET @member_id = (SELECT member_seq FROM member WHERE member_seq = 1);
+--SET @member_id = (SELECT member_id FROM member WHERE member_id = 1);
 --
 ---- 2. 태그 20개 생성
 --INSERT INTO tag (name) VALUES
@@ -47,7 +47,7 @@ VALUES (
 --
 ---- 3. 일기 데이터 50개 생성
 ---- ✨ H2 핵심 변경점: DATEADD('DAY', -N, CURRENT_DATE()) 사용
---INSERT INTO diary (member_seq, title, content, diary_date) VALUES
+--INSERT INTO diary (member_id, title, content, diary_date) VALUES
 --(@member_id, '최근 일기 1', '무한 스크롤 테스트용', DATEADD('DAY', -1, CURRENT_DATE())),
 --(@member_id, '최근 일기 2', '무한 스크롤 테스트용', DATEADD('DAY', -2, CURRENT_DATE())),
 --(@member_id, '최근 일기 3', '무한 스크롤 테스트용', DATEADD('DAY', -3, CURRENT_DATE())),
@@ -80,7 +80,7 @@ VALUES (
 --(@member_id, '최근 일기 30', '무한 스크롤 테스트용', DATEADD('DAY', -29, CURRENT_DATE()));
 --
 ---- 과거 일기 20개 (30일 초과)
---INSERT INTO diary (member_seq, title, content, diary_date) VALUES
+--INSERT INTO diary (member_id, title, content, diary_date) VALUES
 --(@member_id, '과거 일기 31', '30일 지난 일기', DATEADD('DAY', -35, CURRENT_DATE())),
 --(@member_id, '과거 일기 32', '30일 지난 일기', DATEADD('DAY', -36, CURRENT_DATE())),
 --(@member_id, '과거 일기 33', '30일 지난 일기', DATEADD('DAY', -37, CURRENT_DATE())),

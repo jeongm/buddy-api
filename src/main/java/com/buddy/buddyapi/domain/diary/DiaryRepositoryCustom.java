@@ -12,19 +12,19 @@ import java.util.Optional;
 
 public interface DiaryRepositoryCustom {
     // 월별 일기 개수 조회
-    List<MonthlyDiaryCountResponse> findAllMonthlyCount(Long memberSeq, LocalDate startDate, LocalDate endDate);
+    List<MonthlyDiaryCountResponse> findAllMonthlyCount(Long memberId, LocalDate startDate, LocalDate endDate);
 
     // 특정 날짜의 일기 상세 조회
-    List<Diary> findAllByMemberAndDiaryDate(Long memberSeq, LocalDate date);
+    List<Diary> findAllByMemberAndDiaryDate(Long memberId, LocalDate date);
 
     // 일기 상세페이지 - 모든 태그정보, 대화 로그
-    Optional<Diary> findDetailByDiarySeqAndMemberSeq(Long diarySeq, Long memberSeq);
+    Optional<Diary> findDetailByDiaryIdAndMemberId(Long diaryId, Long memberId);
 
-    Slice<Diary> searchMyDiaries(Long memberSeq, String search, Pageable pageable);
+    Slice<Diary> searchMyDiaries(Long memberId, String search, Pageable pageable);
 
-    List<TagResponse> findRecentTopTags(Long memberSeq);
+    List<TagResponse> findRecentTopTags(Long memberId);
 
-    List<String> findDiaryContentsByMemberAndDateRange(Long memberSeq, LocalDate startDate, LocalDate endDate);
+    List<String> findDiaryContentsByMemberAndDateRange(Long memberId, LocalDate startDate, LocalDate endDate);
 
-    List<TagNameCountResponse> findTopTagsByMemberAndDateRange(Long memberSeq, LocalDate startDate, LocalDate endDate, int limit);
+    List<TagNameCountResponse> findTopTagsByMemberAndDateRange(Long memberId, LocalDate startDate, LocalDate endDate, int limit);
 }

@@ -5,10 +5,10 @@ import lombok.Builder;
 
 @Builder
 public record MemberResponse(
-        Long memberSeq,
+        Long memberId,
         String email,
         String nickname,
-        Long characterSeq,
+        Long characterId,
         String characterNickname,
         String avatarUrl
 ) {
@@ -18,10 +18,10 @@ public record MemberResponse(
         var buddy = member.getBuddyCharacter();
 
         return MemberResponse.builder()
-                .memberSeq(member.getMemberSeq())
+                .memberId(member.getMemberId())
                 .email(member.getEmail())
                 .nickname(member.getNickname())
-                .characterSeq(buddy != null ? buddy.getCharacterSeq() : null)
+                .characterId(buddy != null ? buddy.getCharacterId() : null)
                 .characterNickname(member.getCharacterNickname() != null
                         ? member.getCharacterNickname()
                         : (buddy != null ? buddy.getName() : null))

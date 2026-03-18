@@ -3,7 +3,7 @@ package com.buddy.buddyapi.domain.character.dto;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
 
 public record CharacterResponse(
-        Long characterSeq,
+        Long characterId,
         String name,
         String description,
         String personality,
@@ -11,7 +11,7 @@ public record CharacterResponse(
 ) {
     public static CharacterResponse from(BuddyCharacter character) {
         return new CharacterResponse(
-                character.getCharacterSeq(),
+                character.getCharacterId(),
                 character.getName(),
                 character.getDescription(),
                 character.getPersonality(),
