@@ -1,5 +1,7 @@
-package com.buddy.buddyapi.domain.chat;
+package com.buddy.buddyapi.global.scheduler;
 
+import com.buddy.buddyapi.domain.chat.ChatSession;
+import com.buddy.buddyapi.domain.chat.ChatSessionRepository;
 import com.buddy.buddyapi.global.infra.FcmService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,9 +25,8 @@ public class ChatRetentionScheduler {
      * - 10시간 경과 & 일기 미생성 & 알림 안 보낸 세션 찾아서 알림 발송
      */
     @Scheduled(cron = "0 30 * * * *")
-//    @Scheduled(fixedDelay = 10000) // 테스트용 10초마다 알림
+    @Transactional
     public void sendWarningPushNotifications() {
-//        LocalDateTime tenHoursAgo = LocalDateTime.now().minusMinutes(1);
         LocalDateTime tenHoursAgo = LocalDateTime.now().minusHours(10);
 
         List<ChatSession> warningTargets = chatSessionRepository.findWarningTargets(tenHoursAgo);
@@ -51,18 +52,12 @@ public class ChatRetentionScheduler {
 
         // 알림 발송 완료 처리 - 발송 시간 업데이트
         if(!targetSessionIds.isEmpty()) {
-            markSessionsAsNotified(targetSessionIds);
+            chatSessionRepository.bulkMarkAsNotified(targetSessionIds);
         }
     }
 
-
-    @Transactional
-    public void markSessionsAsNotified(List<Long> sessionIds) {
-        chatSessionRepository.bulkMarkAsNotified(sessionIds);
-    }
-
     /**
-     * 2. 청소 스케줄러: 매시간 정각마다 실행 (예: 1시 00분, 2시 00분)
+     * 청소 스케줄러: 매시간 정각마다 실행 (예: 1시 00분, 2시 00분)
      * - 12시간 경과 & 일기 미생성 세션 완전 삭제 (벌크 연산)
      */
     @Scheduled(cron = "0 0 * * * *")
@@ -74,7 +69,7 @@ public class ChatRetentionScheduler {
         int deletedSessions = chatSessionRepository.deleteOrphanSessions(twelveHoursAgo);
 
         if(deletedSessions > 0) {
-            log.info("🧹 잉여 메시지 청소 완료: 12시간이 경과된 채팅 메시지{}개, 세션 {}개를 영구 삭제했습니다.", deletedMessages, deletedSessions);
+            log.info("잉여 메시지 청소 완료: 12시간이 경과된 채팅 메시지{}개, 세션 {}개를 영구 삭제했습니다.", deletedMessages, deletedSessions);
         }
     }
 

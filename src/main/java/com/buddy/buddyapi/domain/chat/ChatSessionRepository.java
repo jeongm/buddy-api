@@ -22,6 +22,7 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
     // 알림 발송용 : 10시간 지남, 알림 안보냄, 일기로 안 만들어진 채팅방
     @Query("""
         SELECT c FROM ChatSession c 
+        JOIN FETCH c.member 
         WHERE c.createdAt <= :tenHoursAgo 
           AND c.deletionNotifiedAt IS NULL 
           AND NOT EXISTS (SELECT 1 FROM Diary d WHERE d.chatSession = c)
@@ -30,7 +31,7 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
 
     // 쓰레기 청소용 : 12시간 지남, 일기로 안 만들어진 채팅방 삭제
     // 벌크연산(Bulk Delete)으로 최적화(N+1)문제 방지
-    // 🌟 쓰레기 청소 1단계: 자식(메시지) 먼저 삭제 (FK 에러 방지용)
+    // 쓰레기 청소 1단계: 자식(메시지) 먼저 삭제 (FK 에러 방지용)
     @Modifying(clearAutomatically = true)
     @Query("""
         DELETE FROM ChatMessage m 
@@ -42,7 +43,7 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
         """)
     int deleteOrphanMessages(@Param("twelveHoursAgo") LocalDateTime twelveHoursAgo);
 
-    // 🌟 쓰레기 청소 2단계: 부모(세션) 삭제
+    // 쓰레기 청소 2단계: 부모(세션) 삭제
     @Modifying(clearAutomatically = true)
     @Query("""
         DELETE FROM ChatSession c 
@@ -58,6 +59,6 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
     // 여러 채팅 세션의 알림 발송 시간을 현재 시간으로 한 번에(Bulk) 업데이트
     @Modifying(clearAutomatically = true)
     @Query("UPDATE ChatSession cs SET cs.deletionNotifiedAt = CURRENT_TIMESTAMP WHERE cs.sessionId IN :sessionIds")
-    void bulkMarkAsNotified(@Param("sessionids") List<Long> sessionIds);
+    void bulkMarkAsNotified(@Param("sessionIds") List<Long> sessionIds);
 
 }
