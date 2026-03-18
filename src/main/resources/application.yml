@@ -30,14 +30,13 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.MariaDBDialect
     hibernate:
-      defer-datasource-initialization: true
       ddl-auto: create
     properties:
       hibernate:
         default_batch_fetch_size: 100
   sql:
     init:
-      mode: always
+      mode: never
 
 # =================================================================
 # Redis Settings (SSL Enabled)
