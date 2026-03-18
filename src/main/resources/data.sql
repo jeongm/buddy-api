@@ -1,7 +1,3 @@
-SET FOREIGN_KEY_CHECKS = 0;
-TRUNCATE TABLE buddy_character;
-SET FOREIGN_KEY_CHECKS = 1;
-
 
 -- 1. 캐릭터 (ID를 명시하는 것이 테스트할 때 편합니다)
 -- 1. 햄스터 (햄찌)
