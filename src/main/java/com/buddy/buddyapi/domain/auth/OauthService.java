@@ -8,6 +8,7 @@ import com.buddy.buddyapi.domain.auth.dto.AuthDto;
 import com.buddy.buddyapi.domain.auth.enums.AuthStatus;
 import com.buddy.buddyapi.domain.member.*;
 import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
+import com.buddy.buddyapi.domain.member.event.SocialUnlinkEvent;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -16,6 +17,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpEntity;
@@ -24,6 +26,8 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
@@ -41,6 +45,7 @@ public class OauthService {
 
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     private final GoogleTokenVerifier googleTokenVerifier;
     private final KakaoTokenVerifier kakaoTokenVerifier;
@@ -135,28 +140,56 @@ public class OauthService {
         return objectMapper.readValue(jsonValue, OAuthLinkInfo.class);
     }
 
+    /**
+     * [트랜잭션 내부, 즉시 실행]
+     * 소셜 계정 정보를 DB에서 읽어 스냅샷을 만들고, AFTER_COMMIT 처리 이벤트를 예약합니다.
+     * 실제 외부 API 호출은 트랜잭션 밖(AFTER_COMMIT)에서 수행해 DB 커넥션 점유를 최소화합니다.
+     */
     @EventListener
+    @Transactional(readOnly = true)
     public void onMemberWithdraw(MemberWithdrawEvent event) {
-        log.info("📢 [OauthService] 탈퇴 이벤트 수신! 소셜 연결을 해제합니다. (memberId: {})", event.memberId());
-        unlinkSocialAccounts(event.memberId());
+        List<OauthAccount> accounts = oauthAccountRepository.findByMember_MemberId(event.memberId());
+
+        if (accounts.isEmpty()) {
+            log.info("📢 [OauthService] 탈퇴 유저(Id: {})의 소셜 연동 없음.", event.memberId());
+            return;
+        }
+
+        List<SocialUnlinkEvent.AccountSnapshot> snapshots = accounts.stream()
+                .map(a -> new SocialUnlinkEvent.AccountSnapshot(
+                        a.getProvider(),
+                        a.getOauthId(),
+                        a.getSocialAccessToken(),
+                        a.getSocialRefreshToken()
+                ))
+                .toList();
+
+        eventPublisher.publishEvent(new SocialUnlinkEvent(snapshots));
+        log.info("📢 [OauthService] 탈퇴 유저(Id: {})의 소셜 연동 해제 이벤트 예약 ({}개 계정)",
+                event.memberId(), snapshots.size());
     }
 
-    @Transactional
-    public void unlinkSocialAccounts(Long memberId) {
-        List<OauthAccount> linkedAccounts = oauthAccountRepository.findByMember_MemberId(memberId);
-
-        for (OauthAccount account : linkedAccounts) {
-            String dbAccessToken = account.getSocialAccessToken();
-            String dbRefreshToken = account.getSocialRefreshToken();
-
-            switch (account.getProvider()) {
-                case KAKAO -> unlinkKakao(account.getOauthId());
-                case NAVER -> unlinkNaver(dbAccessToken, dbRefreshToken);
-                case GOOGLE -> {
-                    log.info("구글 연동은 프론트에서 처리");
+    /**
+     * [트랜잭션 커밋 후 실행]
+     * DB 커밋이 확정된 뒤 소셜 연동 해제 API를 호출합니다.
+     * 개별 실패가 다른 제공자 처리를 막지 않도록 예외를 개별 흡수합니다.
+     */
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void unlinkAfterCommit(SocialUnlinkEvent event) {
+        event.accounts().forEach(account -> {
+            try {
+                switch (account.provider()) {
+                    case KAKAO  -> unlinkKakao(account.oauthId());
+                    case NAVER  -> unlinkNaver(account.accessToken(), account.refreshToken());
+                    case GOOGLE -> log.info("구글 연동은 프론트에서 처리합니다.");
                 }
+            } catch (Exception e) {
+                // 연동 해제 실패는 치명적이지 않음. 로깅 후 계속 진행.
+                log.error("🔴 [OauthService] 소셜 연결 끊기 실패: provider={}, oauthId={}",
+                        account.provider(), account.oauthId(), e);
             }
-        }
+        });
+        log.info("📢 [OauthService] 소셜 연결 해제 처리 완료");
     }
 
     // =========================================================================

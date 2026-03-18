@@ -44,8 +44,9 @@ public class Diary {
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Member member;
 
-    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.REMOVE)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "session_id")
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private ChatSession chatSession;
 
     @OneToMany(mappedBy = "diary", cascade = CascadeType.ALL, orphanRemoval = true)
@@ -59,10 +60,6 @@ public class Diary {
         this.imageUrl = imageUrl;
         this.member = member;
         this.chatSession = chatSession;
-    }
-
-    public boolean isAiGenerated() {
-        return this.chatSession != null;
     }
 
     public void updateDiary(String title, String content, LocalDate diaryDate, String imageUrl) {

@@ -2,6 +2,7 @@ package com.buddy.buddyapi.domain.diary;
 
 import com.buddy.buddyapi.domain.chat.*;
 import com.buddy.buddyapi.domain.diary.dto.*;
+import com.buddy.buddyapi.domain.diary.event.DiaryImagesCleanupEvent;
 import com.buddy.buddyapi.domain.member.Member;
 import com.buddy.buddyapi.domain.member.MemberService;
 import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
@@ -12,6 +13,7 @@ import com.buddy.buddyapi.domain.ai.AiService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -39,13 +41,14 @@ public class DiaryService {
     private final ImageService imageService;
 
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * 일기를 목록입니다. 검색어가 있을 시 검색된 일기 목록을 보여줍니다.
      * @param memberId 현재 로그인한 회원 정보
      * @param search 검색하고 싶은 내용
      * @param pageable 원하는 페이지
-     * @return
+     * @return 다이어리 목록 (이미지, 100자가량의 내용, 제목, 태그)
      */
     @Transactional(readOnly = true)
     public Slice<DiaryListResponse> getDiaryList(Long memberId, String search, Pageable pageable) {
@@ -242,14 +245,26 @@ public class DiaryService {
 
     }
 
+    /**
+     * [회원 탈퇴] DB 삭제 전 Cloudinary 이미지 URL을 수집하고 정리 이벤트를 예약합니다.
+     * @EventListener 는 즉시 동기 실행되므로, memberRepository.deleteById() 보다 먼저 실행됩니다.
+     * 덕분에 아직 살아있는 Diary에서 URL을 안전하게 읽을 수 있습니다.
+     * Diary의 DB 삭제는 Member 삭제 시 @OnDelete(CASCADE)가 처리합니다.
+     */
     @EventListener
-    @Transactional
+    @Transactional(readOnly = true)
     public void handleMemberWithdraw(MemberWithdrawEvent event) {
+        Long memberId = event.memberId();
 
-        // 다이어리를 지우면서 -> 연결된 '태그' 삭제 -> 연결된 '챗 세션'까지 연쇄 폭발로 안전하게 삭제
-        Long deletedCount = diaryRepository.deleteAllByMember_MemberId(event.memberId());
+        List<String> imageUrls = diaryRepository.findImageUrlsByMemberId(memberId);
 
-        log.info("📢 [DiaryService] 탈퇴 유저(Id: {})의 다이어리 {}개 삭제 완료", event.memberId(), deletedCount);
+        if (!imageUrls.isEmpty()) {
+            // 트랜잭션 커밋 후 Cloudinary 삭제를 위해 이벤트 예약
+            eventPublisher.publishEvent(new DiaryImagesCleanupEvent(imageUrls));
+        }
+
+        log.info("📢 [DiaryService] 탈퇴 유저(Id: {})의 Cloudinary 이미지 {}개 삭제 예약",
+                memberId, imageUrls.size());
     }
 
     /**

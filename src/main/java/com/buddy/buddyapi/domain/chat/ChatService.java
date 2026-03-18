@@ -8,7 +8,6 @@ import com.buddy.buddyapi.domain.character.BuddyCharacter;
 import com.buddy.buddyapi.domain.chat.dto.ChatSendResponse;
 import com.buddy.buddyapi.domain.member.Member;
 import com.buddy.buddyapi.domain.member.MemberService;
-import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
@@ -17,7 +16,6 @@ import com.buddy.buddyapi.domain.ai.AiService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -104,17 +102,6 @@ public class ChatService {
         return messages.stream()
                 .map(m -> String.format("%s: %s", m.getRole(), m.getContent()))
                 .collect(Collectors.joining("\n"));
-    }
-
-    /**
-     * 회원 탈퇴 시 해당 회원의 모든 채팅 세션을 벌크 삭제합니다.
-     * [이벤트 기반 처리]
-     */
-    @EventListener
-    @Transactional
-    public void handleMemberWithdraw(MemberWithdrawEvent event) {
-        Long memberId = event.memberId();
-        chatSessionRepository.bulkDeleteByMemberId(memberId);
     }
 
     /**

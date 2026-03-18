@@ -223,17 +223,26 @@ public class MemberService {
     }
 
     /**
-     * [회원 탈퇴] 소셜 연결을 끊고, 토큰을 파기하며, DB에서 회원을 삭제합니다.
-     * @param memberId 현재 로그인한 회원 정보
+     * [회원 탈퇴] DB에서 회원을 삭제하고 외부 자원 정리를 예약합니다.
+     *
+     * <pre>
+     * [트랜잭션 내부 - 즉시 실행]
+     *   1. DiaryService  : Cloudinary 삭제 대상 URL 수집 → DiaryImagesCleanupEvent 예약
+     *   2. OauthService  : 소셜 계정 정보 스냅샷 수집   → SocialUnlinkEvent 예약
+     *   3. memberRepository.deleteById() → DB @OnDelete CASCADE가 모든 자식 정리
+     *      (ChatSession, ChatMessage, Diary, DiaryTag, NotificationSetting, OauthAccount, MemberInsight)
+     *
+     * [트랜잭션 커밋 후 - AFTER_COMMIT]
+     *   4. AuthService   : Redis Refresh Token 삭제
+     *   5. ImageService  : Cloudinary 이미지 일괄 삭제
+     *   6. OauthService  : 소셜 연동 해제 API 호출
+     * </pre>
+     *
+     * @param memberId 탈퇴할 회원의 식별자
      */
     @Transactional
     public void deleteMember(Long memberId) {
-
         eventPublisher.publishEvent(new MemberWithdrawEvent(memberId));
-
-        notificationSettingService.deleteSettingOnWithdrawal(memberId);
-
-        // MemberService에게 지시: "이제 우리 DB에서 진짜로 유저 정보 지워!"
         memberRepository.deleteById(memberId);
     }
     /**
