@@ -19,6 +19,8 @@ public enum ResultCode {
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "G500", "서버 내부 에러가 발생했습니다."),
     // 429 Too Many Requests : 도배 방지용
     TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "G005", "요청 횟수가 초과되었습니다. 잠시 후 다시 시도해주세요."),
+    DATA_INTEGRITY_VIOLATION(HttpStatus.CONFLICT, "G006", "데이터 제약 조건 위반이 발생했습니다."),
+
 
     // --- 인증 및 토큰 관련 (T) ---
     INVALID_TOKEN(HttpStatus.UNAUTHORIZED, "T001", "유효하지 않은 토큰입니다."),
@@ -29,15 +31,16 @@ public enum ResultCode {
     UNSUPPORTED_PROVIDER(HttpStatus.BAD_REQUEST, "T006", "지원하지 않는 소셜 로그인 제공자입니다."),
     INVALID_CODE(HttpStatus.UNAUTHORIZED, "T007", "유효하지 않은 인증번호입니다"),
     UNAUTHORIZED_EMAIL_VERIFICATION(HttpStatus.UNAUTHORIZED, "T008", "이메일 인증이 만료되었거나 올바르지 않습니다."),
+    FORBIDDEN(HttpStatus.FORBIDDEN, "T009", "해당 리소스에 접근 권한이 없습니다."),
 
     // --- 회원/캐릭터 관련 (M) ---
-    EMAIL_DUPLICATED(HttpStatus.BAD_REQUEST, "M001", "이미 존재하는 이메일입니다."),
+    EMAIL_DUPLICATED(HttpStatus.BAD_REQUEST, "M001", "이미 존재하는 이메일입니다."), // 일반 회원가입 중복 체크
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "M002", "존재하지 않는 사용자입니다."),
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "M003", "이메일 또는 비밀번호가 불일치합니다."),
     CURRENT_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "M004", "현재 비밀번호가 일치하지 않습니다."),
     INVALID_PASSWORD_FORMAT(HttpStatus.BAD_REQUEST, "M005", "비밀번호 형식이 올바르지 않습니다."),
     CHARACTER_NOT_FOUND(HttpStatus.NOT_FOUND, "M006", "존재하지 않는 캐릭터입니다."),
-    ALREADY_SIGNED_UP_EMAIL(HttpStatus.BAD_REQUEST, "M007", "이미 가입된 이메일입니다. 소셜 계정 연동이 필요합니다."),
+    ALREADY_SIGNED_UP_EMAIL(HttpStatus.BAD_REQUEST, "M007", "이미 가입된 이메일입니다. 소셜 계정 연동이 필요합니다."), // OAuth 연동 시 이미 일반 가입된 이메일
     ALREADY_LINKED_ACCOUNT(HttpStatus.BAD_REQUEST, "M008", "이미 해당 소셜 플랫폼과 연동된 계정입니다."),
     OAUTH_MEMBER_CANNOT_RESET_PASSWORD(HttpStatus.BAD_REQUEST, "M009", "소셜 계정으로 가입된 이메일입니다. 소셜로그인을 이용해주세요."),
     EXPIRED_OR_INVALID_CODE(HttpStatus.BAD_REQUEST, "M010", "인증번호가 만료되었거나 일치하지 않습니다."),
