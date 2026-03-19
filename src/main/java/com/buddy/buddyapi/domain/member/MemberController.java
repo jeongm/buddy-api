@@ -27,7 +27,7 @@ public class MemberController {
         return ResponseEntity.ok(ApiResponse.ok("내 정보 조회 성공", memberService.getUserDetails(member.memberId())));
     }
 
-    @Operation(summary = "로그인 온보딩 완료", description = "초기 닉네임, 캐릭터, 알림 설정을 한 번에 완료합니다.")
+    @Operation(summary = "회원가입 직후 온보딩", description = "초기 닉네임, 캐릭터, 알림 설정을 한 번에 완료합니다.")
     @PatchMapping("/me/onboarding")
     public ResponseEntity<ApiResponse<Void>> completeOnboarding(
             @AuthenticationPrincipal CustomUserDetails member,

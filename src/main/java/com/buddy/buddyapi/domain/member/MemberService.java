@@ -66,7 +66,7 @@ public class MemberService {
         member.changeCharacter(myCharacter);
         member.updateCharacterNickname(request.characterName());
 
-        notificationSettingService.updateSocialOnboardingSettings(memberId, request.isNightAgreed());
+        notificationSettingService.updateOnboardingSettings(memberId, request.isNightAgreed());
 
     }
 

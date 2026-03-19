@@ -55,7 +55,12 @@ public enum ResultCode {
     EMPTY_CHAT_HISTORY(HttpStatus.NOT_FOUND, "C003", "대화 내역이 없어 일기를 생성할 수 없습니다."),
 
     // --- AI 서비스 관련 (A) ---
-    AI_PARSE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "A001", "AI 응답을 처리하는 중 오류가 발생했습니다.");
+    AI_PARSE_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "A001", "AI 응답을 처리하는 중 오류가 발생했습니다."),
+
+    // --- 알림 설정 관련 (N) ---
+    NOTIFICATION_SETTING_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "알림 설정 정보를 찾을 수 없습니다."),
+    NIGHT_ALERT_REQUIRED(HttpStatus.BAD_REQUEST, "N002", "데일리 안부 알림은 야간 알림 수신 동의 후 사용할 수 있습니다.");
+
 
 
 
