@@ -33,6 +33,8 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # Firebase 파일 생성
+            echo '${{ secrets.FIREBASE_ACCOUNT_JSON }}' > /home/ubuntu/firebase-buddyapp-account.json
             # 기존 컨테이너 중지 및 삭제
             docker stop buddy-api || true
             docker rm buddy-api || true
