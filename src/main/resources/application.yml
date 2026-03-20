@@ -24,7 +24,7 @@ jwt:
 spring:
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
-    url: ${DB_URL}
+    url: ${DB_URL}?characterEncoding=UTF-8&useUnicode=true
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
   jpa:

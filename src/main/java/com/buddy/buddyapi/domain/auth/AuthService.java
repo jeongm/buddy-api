@@ -198,7 +198,13 @@ public class AuthService {
     }
 
     /**
-     * 비밀번호 변경 - 발급된 uuid를 사용합니다
+     * [비밀번호 재설정] 이메일 인증 토큰을 검증한 후 비밀번호를 재설정합니다.
+     * 인증 토큰 검증 성공 시 Redis에서 해당 토큰을 즉시 삭제하여 재사용을 방지합니다.
+     *
+     * @param email       비밀번호를 재설정할 회원의 이메일
+     * @param newPassword 새로 설정할 비밀번호 (평문)
+     * @param token       이메일로 발급된 인증 토큰 (UUID)
+     * @throws BaseException 인증 토큰이 만료되었거나 일치하지 않을 경우 발생
      */
     @Transactional
     public void resetPassword(String email, String newPassword, String token) {
@@ -217,7 +223,15 @@ public class AuthService {
 
     }
 
-    @Transactional(readOnly = true)
+    /**
+     * 이메일 용도(회원가입/비밀번호 재설정)에 따라 이메일 유효성을 검증합니다.
+     * - SIGNUP: 중복 이메일 여부 확인
+     * - PASSWORD_RESET: 가입된 회원인지, 소셜 전용 계정이 아닌지 확인
+     *
+     * @param email   검증할 이메일 주소
+     * @param purpose 이메일 사용 목적 (SIGNUP / PASSWORD_RESET)
+     * @throws BaseException 목적에 따른 유효성 검증 실패 시 발생
+     */
     public void validateEmailForPurpose(String email, EmailPurpose purpose) {
         if (purpose == EmailPurpose.SIGNUP) {
             // 회원가입 전: 이미 가입된 이메일이면 에러 뱉기

@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
@@ -29,12 +30,13 @@ public class MemberService {
 
     /**
      * 일반(이메일) 회원가입을 처리하고 새로운 회원을 생성합니다.
-     * @param request 회원가입 정보 (이메일, 비밀번호)
-     * @param encodedPassword 시큐리티를 통해 암호화된 비밀번호
-     * @return 가입 완료된 회원(Member) 엔티티
-     * @throws BaseException 이미 존재하는 이메일인 경우 발생
+     * 반드시 호출자의 트랜잭션 내에서 실행되어야 합니다. (MANDATORY)
+     *
+     * @param request         회원가입 요청 DTO
+     * @param encodedPassword 암호화된 비밀번호
+     * @return 영속 상태의 Member 엔티티 (PK 보장)
      */
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public Member registerLocalMember(AuthDto.SignUpRequest request, String encodedPassword) {
 
         checkEmailDuplicate(request.email());
@@ -52,10 +54,33 @@ public class MemberService {
     }
 
     /**
-     * [로그인 온보딩 완료]
-     * 가입 직후 캐릭터가 없는 유저의 초기 설정(닉네임, 캐릭터, 알림 동의)을 한 트랜잭션으로 처리합니다.
-     * @param memberId 유저 식별자(PK)
-     * @param request 온보딩 요청 DTO (유저 닉네임, 캐릭터ID, 캐릭터 별명, 야간 알림 동의 여부)
+     * 신규 소셜 로그인 유저를 데이터베이스에 저장합니다.
+     * 반드시 호출자의 트랜잭션 내에서 실행되어야 합니다. (MANDATORY)
+     *
+     * @param email 소셜 제공자로부터 전달받은 이메일
+     * @param name  소셜 제공자로부터 전달받은 닉네임
+     * @return 영속 상태의 Member 엔티티 (PK 보장)
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public Member registerSocialMember(String email, String name) {
+
+        String nickname = (name != null && !name.isBlank()) ? name : generateDefaultNickname(email);
+
+        return memberRepository.save(
+                Member.builder()
+                        .email(email)
+                        .nickname(nickname)
+                        .build()
+        );
+    }
+
+    /**
+     * [온보딩 완료] 회원의 초기 설정(닉네임, 캐릭터, 알림 동의)을 단일 트랜잭션으로 처리합니다.
+     * Member와 NotificationSetting 변경을 하나의 트랜잭션으로 묶어 원자성을 보장합니다.
+     *
+     * @param memberId 온보딩을 완료할 회원의 고유 식별자
+     * @param request  온보딩 요청 DTO (닉네임, 캐릭터ID, 캐릭터 별명, 야간 알림 동의 여부)
+     * @throws BaseException 회원 또는 캐릭터를 찾을 수 없을 경우 발생
      */
     @Transactional
     public void completeOnboarding(Long memberId, OnboardingRequest request) {
@@ -111,25 +136,6 @@ public class MemberService {
     }
 
     /**
-     * 신규 소셜 로그인 유저를 데이터베이스에 저장합니다.
-     * @param email 소셜 제공자로부터 전달받은 이메일
-     * @param name 소셜 제공자로부터 전달받은 닉네임
-     * @return 가입 완료된 회원 엔티티 (Member)
-     */
-    @Transactional
-    public Member registerSocialMember(String email, String name) {
-
-        String nickname = (name != null && !name.isBlank()) ? name : generateDefaultNickname(email);
-
-        return memberRepository.save(
-                Member.builder()
-                        .email(email)
-                        .nickname(nickname)
-                        .build()
-        );
-    }
-
-    /**
      * 회원의 닉네임을 변경합니다.
      * @param memberId 변경할 회원의 고유 식별자
      * @param request 새로운 닉네임 정보를 담은 DTO
@@ -147,7 +153,30 @@ public class MemberService {
     }
 
     /**
-     * 현재 비밀번호가 맞는지 검증합니다.
+     * 회원의 비밀번호를 변경합니다.
+     *
+     * @param memberId 비밀번호를 변경할 회원의 고유 식별자
+     * @param currentPassword 현재비밀번호
+     * @param newPassword 새 비밀번호를 담은 DTO
+     * @throws BaseException 기존 비밀번호가 일치하지 않거나 유저가 없을 경우 발생
+     */
+    @Transactional
+    public void updateMemberPassword(Long memberId, String currentPassword, String newPassword) {
+        Member member = getMemberById(memberId);
+
+        if (!passwordEncoder.matches(currentPassword, member.getPassword())) {
+            throw new BaseException(ResultCode.CURRENT_PASSWORD_MISMATCH);
+        }
+
+        member.updatePassword(passwordEncoder.encode(newPassword));
+    }
+
+    /**
+     * 현재 비밀번호가 일치하는지 검증합니다. (비밀번호 변경 외 독립 검증이 필요한 경우에만 사용)
+     *
+     * @param memberId    검증할 회원의 고유 식별자
+     * @param rawPassword 검증할 평문 비밀번호
+     * @throws BaseException 비밀번호가 일치하지 않을 경우 발생
      */
     @Transactional(readOnly = true)
     public void verifyPassword(Long memberId, String rawPassword) {
@@ -156,22 +185,6 @@ public class MemberService {
         if (!passwordEncoder.matches(rawPassword, member.getPassword())) {
             throw new BaseException(ResultCode.CURRENT_PASSWORD_MISMATCH);
         }
-    }
-
-    /**
-     * 회원의 비밀번호를 변경합니다.
-     * @param memberId 비밀번호를 변경할 회원의 고유 식별자
-     * @param currentPassword 현재비밀번호
-     * @param newPassword 새 비밀번호를 담은 DTO
-     * @throws BaseException 기존 비밀번호가 일치하지 않거나 유저가 없을 경우 발생
-     */
-    @Transactional
-    public void updateMemberPassword(Long memberId, String currentPassword, String newPassword) {
-        verifyPassword(memberId,currentPassword);
-
-        Member member = getMemberById(memberId);
-        String encodedNewPassword = passwordEncoder.encode(newPassword);
-        member.updatePassword(encodedNewPassword);
     }
 
     /**
@@ -219,7 +232,6 @@ public class MemberService {
     public void updateCharacterNickname(Long memberId, String newName) {
         Member member = getMemberById(memberId);
         member.updateCharacterNickname(newName);
-        memberRepository.save(member);
     }
 
     /**
@@ -245,9 +257,13 @@ public class MemberService {
         eventPublisher.publishEvent(new MemberWithdrawEvent(memberId));
         memberRepository.deleteById(memberId);
     }
+
     /**
-     * 이메일 중복 체크
-     * @param email 중복체크할 이메일
+     * 이메일 중복 여부를 검증합니다.
+     * 회원가입 요청 전 이메일 사전 검증 및 가입 처리 시 내부적으로 호출됩니다.
+     *
+     * @param email 중복 여부를 확인할 이메일 주소
+     * @throws BaseException 이미 존재하는 이메일인 경우 {@link ResultCode#EMAIL_DUPLICATED} 발생
      */
     @Transactional(readOnly = true)
     public void checkEmailDuplicate(String email) {
@@ -256,11 +272,18 @@ public class MemberService {
         }
     }
 
+    /**
+     * FCM 푸시 알림 토큰을 갱신합니다.
+     * 앱 재설치 또는 토큰 만료 시 프론트엔드에서 새 토큰을 전달합니다.
+     *
+     * @param memberId  토큰을 갱신할 회원의 고유 식별자
+     * @param pushToken 새로 발급된 FCM 푸시 토큰
+     * @throws BaseException 회원을 찾을 수 없을 경우 발생
+     */
     @Transactional
     public void updatePushToken(Long memberId, String pushToken) {
         Member member = getMemberById(memberId);
 
-        // 2. 토큰 업데이트 (더티 체킹으로 자동 UPDATE 쿼리 발생)
         member.updatePushToken(pushToken);
     }
 

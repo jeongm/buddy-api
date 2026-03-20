@@ -5,6 +5,7 @@ import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -20,7 +21,7 @@ public class NotificationSettingService {
      * @param member        알림 설정을 생성할 회원 엔티티
      * @param isNightAgreed 야간 알림 수신 동의 여부
      */
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public void createDefaultSetting(Member member, boolean isNightAgreed) {
         NotificationSetting defaultSetting = NotificationSetting.builder()
                 .member(member)
@@ -35,18 +36,19 @@ public class NotificationSettingService {
     /**
      * [온보딩 알림 설정 업데이트]
      * 유저가 온보딩 과정에서 선택한 야간/데일리 알림 동의 여부를 업데이트합니다.
+     * 반드시 호출자의 트랜잭션 내에서 실행되어야 합니다. (MANDATORY)
+     * 독립적으로 호출 시 IllegalTransactionStateException 발생 → 잘못된 사용 즉시 감지.
      *
      * @param memberId 유저 식별자(PK)
      * @param isNightAgreed 야간 및 데일리 알림 수신 동의 여부
+     * @throws BaseException 알림 설정 정보를 찾을 수 없을 경우 발생
      */
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public void updateOnboardingSettings(Long memberId, boolean isNightAgreed) {
-        // 알림 설정 가져오기 (메서드명은 현정님이 레포지토리에 만든 이름으로 맞춰주세요!)
         NotificationSetting setting = findSettingOrThrow(memberId);
 
         // 온보딩에서 동의한 대로 야간 & 데일리 알림 상태 변경!
         setting.updateNightAlert(isNightAgreed);
-        setting.updateDailyAlert(isNightAgreed);
     }
 
     /**
