@@ -14,7 +14,7 @@ import java.io.Serializable;
 public class DiaryTag {
 
     @EmbeddedId
-    private DiaryTagPK diaryTagPK = new DiaryTagPK();
+    private DiaryTagPK diaryTagPK;
 
     @MapsId("diaryId")
     @ManyToOne(fetch = FetchType.LAZY)
@@ -42,7 +42,6 @@ public class DiaryTag {
     public DiaryTag(Diary diary, Tag tag) {
         this.diary = diary;
         this.tag = tag;
-        this.diaryTagPK = new DiaryTagPK();
     }
 
 

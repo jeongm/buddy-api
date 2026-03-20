@@ -45,7 +45,7 @@ public class Diary {
     private Member member;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "session_id")
+    @JoinColumn(name = "session_id", unique = true)
     @OnDelete(action = OnDeleteAction.SET_NULL)
     private ChatSession chatSession;
 
