@@ -40,7 +40,7 @@ public class Member {
     // -------- relation --------
 
     // TODO 캐릭터 세계관 확장 시 분리하여 관리
-    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "character_id")
     private BuddyCharacter buddyCharacter;
 

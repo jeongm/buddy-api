@@ -23,7 +23,7 @@ public class MemberInsight {
     private Long insightId;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "member_id", unique = true)
+    @JoinColumn(name = "member_id", unique = true, nullable = false)
     @OnDelete(action = OnDeleteAction.CASCADE)
     private Member member;
 
@@ -38,17 +38,17 @@ public class MemberInsight {
     private LocalDateTime updatedAt;
 
     @Builder
-    public MemberInsight(Member member, String weeklyIdentity, String weeklyTopTag, LocalDateTime updatedAt) {
+    public MemberInsight(Member member, String weeklyIdentity, String weeklyKeyword, LocalDateTime updatedAt) {
         this.member = member;
         this.weeklyIdentity = weeklyIdentity;
-        this.weeklyKeyword = weeklyTopTag;
+        this.weeklyKeyword = weeklyKeyword;
         this.updatedAt = updatedAt;
     }
 
     // 주간 칭호 업데이트 메서드
-    public void updateWeeklyInsight(String newIdentity, String newTopTag) {
+    public void updateWeeklyInsight(String newIdentity, String newKeyword) {
         this.weeklyIdentity = newIdentity;
-        this.weeklyKeyword = newTopTag;
+        this.weeklyKeyword = newKeyword;
         this.updatedAt = LocalDateTime.now();
     }
 }

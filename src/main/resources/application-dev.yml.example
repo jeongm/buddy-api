@@ -1,0 +1,50 @@
+# 복사 후 application-dev.yml 로 이름 변경하여 사용
+# 실제 값은 본인 로컬 환경에 맞게 수정
+
+# =================================================================
+# Database Settings (MariaDB)
+# =================================================================
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    url: jdbc:h2:mem:buddydb;MODE=MySQL;DATABASE_TO_UPPER=false
+    username: sa
+    password:
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: none
+    show-sql: true
+  flyway:
+    enabled: false
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/migration/V1__init_schema.sql
+      data-locations:
+        - classpath:db/migration/V2__insert_characters.sql
+        - classpath:db/migration/V3__insert_test_data.sql
+
+
+# =================================================================
+# Redis Settings (local)
+# =================================================================
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      ssl:
+        enabled: false
+
+# =================================================================
+# Logging Configuration
+# =================================================================
+logging:
+  level:
+    root: INFO
+    com.buddy.buddyapi: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE

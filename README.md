@@ -110,3 +110,9 @@ com.buddy.api
     - POST /api/v1/diaries/from-chat : 세션 기반 AI 일기 초안 자동 생성
 
     - GET /api/v1/calendar/diaries : 월별 일기 기록 및 감정 태그 캘린더 조회
+
+
+## 로컬 환경 설정
+1. `application-dev.yml.example` → `application-dev.yml` 으로 복사
+2. 본인 로컬 DB 정보로 수정
+3. IntelliJ Run Configuration → Active profiles: `dev`

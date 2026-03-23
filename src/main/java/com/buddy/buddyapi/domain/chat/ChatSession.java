@@ -34,7 +34,7 @@ public class ChatSession {
     private BuddyCharacter buddyCharacter;
 
     @Column(name = "is_ended", nullable = false)
-    private boolean isEnded = false;
+    private boolean ended = false;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -50,10 +50,10 @@ public class ChatSession {
     }
 
     public void endSession() {
-        if(this.isEnded) {
+        if(this.ended) {
             return;
         }
-        this.isEnded = true;
+        this.ended = true;
     }
 
     // 알림 발송 시점을 기록하는 메서드
