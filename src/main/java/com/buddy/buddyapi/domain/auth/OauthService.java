@@ -1,9 +1,6 @@
 package com.buddy.buddyapi.domain.auth;
 
-import com.buddy.buddyapi.domain.auth.component.GoogleTokenVerifier;
-import com.buddy.buddyapi.domain.auth.component.KakaoTokenVerifier;
-import com.buddy.buddyapi.domain.auth.component.NaverTokenVerifier;
-import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
+import com.buddy.buddyapi.domain.auth.component.*;
 import com.buddy.buddyapi.domain.auth.dto.AuthDto;
 import com.buddy.buddyapi.domain.auth.enums.AuthStatus;
 import com.buddy.buddyapi.domain.member.*;
@@ -34,6 +31,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -50,6 +48,7 @@ public class OauthService {
     private final GoogleTokenVerifier googleTokenVerifier;
     private final KakaoTokenVerifier kakaoTokenVerifier;
     private final NaverTokenVerifier naverTokenVerifier;
+    private final AppleTokenVerifier appleTokenVerifier;
 
     @Value("${spring.security.oauth2.client.registration.naver.client-id}")
     private String naverClientId;
@@ -68,6 +67,7 @@ public class OauthService {
             case "google" -> googleTokenVerifier.verify(token);
             case "kakao" -> kakaoTokenVerifier.verify(token);
             case "naver" -> naverTokenVerifier.verify(token);
+            case "apple" -> appleTokenVerifier.verify(token);
             default -> throw new BaseException(ResultCode.UNSUPPORTED_PROVIDER);
         };
     }
@@ -91,7 +91,7 @@ public class OauthService {
     }
 
     /**
-     * 4. OauthAccount DB 저장
+     * OauthAccount DB 저장
      */
     @Transactional
     public void saveOauthAccount(Member member, Provider provider, String oauthId, String accessToken, String refreshToken) {
@@ -102,6 +102,18 @@ public class OauthService {
                 .socialRefreshToken(refreshToken)
                 .member(member)
                 .build());
+    }
+
+    /**
+     * provider와 oauthId로 OauthAccount 조회
+     *
+     * @param provider 소셜 제공자
+     * @param oauthId  소셜 고유 식별자
+     * @return OauthAccount Optional
+     */
+    @Transactional(readOnly = true)
+    public Optional<OauthAccount> findByProviderAndOauthId(Provider provider, String oauthId) {
+        return oauthAccountRepository.findByProviderAndOauthId(provider, oauthId);
     }
 
     /**
@@ -182,6 +194,7 @@ public class OauthService {
                     case KAKAO  -> unlinkKakao(account.oauthId());
                     case NAVER  -> unlinkNaver(account.accessToken(), account.refreshToken());
                     case GOOGLE -> log.info("구글 연동은 프론트에서 처리합니다.");
+                    case APPLE -> log.info("애플 연동 해제는 프론트에서 처리합니다.");
                 }
             } catch (Exception e) {
                 // 연동 해제 실패는 치명적이지 않음. 로깅 후 계속 진행.
