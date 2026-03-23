@@ -178,6 +178,17 @@
             <version>9.2.0</version>
         </dependency>
 
+        <!-- Flyway Core -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
+        <!-- MariaDB는 MySQL 계열이라 flyway-mysql 사용 -->
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-mysql</artifactId>
+        </dependency>
+
 
 	</dependencies>
 

@@ -9,7 +9,7 @@ import org.hibernate.annotations.OnDeleteAction;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "oauth_account",
     uniqueConstraints = {
-        @UniqueConstraint(name = "UX_oauth_provider_id", columnNames = {"provider", "oauthId"})
+        @UniqueConstraint(name = "UX_oauth_provider_id", columnNames = {"provider", "oauth_id"})
     }
 )
 @Entity
