@@ -40,6 +40,7 @@ public class DiaryTag {
 
     @Builder
     public DiaryTag(Diary diary, Tag tag) {
+        this.diaryTagPK = new DiaryTagPK(diary.getDiaryId(), tag.getTagId());
         this.diary = diary;
         this.tag = tag;
     }
