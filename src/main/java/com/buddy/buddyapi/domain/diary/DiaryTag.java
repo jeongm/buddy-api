@@ -10,7 +10,11 @@ import java.io.Serializable;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "diary_tag")
+@Table(name = "diary_tag",
+        indexes = {
+                @Index(name = "IX_diary_tag_tag", columnList = "tag_id")
+        }
+)
 public class DiaryTag {
 
     @EmbeddedId

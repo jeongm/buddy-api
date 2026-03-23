@@ -8,9 +8,12 @@ import org.hibernate.annotations.OnDeleteAction;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "oauth_account",
-    uniqueConstraints = {
-        @UniqueConstraint(name = "UX_oauth_provider_id", columnNames = {"provider", "oauth_id"})
-    }
+        uniqueConstraints = {
+                @UniqueConstraint(name = "UX_oauth_provider_id", columnNames = {"provider", "oauth_id"})
+        },
+        indexes = {
+                @Index(name = "IX_oauth_account_member", columnList = "member_id")
+        }
 )
 @Entity
 public class OauthAccount {

@@ -12,7 +12,11 @@ import java.time.LocalDateTime;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name="member")
+@Table(name = "member",
+        indexes = {
+                @Index(name = "IX_member_email", columnList = "email")
+        }
+)
 @Entity
 public class Member {
     @Id
