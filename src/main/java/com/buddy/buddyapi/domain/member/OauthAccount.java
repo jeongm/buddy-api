@@ -8,9 +8,12 @@ import org.hibernate.annotations.OnDeleteAction;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Table(name = "oauth_account",
-    uniqueConstraints = {
-        @UniqueConstraint(name = "UX_oauth_provider_id", columnNames = {"provider", "oauth_id"})
-    }
+        uniqueConstraints = {
+                @UniqueConstraint(name = "UX_oauth_provider_id", columnNames = {"provider", "oauth_id"})
+        },
+        indexes = {
+                @Index(name = "IX_oauth_account_member", columnList = "member_id")
+        }
 )
 @Entity
 public class OauthAccount {
@@ -28,11 +31,11 @@ public class OauthAccount {
     private String oauthId;
 
     // 소셜 액세스 토큰 (1~2시간 뒤 만료됨)
-    @Column(name = "social_access_token", nullable = true)
+    @Column(name = "social_access_token", columnDefinition = "TEXT")
     private String socialAccessToken;
 
     // 소셜 리프레시 토큰 (나중에 탈퇴할 때 새 액세스 토큰으로 교환할 티켓)
-    @Column(name = "social_refresh_token", nullable = true)
+    @Column(name = "social_refresh_token", columnDefinition = "TEXT")
     private String socialRefreshToken;
 
     @ManyToOne(fetch = FetchType.LAZY)

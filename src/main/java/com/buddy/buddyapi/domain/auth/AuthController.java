@@ -56,7 +56,7 @@ public class AuthController {
     // =========================================================================
     // 소셜 로그인 및 연동
     // =========================================================================
-    @Operation(summary = "소셜 로그인", description = "제공자(구글, 카카오, 네이버)의 토큰을 통해 소셜 로그인을 진행합니다. 연동이 필요한 경우 REQUIRES_LINKING 상태를 반환합니다.")
+    @Operation(summary = "소셜 로그인", description = "제공자(구글, 카카오, 네이버, 애플)의 토큰을 통해 소셜 로그인을 진행합니다. 연동이 필요한 경우 REQUIRES_LINKING 상태를 반환합니다.")
     @PostMapping("/login/social")
     public ResponseEntity<ApiResponse<AuthDto.LoginResponse>> socialLogin(
             @Valid @RequestBody OAuthDto.LoginRequest request

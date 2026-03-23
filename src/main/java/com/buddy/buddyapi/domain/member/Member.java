@@ -12,7 +12,11 @@ import java.time.LocalDateTime;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name="member")
+@Table(name = "member",
+        indexes = {
+                @Index(name = "IX_member_email", columnList = "email")
+        }
+)
 @Entity
 public class Member {
     @Id
@@ -70,5 +74,9 @@ public class Member {
     // 프론트에서 넘어온 새 토큰으로 갱신하는 메서드
     public void updatePushToken(String pushToken) {
         this.pushToken = pushToken;
+    }
+
+    public boolean isOnboardingCompleted() {
+        return this.buddyCharacter != null;
     }
 }

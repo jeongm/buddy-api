@@ -90,7 +90,8 @@ public class AuthService {
     }
 
     /**
-     * [소셜 로그인 통합] 제공자(Google, Kakao, Naver)의 토큰을 검증하고 서비스 로그인을 처리합니다.
+     * [소셜 로그인 통합] 제공자(Google, Kakao, Naver, apple)의 토큰을 검증하고 서비스 로그인을 처리합니다.
+     * apple의 경우 이메일 대신 oauthId(sub) 기준으로 처리한다.
      * 이미 가입된 이메일이 존재하지만 소셜 연동이 되어있지 않은 경우, 연동 대기 상태(REQUIRES_LINKING)를 반환합니다.
      *
      * @param request 제공자 이름(provider)과 인증 토큰(token)
@@ -99,8 +100,13 @@ public class AuthService {
     @Transactional
     public AuthDto.LoginResponse socialLogin(OAuthDto.LoginRequest request) throws JsonProcessingException {
 
-        OAuthUserInfo userInfo = oauthService.verifyOauthToken(request.provider(), request.code());
+        OAuthUserInfo userInfo = oauthService.verifyOauthToken(request.provider(), request.token());
         Provider provider = Provider.from(request.provider());
+
+        // Apple은 oauthId(sub) 기준으로 조회 — 이메일은 두 번째 로그인부터 null이라 신뢰 불가
+        if (provider == Provider.APPLE) {
+            return handleAppleLogin(userInfo);
+        }
 
         // 기존 회원 여부 확인
         Optional<Member> optionalMember = memberService.findMemberByEmail(userInfo.email());
@@ -122,12 +128,7 @@ public class AuthService {
         }
 
         // [CASE] 아예 신규 유저 (가입 + 연동 + REQUIRES_CHARACTER)
-        Member newMember = memberService.registerSocialMember(userInfo.email(), userInfo.name());
-
-        oauthService.saveOauthAccount(newMember, provider,
-                userInfo.oauthId(), userInfo.socialAccessToken(), userInfo.socialRefreshToken());
-
-        notificationSettingService.createDefaultSetting(newMember, false);
+        Member newMember = registerNewSocialMember(userInfo, provider);
 
         return issueTokensAndBuildResponse(newMember, AuthStatus.SUCCESS);
 
@@ -260,10 +261,59 @@ public class AuthService {
     // 헬퍼 메서드 (Helper Methods)
     // =========================================================================
 
+    /**
+     * [Apple 전용 로그인 처리]
+     * Apple은 두 번째 로그인부터 이메일을 제공하지 않으므로 oauthId(sub) 기준으로 조회한다.
+     *
+     * @param userInfo AppleTokenVerifier에서 추출한 사용자 정보
+     * @return 로그인 성공 응답 DTO
+     */
+    private AuthDto.LoginResponse handleAppleLogin(OAuthUserInfo userInfo) {
+        // oauthId(sub) 기준으로 기존 연동 계정 조회
+        Optional<OauthAccount> existingAccount = oauthService.findByProviderAndOauthId(
+                Provider.APPLE, userInfo.oauthId());
+
+        if (existingAccount.isPresent()) {
+            // 기존 유저 — 바로 로그인
+            return issueTokensAndBuildResponse(existingAccount.get().getMember(), AuthStatus.SUCCESS);
+        }
+
+        if (userInfo.email() == null) {
+            throw new BaseException(ResultCode.INVALID_TOKEN, "Apple 최초 로그인 시 이메일이 제공되지 않았습니다.");
+        }
+
+        Member newMember = registerNewSocialMember(userInfo, Provider.APPLE);
+
+        return issueTokensAndBuildResponse(newMember, AuthStatus.SUCCESS);
+    }
 
     /**
-     * 공통 응답 생성 로직. 토큰셋(Access, Refresh)을 생성하고 AuthStatus를 포함한 LoginResponse를 빌드합니다.
-     * 인증은 성공했더라도, 캐릭터가 없다면 무조건 온보딩 상태(REQUIRES_CHARACTER)로 강제 변환합니다.
+     * 신규 소셜 회원 가입 공통 처리.
+     * registerSocialMember, saveOauthAccount, createDefaultSetting은 항상 함께 실행되는
+     * 하나의 행위이므로 하나의 메서드로 묶어 관리한다.
+     * 가입 로직 변경(웰컴 푸시, 포인트 지급 등) 시 이 메서드만 수정하도록 함.
+     *
+     * @param userInfo 소셜 제공자에서 추출한 사용자 정보
+     * @param provider 소셜 제공자 (GOOGLE, KAKAO, NAVER, APPLE)
+     * @return 생성된 Member 엔티티
+     */
+    private Member registerNewSocialMember(OAuthUserInfo userInfo, Provider provider) {
+        Member newMember = memberService.registerSocialMember(userInfo.email(), userInfo.name());
+        oauthService.saveOauthAccount(newMember, provider,
+                userInfo.oauthId(), userInfo.socialAccessToken(), userInfo.socialRefreshToken());
+        notificationSettingService.createDefaultSetting(newMember, false);
+        return newMember;
+    }
+
+    /**
+     * 공통 토큰 발급 및 응답 생성.
+     * 액세스/리프레시 토큰을 발급하고 Redis에 저장한다.
+     * 캐릭터가 없는 경우 SUCCESS → REQUIRES_CHARACTER로 강제 변환하여
+     * 프론트엔드가 온보딩 화면으로 이동할 수 있도록 한다.
+     *
+     * @param member 토큰을 발급할 대상 회원
+     * @param status 현재 인증 상태 (SUCCESS, REQUIRES_LINKING 등)
+     * @return 토큰셋과 AuthStatus를 포함한 LoginResponse
      */
     private AuthDto.LoginResponse issueTokensAndBuildResponse(Member member, AuthStatus status) {
 

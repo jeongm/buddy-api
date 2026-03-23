@@ -19,7 +19,12 @@ import java.util.List;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Entity
-@Table(name = "diary")
+@Table(name = "diary",
+        indexes = {
+                @Index(name = "IX_diary_member", columnList = "member_id"),
+                @Index(name = "IX_diary_member_date", columnList = "member_id, diary_date")
+        }
+)
 public class Diary {
 
     @Id
@@ -27,7 +32,7 @@ public class Diary {
     @Column(name = "diary_id")
     private Long diaryId;
 
-    @Column(length = 100)
+    @Column(length = 100, nullable = true)
     private String title;
     @Column(columnDefinition = "TEXT")
     private String content;

@@ -16,7 +16,12 @@ import java.time.LocalDateTime;
 @Entity
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
-@Table(name = "chat_session")
+@Table(name = "chat_session",
+        indexes = {
+                @Index(name = "IX_chat_session_member", columnList = "member_id"),
+                @Index(name = "IX_chat_session_member_ended", columnList = "member_id, is_ended")
+        }
+)
 public class ChatSession {
 
     @Id

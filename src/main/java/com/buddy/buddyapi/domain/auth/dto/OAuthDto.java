@@ -11,11 +11,11 @@ public class OAuthDto {
     ) {}
 
     public record LoginRequest(
-            @NotBlank(message = "제공자(google, kakao, naver)는 필수입니다.")
+            @NotBlank(message = "제공자(google, kakao, naver, apple)는 필수입니다.")
             String provider,
 
-            @NotBlank(message = "소셜 code는 필수입니다.")
-            String code
+            @NotBlank(message = "소셜 토큰은 필수입니다.")
+            String token // Google: idToken / Kakao·Naver: authCode / Apple: identityToken
     ){}
 
 

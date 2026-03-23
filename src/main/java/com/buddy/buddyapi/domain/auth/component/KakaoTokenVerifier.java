@@ -3,7 +3,6 @@ package com.buddy.buddyapi.domain.auth.component;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.fasterxml.jackson.annotation.JsonProperty;
-// 💡 ObjectMapper랑 JsonNode는 이제 영원히 안녕입니다!
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,7 +19,6 @@ import org.springframework.web.client.RestTemplate;
 public class KakaoTokenVerifier {
 
     private final RestTemplate restTemplate;
-    // 💡 생성자에서 ObjectMapper 제거했습니다!
 
     private static final String KAKAO_TOKEN_URL = "https://kauth.kakao.com/oauth/token";
     private static final String KAKAO_USER_INFO_URL = "https://kapi.kakao.com/v2/user/me";
@@ -121,7 +119,6 @@ public class KakaoTokenVerifier {
         }
     }
 
-    // 💡 카카오 JSON 구조에 딱 맞춘 프라이빗 DTO
     private record KakaoUserResponse(
             @JsonProperty("id") Long id,
             @JsonProperty("kakao_account") KakaoAccount kakaoAccount

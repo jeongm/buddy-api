@@ -120,6 +120,8 @@ kakao:
 google:
   redirect-uri: https://buddy.com/oauth/callback
   audiences: ${GOOGLE_AUDIENCES}
+apple:
+  bundle-id: com.buddylabs.buddy
 
 # =================================================================
 # External API Settings (OpenAI, Cloudinary)
