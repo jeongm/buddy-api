@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.OnDelete;
 import org.hibernate.annotations.OnDeleteAction;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -34,6 +35,7 @@ public class MemberInsight {
     @Column(name = "weekly_keyword", length = 20)
     private String weeklyKeyword;
 
+    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
@@ -49,6 +51,5 @@ public class MemberInsight {
     public void updateWeeklyInsight(String newIdentity, String newKeyword) {
         this.weeklyIdentity = newIdentity;
         this.weeklyKeyword = newKeyword;
-        this.updatedAt = LocalDateTime.now();
     }
 }

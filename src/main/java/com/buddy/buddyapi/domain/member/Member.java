@@ -71,4 +71,8 @@ public class Member {
     public void updatePushToken(String pushToken) {
         this.pushToken = pushToken;
     }
+
+    public boolean isOnboardingCompleted() {
+        return this.buddyCharacter != null;
+    }
 }
