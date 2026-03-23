@@ -22,15 +22,7 @@ jwt:
 # Database Settings (MariaDB)
 # =================================================================
 spring:
-  datasource:
-    driver-class-name: org.mariadb.jdbc.Driver
-    url: ${DB_URL}?characterEncoding=UTF-8&useUnicode=true
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
   jpa:
-    database-platform: org.hibernate.dialect.MariaDBDialect
-    hibernate:
-      ddl-auto: validate
     properties:
       hibernate:
         default_batch_fetch_size: 100
@@ -143,16 +135,8 @@ cloudinary:
   api-secret: ${CLOUDINARY_SECRET}
 
 # =================================================================
-# Logging Configuration
+# Other Configuration
 # =================================================================
-logging:
-  level:
-    root: INFO
-    com.buddy.buddyapi: DEBUG
-    org.springframework.security: DEBUG
-    org.springframework.web: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
 
 # Console Output Color
 spring.output.ansi.enabled: ALWAYS
