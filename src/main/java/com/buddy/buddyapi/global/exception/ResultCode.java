@@ -32,6 +32,8 @@ public enum ResultCode {
     INVALID_CODE(HttpStatus.UNAUTHORIZED, "T007", "유효하지 않은 인증번호입니다"),
     UNAUTHORIZED_EMAIL_VERIFICATION(HttpStatus.UNAUTHORIZED, "T008", "이메일 인증이 만료되었거나 올바르지 않습니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "T009", "해당 리소스에 접근 권한이 없습니다."),
+    APPLE_PUBLIC_KEY_FETCH_FAILED(HttpStatus.INTERNAL_SERVER_ERROR, "T010", "Apple 공개키 조회에 실패했습니다."),
+
 
     // --- 회원/캐릭터 관련 (M) ---
     EMAIL_DUPLICATED(HttpStatus.BAD_REQUEST, "M001", "이미 존재하는 이메일입니다."), // 일반 회원가입 중복 체크
