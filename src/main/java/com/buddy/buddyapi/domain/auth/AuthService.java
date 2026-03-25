@@ -305,6 +305,26 @@ public class AuthService {
     }
 
     /**
+     * 리프레시 토큰을 Redis에 안전하게 저장한다.
+     * Redis 장애 시에도 로그인 플로우가 중단되지 않도록 예외를 격리한다.
+     *
+     * @param memberId     토큰을 저장할 회원 PK
+     * @param refreshToken 발급된 리프레시 토큰 값
+     */
+    private void saveRefreshTokenSafely(Long memberId, String refreshToken) {
+        try {
+            refreshTokenRepository.save(
+                    RefreshToken.builder()
+                            .memberId(memberId)
+                            .refreshToken(refreshToken)
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("[Redis] 리프레시 토큰 저장 실패 - memberId={}, error={}", memberId, e.getMessage());
+        }
+    }
+
+    /**
      * 공통 토큰 발급 및 응답 생성.
      * 액세스/리프레시 토큰을 발급하고 Redis에 저장한다.
      * 캐릭터가 없는 경우 SUCCESS → REQUIRES_CHARACTER로 강제 변환하여
@@ -324,12 +344,7 @@ public class AuthService {
         String accessToken = jwtTokenProvider.createAccessToken(member.getMemberId());
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getMemberId());
 
-        refreshTokenRepository.save(
-                RefreshToken.builder()
-                .memberId(member.getMemberId())
-                .refreshToken(refreshToken)
-                .build()
-        );
+        saveRefreshTokenSafely(member.getMemberId(), refreshToken);
 
         return LoginResponse.builder()
                 .status(finalStatus)

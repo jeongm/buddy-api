@@ -35,9 +35,8 @@ spring:
 # =================================================================
   data:
     redis:
-      host: ${REDIS_HOST}
+      host: ${REDIS_HOST:host.docker.internal}
       port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD}
       ssl:
         enabled: true
       lettuce:
