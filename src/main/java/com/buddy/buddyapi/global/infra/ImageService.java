@@ -1,4 +1,4 @@
-package com.buddy.buddyapi.domain.diary;
+package com.buddy.buddyapi.global.infra;
 
 import com.buddy.buddyapi.domain.diary.event.DiaryImagesCleanupEvent;
 import com.cloudinary.Cloudinary;

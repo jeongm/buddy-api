@@ -27,10 +27,10 @@ public class AuthController {
     // =========================================================================
     @Operation(summary = "일반 회원가입", description = "이메일, 비밀번호 등을 입력받아 회원가입을 진행합니다.")
     @PostMapping("/signup")
-    public ResponseEntity<ApiResponse<AuthDto.LoginResponse>> signup(
-            @Valid @RequestBody AuthDto.SignUpRequest request) {
+    public ResponseEntity<ApiResponse<LoginResponse>> signup(
+            @Valid @RequestBody SignUpRequest request) {
 
-        AuthDto.LoginResponse result = authService.signup(request);
+        LoginResponse result = authService.signup(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.ok("회원가입 완료", result));
     }
@@ -38,16 +38,16 @@ public class AuthController {
 
     @Operation(summary = "일반 로그인", description = "이메일과 비밀번호로 로그인하고 JWT 토큰을 발급받습니다.")
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthDto.LoginResponse>> login(
-            @Valid @RequestBody AuthDto.EmailLoginRequest request) {
-        AuthDto.LoginResponse result = authService.localLogin(request);
+    public ResponseEntity<ApiResponse<LoginResponse>> login(
+            @Valid @RequestBody LoginWithEmailRequest request) {
+        LoginResponse result = authService.localLogin(request);
         return ResponseEntity.ok(ApiResponse.ok("로그인 성공", result));
     }
 
     @Operation(summary = "비밀번호 찾기 - 비밀번호 변경", description = "이메일과 인증번호를 확인한 후 새로운 비밀번호로 변경합니다.")
     @PatchMapping("/password/reset")
     public ResponseEntity<ApiResponse<Void>> resetPassword(
-            @Valid @RequestBody EmailDto.PasswordResetRequest request) {
+            @Valid @RequestBody ResetPasswordRequest request) {
 
         authService.resetPassword(request.email(), request.newPassword(), request.verificationToken());
         return ResponseEntity.ok(ApiResponse.ok("비밀번호가 성공적으로 변경되었습니다.", null));
@@ -58,19 +58,19 @@ public class AuthController {
     // =========================================================================
     @Operation(summary = "소셜 로그인", description = "제공자(구글, 카카오, 네이버, 애플)의 토큰을 통해 소셜 로그인을 진행합니다. 연동이 필요한 경우 REQUIRES_LINKING 상태를 반환합니다.")
     @PostMapping("/login/social")
-    public ResponseEntity<ApiResponse<AuthDto.LoginResponse>> socialLogin(
-            @Valid @RequestBody OAuthDto.LoginRequest request
+    public ResponseEntity<ApiResponse<LoginResponse>> socialLogin(
+            @Valid @RequestBody SocialLoginRequest request
     ) throws JsonProcessingException {
-        AuthDto.LoginResponse result = authService.socialLogin(request);
+        LoginResponse result = authService.socialLogin(request);
 
         return ResponseEntity.ok(ApiResponse.ok("소셜 로그인 처리 완료", result));
     }
 
 
     @Operation(summary = "소셜 계정 연동 완료", description = "소셜 로그인 시 연동이 필요했던 계정에 대해, 발급받은 linkKey를 전달하여 연동을 완료하고 토큰을 발급받습니다.")    @PostMapping("/social/link")
-    public ResponseEntity<ApiResponse<AuthDto.LoginResponse>> linkSocialAccount(
-            @RequestBody OAuthDto.OAuthLinkRequest request) throws JsonProcessingException {
-        AuthDto.LoginResponse result = authService.linkOauthAccount(request.key());
+    public ResponseEntity<ApiResponse<LoginResponse>> linkSocialAccount(
+            @RequestBody LinkOAuthRequest request) throws JsonProcessingException {
+        LoginResponse result = authService.linkOauthAccount(request.key());
         return ResponseEntity.ok(ApiResponse.ok("소셜 계정 연동 및 로그인 성공", result));
     }
 
@@ -79,9 +79,9 @@ public class AuthController {
     // =========================================================================
     @Operation(summary = "토큰 재발급", description = "만료된 액세스 토큰을 대신하여 리프레시 토큰을 이용해 새로운 토큰셋을 발급받습니다.")
     @PostMapping("/refresh")
-    public ResponseEntity<ApiResponse<AuthDto.LoginResponse>> refreshToken(
-            @Valid @RequestBody AuthDto.TokenRefreshRequest request) {
-        AuthDto.LoginResponse newAuthToken = authService.refreshToken(request.refreshToken());
+    public ResponseEntity<ApiResponse<LoginResponse>> refreshToken(
+            @Valid @RequestBody RefreshTokenRequest request) {
+        LoginResponse newAuthToken = authService.refreshToken(request.refreshToken());
         return ResponseEntity.ok(ApiResponse.ok("토큰 재발급 성공", newAuthToken));
     }
 
@@ -100,7 +100,7 @@ public class AuthController {
     @Operation(summary = "인증 이메일 발송", description = "입력한 이메일로 6자리 인증 코드를 발송합니다.")
     @PostMapping("/email/send")
     public ResponseEntity<ApiResponse<Void>> sendCode(
-            @Valid @RequestBody EmailDto.SendRequest request
+            @Valid @RequestBody SendEmailRequest request
     ) {
         emailService.checkSendRateLimit(request.email());
         authService.validateEmailForPurpose(request.email(), request.purpose());
@@ -112,7 +112,7 @@ public class AuthController {
     @Operation(summary = "인증 코드 검증", description = "사용자가 입력한 코드가 유효한지 확인합니다.")
     @PostMapping("/email/verify")
     public ResponseEntity<ApiResponse<String>> verifyEmail(
-            @Valid @RequestBody EmailDto.VerifyRequest request
+            @Valid @RequestBody VerifyEmailRequest request
             ) {
         String verificationToken = emailService.verifyCodeAndGetToken(request.email(), request.code(), request.purpose());
 

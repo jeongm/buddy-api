@@ -31,7 +31,7 @@ public class MemberController {
     @PatchMapping("/me/onboarding")
     public ResponseEntity<ApiResponse<Void>> completeOnboarding(
             @AuthenticationPrincipal CustomUserDetails member,
-            @Valid @RequestBody OnboardingRequest request) {
+            @Valid @RequestBody CompleteOnboardingRequest request) {
 
         memberService.completeOnboarding(member.memberId(), request);
 
@@ -52,7 +52,7 @@ public class MemberController {
     @PostMapping("/me/password/verify")
     public ResponseEntity<ApiResponse<Void>> verifyCurrentPassword(
             @AuthenticationPrincipal CustomUserDetails member,
-            @Valid @RequestBody PasswordUpdateDto.VerifyRequest request) {
+            @Valid @RequestBody VerifyPasswordRequest request) {
 
         memberService.verifyPassword(member.memberId(), request.currentPassword());
 
@@ -63,7 +63,7 @@ public class MemberController {
     @PatchMapping("/me/password")
     public ResponseEntity<ApiResponse<Void>> updatePassword(
             @AuthenticationPrincipal CustomUserDetails member,
-            @Valid @RequestBody PasswordUpdateDto.UpdateRequest request) {
+            @Valid @RequestBody UpdatePasswordRequest request) {
         memberService.updateMemberPassword(member.memberId(), request.currentPassword(), request.newPassword());
         return ResponseEntity.ok(ApiResponse.ok("비밀번호가 변경되었습니다.", null));
     }
@@ -72,7 +72,7 @@ public class MemberController {
     @PatchMapping("/me/character")
     public ResponseEntity<ApiResponse<String>> changeCharacter(
             @AuthenticationPrincipal CustomUserDetails member ,
-            @Valid @RequestBody CharacterChangeRequest request) {
+            @Valid @RequestBody ChangeCharacterRequest request) {
         memberService.changeMyCharacter(member.memberId(), request);
         return ResponseEntity.ok(ApiResponse.ok("캐릭터 변경 성공"));
     }
@@ -99,7 +99,7 @@ public class MemberController {
     @PatchMapping("/push-token")
     public ResponseEntity<ApiResponse<Void>> updatePushToken(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails member,
-            @RequestBody PushTokenRequest request) {
+            @RequestBody UpdatePushTokenRequest request) {
 
         memberService.updatePushToken(member.memberId(), request.pushToken());
 

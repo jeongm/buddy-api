@@ -5,9 +5,9 @@ import java.util.List;
 public record ChatHistoryResponse(
         Long sessionId,
         Long characterId,
-        List<ChatMessageDto> messages
+        List<ChatMessageResponse> messages
 ) {
-    public static ChatHistoryResponse of(Long sessionId, Long characterId, List<ChatMessageDto> messages) {
+    public static ChatHistoryResponse of(Long sessionId, Long characterId, List<ChatMessageResponse> messages) {
         return new ChatHistoryResponse(sessionId, characterId, messages);
     }
 }

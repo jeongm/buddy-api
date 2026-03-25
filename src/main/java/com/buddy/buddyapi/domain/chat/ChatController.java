@@ -3,7 +3,7 @@ package com.buddy.buddyapi.domain.chat;
 import com.buddy.buddyapi.domain.chat.dto.ChatHistoryResponse;
 import com.buddy.buddyapi.domain.chat.dto.ChatSendResponse;
 import com.buddy.buddyapi.global.common.ApiResponse;
-import com.buddy.buddyapi.domain.chat.dto.ChatRequest;
+import com.buddy.buddyapi.domain.chat.dto.SendChatRequest;
 import com.buddy.buddyapi.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,7 +24,7 @@ public class ChatController {
     @PostMapping
     public ResponseEntity<ApiResponse<ChatSendResponse>> sendMessage(
             @AuthenticationPrincipal CustomUserDetails member,
-            @Valid @RequestBody ChatRequest request) {
+            @Valid @RequestBody SendChatRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(chatService.sendMessage(member.memberId(), request)));
     }
 

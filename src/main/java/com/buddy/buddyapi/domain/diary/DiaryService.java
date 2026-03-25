@@ -10,6 +10,7 @@ import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.domain.ai.AiService;
+import com.buddy.buddyapi.global.infra.ImageService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -68,7 +69,7 @@ public class DiaryService {
      */
     @Timer
     @Transactional(readOnly = true)
-    public DiaryPreviewResponse generateDiaryFromChat(Long memberId, DiaryGenerateRequest request) {
+    public DiaryPreviewResponse generateDiaryFromChat(Long memberId, GenerateDiaryRequest request) {
 
         String fullConversation = chatService.getFormattedChatHistory(request.sessionId(), memberId);
 
@@ -108,7 +109,7 @@ public class DiaryService {
      * @throws BaseException 요청한 태그 ID가 존재하지 않을 경우 발생
      */
     @Transactional
-    public Long createDiary(Long memberId, DiaryCreateRequest request, MultipartFile image) {
+    public Long createDiary(Long memberId, CreateDiaryRequest request, MultipartFile image) {
 
         Member member = memberService.getMemberById(memberId);
 
@@ -150,7 +151,7 @@ public class DiaryService {
      * @throws BaseException 일기를 찾을 수 없거나 본인 일기가 아닐 경우 발생
      */
     @Transactional
-    public void updateDiary(Long memberId, Long diaryId, DiaryUpdateRequest request, MultipartFile newImage) {
+    public void updateDiary(Long memberId, Long diaryId, UpdateDiaryRequest request, MultipartFile newImage) {
 
         Diary diary = diaryRepository.findByDiaryIdAndMember_MemberId(diaryId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));

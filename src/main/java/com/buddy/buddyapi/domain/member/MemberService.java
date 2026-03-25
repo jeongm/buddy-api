@@ -1,6 +1,6 @@
 package com.buddy.buddyapi.domain.member;
 
-import com.buddy.buddyapi.domain.auth.dto.AuthDto;
+import com.buddy.buddyapi.domain.auth.dto.SignUpRequest;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
 import com.buddy.buddyapi.domain.character.BuddyCharacterService;
 import com.buddy.buddyapi.domain.member.dto.*;
@@ -37,7 +37,7 @@ public class MemberService {
      * @return 영속 상태의 Member 엔티티 (PK 보장)
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    public Member registerLocalMember(AuthDto.SignUpRequest request, String encodedPassword) {
+    public Member registerLocalMember(SignUpRequest request, String encodedPassword) {
 
         checkEmailDuplicate(request.email());
 
@@ -83,7 +83,7 @@ public class MemberService {
      * @throws BaseException 회원 또는 캐릭터를 찾을 수 없을 경우 발생
      */
     @Transactional
-    public void completeOnboarding(Long memberId, OnboardingRequest request) {
+    public void completeOnboarding(Long memberId, CompleteOnboardingRequest request) {
         Member member = getMemberById(memberId);
         BuddyCharacter myCharacter = characterService.getCharacter(request.characterId());
 
@@ -209,7 +209,7 @@ public class MemberService {
      * @throws BaseException 존재하지 않는 캐릭터 ID이거나 회원을 찾을 수 없을 경우 발생
      */
     @Transactional
-    public void changeMyCharacter(Long memberId, CharacterChangeRequest request) {
+    public void changeMyCharacter(Long memberId, ChangeCharacterRequest request) {
 
         Member member = getMemberById(memberId);
 

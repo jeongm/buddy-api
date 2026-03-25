@@ -4,7 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-public record OnboardingRequest(
+public record CompleteOnboardingRequest(
         @NotBlank(message = "닉네임을 입력해주세요")
         String nickname,
 

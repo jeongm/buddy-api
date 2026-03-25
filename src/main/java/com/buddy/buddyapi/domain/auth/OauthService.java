@@ -1,7 +1,7 @@
 package com.buddy.buddyapi.domain.auth;
 
 import com.buddy.buddyapi.domain.auth.component.*;
-import com.buddy.buddyapi.domain.auth.dto.AuthDto;
+import com.buddy.buddyapi.domain.auth.dto.LoginResponse;
 import com.buddy.buddyapi.domain.auth.enums.AuthStatus;
 import com.buddy.buddyapi.domain.member.*;
 import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
@@ -120,7 +120,7 @@ public class OauthService {
      * 연동 필요 상태(REQUIRES_LINKING) Redis 임시 저장 및 응답 생성
      * 소셜 연동이 필요한 유저의 정보를 Redis에 10분간 임시 보관하고, 프론트엔드에 REQUIRES_LINKING 상태를 반환합니다.
      */
-    public AuthDto.LoginResponse handleLinkingRequired(String provider, OAuthUserInfo userInfo) throws JsonProcessingException {
+    public LoginResponse handleLinkingRequired(String provider, OAuthUserInfo userInfo) throws JsonProcessingException {
         String linkKey = UUID.randomUUID().toString();
         OAuthLinkInfo linkInfo = OAuthLinkInfo.builder()
                 .email(userInfo.email())
@@ -133,7 +133,7 @@ public class OauthService {
         redisTemplate.opsForValue().set("OAUTH_LINK:" + linkKey,
                 objectMapper.writeValueAsString(linkInfo), Duration.ofMinutes(10));
 
-        return AuthDto.LoginResponse.builder()
+        return LoginResponse.builder()
                 .status(AuthStatus.REQUIRES_LINKING)
                 .linkKey(linkKey)
                 .build();

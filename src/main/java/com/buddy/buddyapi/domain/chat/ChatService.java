@@ -1,9 +1,9 @@
 package com.buddy.buddyapi.domain.chat;
 
 import com.buddy.buddyapi.domain.chat.dto.ChatHistoryResponse;
-import com.buddy.buddyapi.domain.chat.dto.ChatRequest;
+import com.buddy.buddyapi.domain.chat.dto.SendChatRequest;
 import com.buddy.buddyapi.domain.ai.dto.OpenAiRequest;
-import com.buddy.buddyapi.domain.chat.dto.ChatMessageDto;
+import com.buddy.buddyapi.domain.chat.dto.ChatMessageResponse;
 import com.buddy.buddyapi.domain.character.BuddyCharacter;
 import com.buddy.buddyapi.domain.chat.dto.ChatSendResponse;
 import com.buddy.buddyapi.domain.member.Member;
@@ -58,7 +58,7 @@ public class ChatService {
      */
     @Timer
     @Transactional
-    public ChatSendResponse sendMessage(Long memberId, ChatRequest request) {
+    public ChatSendResponse sendMessage(Long memberId, SendChatRequest request) {
 
         // 1. 세션 조회 또는 생성 (세션 ID가 없거나 종료된 세션이면 새로 생성)
         ChatSession session = getOrCreateSession(memberId, request.sessionId());
@@ -75,7 +75,7 @@ public class ChatService {
         // 5. Redis에 대화내용 저장
         saveContextToRedis(session.getSessionId(), request.content(), aiContent);
 
-        return ChatSendResponse.of(session.getSessionId(), ChatMessageDto.from(aiMessage));
+        return ChatSendResponse.of(session.getSessionId(), ChatMessageResponse.from(aiMessage));
 
     }
 
@@ -253,9 +253,9 @@ public class ChatService {
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
         // 메시지 목록을 과거순으로 조회하여 DTO로 변환
-        List<ChatMessageDto> messages =  chatMessageRepository.findAllByChatSessionOrderByCreatedAtDesc(session)
+        List<ChatMessageResponse> messages =  chatMessageRepository.findAllByChatSessionOrderByCreatedAtDesc(session)
                 .stream()
-                .map(ChatMessageDto::from)
+                .map(ChatMessageResponse::from)
                 .toList();
 
         return ChatHistoryResponse.of(session.getSessionId(), session.getBuddyCharacter().getCharacterId(), messages);
