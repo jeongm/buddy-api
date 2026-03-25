@@ -51,7 +51,6 @@ jobs:
               -e OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} \
               -e REDIS_HOST=${{ secrets.REDIS_HOST }} \
               -e REDIS_PORT=6379 \
-              -e REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }} \
               -e CLOUDINARY_NAME=${{ secrets.CLOUDINARY_NAME }} \
               -e CLOUDINARY_KEY=${{ secrets.CLOUDINARY_KEY }} \
               -e CLOUDINARY_SECRET=${{ secrets.CLOUDINARY_SECRET }} \
