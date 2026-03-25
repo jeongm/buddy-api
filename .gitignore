@@ -32,9 +32,8 @@ build/
 ### VS Code ###
 .vscode/
 
-### LOGS / DATABASE / TEMP ###
+### DATABASE / TEMP ###
 
-/logs/
 /tmp/
 /*.pid
 *.seed
@@ -55,3 +54,12 @@ TEST_CONVENTION.md
 
 ### Claude ###
 .claude/worktrees/
+
+### Mac ###
+.DS_Store
+**/.DS_Store
+
+### Logs ###
+logs/
+**/logs/
+spy.log
