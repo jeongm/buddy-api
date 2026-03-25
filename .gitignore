@@ -53,3 +53,5 @@ data.sql
 .cursorignore
 TEST_CONVENTION.md
 
+### Claude ###
+.claude/worktrees/
