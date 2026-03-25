@@ -41,7 +41,6 @@ jobs:
             docker pull ${{ secrets.DOCKER_USERNAME }}/buddy-api
             # 새 컨테이너 실행 (모든 환경 변수 주입)
             docker run -d --name buddy-api \
-              --add-host=host.docker.internal:host-gateway \
               -p 8080:8080 \
               -e SPRING_PROFILES_ACTIVE=prod \
               -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
