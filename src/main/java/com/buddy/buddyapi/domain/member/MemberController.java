@@ -24,14 +24,14 @@ public class MemberController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<MemberResponse>> getMyInfo(
             @AuthenticationPrincipal CustomUserDetails member) {
-        return ResponseEntity.ok(ApiResponse.ok("내 정보 조회 성공", memberService.getUserDetails(member.memberId())));
+        return ResponseEntity.ok(ApiResponse.ok("내 정보 조회 성공", memberService.getMemberProfile(member.memberId())));
     }
 
     @Operation(summary = "회원가입 직후 온보딩", description = "초기 닉네임, 캐릭터, 알림 설정을 한 번에 완료합니다.")
     @PatchMapping("/me/onboarding")
     public ResponseEntity<ApiResponse<Void>> completeOnboarding(
             @AuthenticationPrincipal CustomUserDetails member,
-            @Valid @RequestBody OnboardingRequest request) {
+            @Valid @RequestBody CompleteOnboardingRequest request) {
 
         memberService.completeOnboarding(member.memberId(), request);
 
@@ -52,7 +52,7 @@ public class MemberController {
     @PostMapping("/me/password/verify")
     public ResponseEntity<ApiResponse<Void>> verifyCurrentPassword(
             @AuthenticationPrincipal CustomUserDetails member,
-            @Valid @RequestBody PasswordUpdateDto.VerifyRequest request) {
+            @Valid @RequestBody VerifyPasswordRequest request) {
 
         memberService.verifyPassword(member.memberId(), request.currentPassword());
 
@@ -63,17 +63,17 @@ public class MemberController {
     @PatchMapping("/me/password")
     public ResponseEntity<ApiResponse<Void>> updatePassword(
             @AuthenticationPrincipal CustomUserDetails member,
-            @Valid @RequestBody PasswordUpdateDto.UpdateRequest request) {
+            @Valid @RequestBody UpdatePasswordRequest request) {
         memberService.updateMemberPassword(member.memberId(), request.currentPassword(), request.newPassword());
         return ResponseEntity.ok(ApiResponse.ok("비밀번호가 변경되었습니다.", null));
     }
 
     @Operation(summary = "내 캐릭터 변경", description = "현재 사용자의 버디 캐릭터를 변경합니다.")
     @PatchMapping("/me/character")
-    public ResponseEntity<ApiResponse<String>> changeCharacter(
+    public ResponseEntity<ApiResponse<String>> updateCharacter(
             @AuthenticationPrincipal CustomUserDetails member ,
-            @Valid @RequestBody CharacterChangeRequest request) {
-        memberService.changeMyCharacter(member.memberId(), request);
+            @Valid @RequestBody ChangeCharacterRequest request) {
+        memberService.updateCharacter(member.memberId(), request);
         return ResponseEntity.ok(ApiResponse.ok("캐릭터 변경 성공"));
     }
 
@@ -99,7 +99,7 @@ public class MemberController {
     @PatchMapping("/push-token")
     public ResponseEntity<ApiResponse<Void>> updatePushToken(
             @Parameter(hidden = true) @AuthenticationPrincipal CustomUserDetails member,
-            @RequestBody PushTokenRequest request) {
+            @RequestBody UpdatePushTokenRequest request) {
 
         memberService.updatePushToken(member.memberId(), request.pushToken());
 

@@ -10,6 +10,7 @@ import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.domain.ai.AiService;
+import com.buddy.buddyapi.global.infra.ImageService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,21 +45,6 @@ public class DiaryService {
     private final ApplicationEventPublisher eventPublisher;
 
     /**
-     * 일기를 목록입니다. 검색어가 있을 시 검색된 일기 목록을 보여줍니다.
-     * @param memberId 현재 로그인한 회원 정보
-     * @param search 검색하고 싶은 내용
-     * @param pageable 원하는 페이지
-     * @return 다이어리 목록 (이미지, 100자가량의 내용, 제목, 태그)
-     */
-    @Transactional(readOnly = true)
-    public Slice<DiaryListResponse> getDiaryList(Long memberId, String search, Pageable pageable) {
-
-        Slice<Diary> diarySlice = diaryRepository.searchMyDiaries(memberId, search, pageable);
-
-        return diarySlice.map(DiaryListResponse::from);
-    }
-
-    /**
      * 채팅 내역을 기반으로 AI 일기 초안을 생성합니다. (DB 저장 안 함)
      *
      * @param memberId  현재 로그인한 회원 정보
@@ -68,9 +54,9 @@ public class DiaryService {
      */
     @Timer
     @Transactional(readOnly = true)
-    public DiaryPreviewResponse generateDiaryFromChat(Long memberId, DiaryGenerateRequest request) {
+    public DiaryPreviewResponse generateDiaryFromChat(Long memberId, GenerateDiaryRequest request) {
 
-        String fullConversation = chatService.getFormattedChatHistory(request.sessionId(), memberId);
+        String fullConversation = chatService.formatChatHistory(request.sessionId(), memberId);
 
         // AI 서비스 호출 (페르소나와 대화 내용 전달)
         String rawResponse = aiService.getDiaryDraft(
@@ -81,6 +67,21 @@ public class DiaryService {
 
         // AI 응답(JSON 문자열)을 DTO로 변환 (파싱 로직은 아래에서 구현)
         return parseAiResponse(rawResponse);
+    }
+
+    /**
+     * 일기를 목록입니다. 검색어가 있을 시 검색된 일기 목록을 보여줍니다.
+     * @param memberId 현재 로그인한 회원 정보
+     * @param search 검색하고 싶은 내용
+     * @param pageable 원하는 페이지
+     * @return 다이어리 목록 (이미지, 100자가량의 내용, 제목, 태그)
+     */
+    @Transactional(readOnly = true)
+    public Slice<DiaryListResponse> getDiaries(Long memberId, String search, Pageable pageable) {
+
+        Slice<Diary> diarySlice = diaryRepository.searchMyDiaries(memberId, search, pageable);
+
+        return diarySlice.map(DiaryListResponse::from);
     }
 
     /**
@@ -108,13 +109,13 @@ public class DiaryService {
      * @throws BaseException 요청한 태그 ID가 존재하지 않을 경우 발생
      */
     @Transactional
-    public Long createDiary(Long memberId, DiaryCreateRequest request, MultipartFile image) {
+    public Long createDiary(Long memberId, CreateDiaryRequest request, MultipartFile image) {
 
         Member member = memberService.getMemberById(memberId);
 
         ChatSession chatSession = null;
         if(request.sessionId() != null) {
-            chatSession = chatService.getChatSessionEntity(request.sessionId(), memberId);
+            chatSession = chatService.getSession(request.sessionId(), memberId);
         }
 
         // 이미지 파일이 있으면 저장하고 경로 반환받기
@@ -150,7 +151,7 @@ public class DiaryService {
      * @throws BaseException 일기를 찾을 수 없거나 본인 일기가 아닐 경우 발생
      */
     @Transactional
-    public void updateDiary(Long memberId, Long diaryId, DiaryUpdateRequest request, MultipartFile newImage) {
+    public void updateDiary(Long memberId, Long diaryId, UpdateDiaryRequest request, MultipartFile newImage) {
 
         Diary diary = diaryRepository.findByDiaryIdAndMember_MemberId(diaryId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));

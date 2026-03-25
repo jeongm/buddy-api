@@ -41,7 +41,7 @@ public class InsightController {
     public ResponseEntity<ApiResponse<WeeklyIdentityResponse>> getMyWeeklyIdentity(
             @AuthenticationPrincipal CustomUserDetails member) {
 
-        WeeklyIdentityResponse response = insightService.getWeeklyInsight(member.memberId());
+        WeeklyIdentityResponse response = insightService.getOrUpdateWeeklyInsight(member.memberId());
 
         return ResponseEntity.ok(ApiResponse.ok(response));
     }

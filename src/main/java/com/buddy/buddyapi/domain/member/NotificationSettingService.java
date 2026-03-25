@@ -132,17 +132,6 @@ public class NotificationSettingService {
         return NotificationSettingResponse.from(setting);
     }
 
-
-    /**
-     * [회원 탈퇴] 회원의 알림 설정을 DB에서 물리적으로 삭제합니다.
-     *
-     * @param memberId 탈퇴할 회원 ID
-     */
-    @Transactional
-    public void deleteSettingOnWithdrawal(Long memberId) {
-        settingRepository.deleteByMember_MemberId(memberId);
-    }
-
     /**
      * 회원 ID로 알림 설정을 조회하고, 없으면 예외를 던지는 내부 공통 메서드.
      *

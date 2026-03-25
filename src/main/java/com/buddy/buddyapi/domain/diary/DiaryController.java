@@ -35,7 +35,7 @@ public class DiaryController {
     @PostMapping("/from-chat")
     public ResponseEntity<ApiResponse<DiaryPreviewResponse>> generateDiaryFromChat(
             @AuthenticationPrincipal CustomUserDetails member,
-            @Valid @RequestBody DiaryGenerateRequest request) {
+            @Valid @RequestBody GenerateDiaryRequest request) {
         return ResponseEntity.ok(ApiResponse.ok(diaryService.generateDiaryFromChat(member.memberId(), request)));
     }
 
@@ -43,7 +43,7 @@ public class DiaryController {
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ApiResponse<Long>> createDiary(
             @AuthenticationPrincipal CustomUserDetails member,
-            @RequestPart(value = "request") @Valid DiaryCreateRequest request,
+            @RequestPart(value = "request") @Valid CreateDiaryRequest request,
             @RequestPart(value = "image", required = false) MultipartFile image) {
 
         Long diaryId = diaryService.createDiary(member.memberId(), request, image);
@@ -68,7 +68,7 @@ public class DiaryController {
             // 기본값: 한 페이지에 10개씩, 작성일(diaryDate) 기준 최신순 정렬
             @ParameterObject @PageableDefault(size = 10, sort = "diaryDate", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        Slice<DiaryListResponse> responses = diaryService.getDiaryList(member.memberId(), search, pageable);
+        Slice<DiaryListResponse> responses = diaryService.getDiaries(member.memberId(), search, pageable);
 
         return ResponseEntity.ok(ApiResponse.ok(responses));
     }
@@ -96,7 +96,7 @@ public class DiaryController {
     public ResponseEntity<ApiResponse<Long>> updateDiary(
             @AuthenticationPrincipal CustomUserDetails member,
             @PathVariable Long diaryId,
-            @RequestPart("request") @Valid DiaryUpdateRequest request,
+            @RequestPart("request") @Valid UpdateDiaryRequest request,
             @RequestPart(value = "image", required = false) MultipartFile image) {
         diaryService.updateDiary(member.memberId(), diaryId, request, image);
         return ResponseEntity.ok(ApiResponse.ok("일기가 수정되었습니다.",diaryId));

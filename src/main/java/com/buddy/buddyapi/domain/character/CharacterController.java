@@ -20,7 +20,7 @@ public class CharacterController {
     @Operation(summary = "캐릭터 목록 조회", description = "선택 가능한 모든 캐릭터를 조회합니다.")
     @GetMapping("/characters")
     public ResponseEntity<ApiResponse<List<CharacterResponse>>> getCharacters() {
-        return ResponseEntity.ok(ApiResponse.ok(characterService.getAllCharacters()));
+        return ResponseEntity.ok(ApiResponse.ok(characterService.getCharacters()));
     }
 
 

@@ -18,7 +18,6 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 
-@Getter
 @Slf4j
 @Service
 public class AiService {
@@ -57,7 +56,7 @@ public class AiService {
      */
     @Timer
     public String getDiaryDraft(String conversations) {
-        String systemMessage = String.format(AiPrompt.DIARY_SYSTEM_PROMPT);
+        String systemMessage = AiPrompt.DIARY_SYSTEM_PROMPT;
 
         List<OpenAiRequest.Message> messages = List.of(
                 new OpenAiRequest.Message("system", systemMessage),

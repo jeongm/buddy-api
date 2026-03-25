@@ -4,14 +4,14 @@ import com.buddy.buddyapi.domain.chat.ChatMessage;
 
 import java.time.LocalDateTime;
 
-public record ChatMessageDto(
+public record ChatMessageResponse(
         Long messageId,
         String role,
         String content,
         LocalDateTime createdAt
 ) {
-    public static ChatMessageDto from(ChatMessage message) {
-        return new ChatMessageDto(
+    public static ChatMessageResponse from(ChatMessage message) {
+        return new ChatMessageResponse(
                 message.getMessageId(),
                 message.getRole().name(),
                 message.getContent(),

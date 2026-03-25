@@ -1,8 +1,7 @@
 package com.buddy.buddyapi.domain.auth;
 
 import com.buddy.buddyapi.domain.auth.component.OAuthUserInfo;
-import com.buddy.buddyapi.domain.auth.dto.AuthDto;
-import com.buddy.buddyapi.domain.auth.dto.OAuthDto;
+import com.buddy.buddyapi.domain.auth.dto.*;
 import com.buddy.buddyapi.domain.auth.enums.AuthStatus;
 import com.buddy.buddyapi.domain.auth.enums.EmailPurpose;
 import com.buddy.buddyapi.domain.member.*;
@@ -49,7 +48,7 @@ public class AuthService {
      * @throws BaseException 이메일 인증 토큰이 유효하지 않거나 만료된 경우, 또는 이미 가입된 이메일일 경우 발생
      */
     @Transactional
-    public AuthDto.LoginResponse signup(AuthDto.SignUpRequest request) {
+    public LoginResponse signup(SignUpRequest request) {
         // 이메일 인증 확인
         String tokenKey = "email_token:SIGNUP:" + request.email();
         String savedToken = redisTemplate.opsForValue().get(tokenKey);
@@ -58,11 +57,11 @@ public class AuthService {
             throw new BaseException(ResultCode.UNAUTHORIZED_EMAIL_VERIFICATION); // "이메일 인증이 만료되었거나 올바르지 않습니다."
         }
 
-        memberService.checkEmailDuplicate(request.email());
+        memberService.validateEmailDuplicate(request.email());
 
         String encodedPassword = passwordEncoder.encode(request.password());
 
-        Member newMember = memberService.registerLocalMember(request, encodedPassword);
+        Member newMember = memberService.createEmailMember(request, encodedPassword);
 
         notificationSettingService.createDefaultSetting(newMember, false);
 
@@ -79,7 +78,7 @@ public class AuthService {
      * @throws BaseException 유저를 찾을 수 없거나 비밀번호가 일치하지 않을 경우 발생
      */
     @Transactional
-    public AuthDto.LoginResponse localLogin(AuthDto.EmailLoginRequest request) {
+    public LoginResponse loginWithEmail(LoginWithEmailRequest request) {
         Member member = memberService.getMemberByEmail(request.email());
 
         if (!passwordEncoder.matches(request.password(), member.getPassword())) {
@@ -98,7 +97,7 @@ public class AuthService {
      * @return 로그인 성공(SUCCESS) 또는 연동 필요(REQUIRES_LINKING) 상태가 포함된 응답 DTO
      */
     @Transactional
-    public AuthDto.LoginResponse socialLogin(OAuthDto.LoginRequest request) throws JsonProcessingException {
+    public LoginResponse loginWithSocial(SocialLoginRequest request) throws JsonProcessingException {
 
         OAuthUserInfo userInfo = oauthService.verifyOauthToken(request.provider(), request.token());
         Provider provider = Provider.from(request.provider());
@@ -142,7 +141,7 @@ public class AuthService {
      * @throws BaseException 키가 만료되었거나 조작된 경우 발생
      */
     @Transactional
-    public AuthDto.LoginResponse linkOauthAccount(String linkKey) throws JsonProcessingException {
+    public LoginResponse linkOauthAccount(String linkKey) throws JsonProcessingException {
 
         OAuthLinkInfo linkInfo = oauthService.getAndRemoveLinkInfo(linkKey);
 
@@ -169,7 +168,7 @@ public class AuthService {
      * @throws BaseException 토큰이 유효하지 않거나 만료된 경우 발생
      */
     @Transactional
-    public AuthDto.LoginResponse refreshToken(String refreshToken) {
+    public LoginResponse refreshToken(String refreshToken) {
         // 1. 토큰 자체의 유효성 검사 (만료 여부, 서명 등)
         if (!jwtTokenProvider.validateToken(refreshToken)) {
             throw new BaseException(ResultCode.INVALID_TOKEN);
@@ -236,7 +235,7 @@ public class AuthService {
     public void validateEmailForPurpose(String email, EmailPurpose purpose) {
         if (purpose == EmailPurpose.SIGNUP) {
             // 회원가입 전: 이미 가입된 이메일이면 에러 뱉기
-            memberService.checkEmailDuplicate(email);
+            memberService.validateEmailDuplicate(email);
         } else if (purpose == EmailPurpose.PASSWORD_RESET) {
             // 비밀번호 찾기 전: 우리 회원인지, 그리고 소셜 로그인 유저가 아닌지(비번이 있는지) 확인
             Member member = memberService.getMemberByEmail(email);
@@ -268,7 +267,7 @@ public class AuthService {
      * @param userInfo AppleTokenVerifier에서 추출한 사용자 정보
      * @return 로그인 성공 응답 DTO
      */
-    private AuthDto.LoginResponse handleAppleLogin(OAuthUserInfo userInfo) {
+    private LoginResponse handleAppleLogin(OAuthUserInfo userInfo) {
         // oauthId(sub) 기준으로 기존 연동 계정 조회
         Optional<OauthAccount> existingAccount = oauthService.findByProviderAndOauthId(
                 Provider.APPLE, userInfo.oauthId());
@@ -298,7 +297,7 @@ public class AuthService {
      * @return 생성된 Member 엔티티
      */
     private Member registerNewSocialMember(OAuthUserInfo userInfo, Provider provider) {
-        Member newMember = memberService.registerSocialMember(userInfo.email(), userInfo.name());
+        Member newMember = memberService.createSocialMember(userInfo.email(), userInfo.name());
         oauthService.saveOauthAccount(newMember, provider,
                 userInfo.oauthId(), userInfo.socialAccessToken(), userInfo.socialRefreshToken());
         notificationSettingService.createDefaultSetting(newMember, false);
@@ -315,7 +314,7 @@ public class AuthService {
      * @param status 현재 인증 상태 (SUCCESS, REQUIRES_LINKING 등)
      * @return 토큰셋과 AuthStatus를 포함한 LoginResponse
      */
-    private AuthDto.LoginResponse issueTokensAndBuildResponse(Member member, AuthStatus status) {
+    private LoginResponse issueTokensAndBuildResponse(Member member, AuthStatus status) {
 
         AuthStatus finalStatus = status;
         if (status == AuthStatus.SUCCESS && member.getBuddyCharacter() == null) {
@@ -332,7 +331,7 @@ public class AuthService {
                 .build()
         );
 
-        return AuthDto.LoginResponse.builder()
+        return LoginResponse.builder()
                 .status(finalStatus)
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
