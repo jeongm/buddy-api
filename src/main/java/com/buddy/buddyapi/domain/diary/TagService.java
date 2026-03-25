@@ -11,7 +11,7 @@ import java.util.List;
 public class TagService {
     private final TagRepository tagRepository;
 
-    public List<TagResponse> getAllTags() {
+    public List<TagResponse> getTags() {
         return tagRepository.findAll().stream()
                 .map(TagResponse::from)
                 .toList();

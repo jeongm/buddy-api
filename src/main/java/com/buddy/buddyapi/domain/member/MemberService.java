@@ -37,9 +37,9 @@ public class MemberService {
      * @return 영속 상태의 Member 엔티티 (PK 보장)
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    public Member registerLocalMember(SignUpRequest request, String encodedPassword) {
+    public Member createEmailMember(SignUpRequest request, String encodedPassword) {
 
-        checkEmailDuplicate(request.email());
+        validateEmailDuplicate(request.email());
 
         String tempNickname = generateDefaultNickname(request.email());
 
@@ -62,7 +62,7 @@ public class MemberService {
      * @return 영속 상태의 Member 엔티티 (PK 보장)
      */
     @Transactional(propagation = Propagation.MANDATORY)
-    public Member registerSocialMember(String email, String name) {
+    public Member createSocialMember(String email, String name) {
 
         String nickname = (name != null && !name.isBlank()) ? name : generateDefaultNickname(email);
 
@@ -88,7 +88,7 @@ public class MemberService {
         BuddyCharacter myCharacter = characterService.getCharacter(request.characterId());
 
         member.updateNickname(request.nickname());
-        member.changeCharacter(myCharacter);
+        member.updateCharacter(myCharacter);
         member.updateCharacterNickname(request.characterName());
 
         notificationSettingService.updateOnboardingSettings(memberId, request.isNightAgreed());
@@ -195,7 +195,7 @@ public class MemberService {
      * @throws BaseException 해당 회원이 존재하지 않을 경우 발생
      */
     @Transactional(readOnly = true)
-    public MemberResponse getUserDetails(Long memberId) {
+    public MemberResponse getMemberProfile(Long memberId) {
         Member member = memberRepository.findByIdWithCharacter(memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.USER_NOT_FOUND));
         return MemberResponse.from(member);
@@ -209,7 +209,7 @@ public class MemberService {
      * @throws BaseException 존재하지 않는 캐릭터 ID이거나 회원을 찾을 수 없을 경우 발생
      */
     @Transactional
-    public void changeMyCharacter(Long memberId, ChangeCharacterRequest request) {
+    public void updateCharacter(Long memberId, ChangeCharacterRequest request) {
 
         Member member = getMemberById(memberId);
 
@@ -217,7 +217,7 @@ public class MemberService {
         // DB에 가지 않고, id값만 가진 껍데기 객체를 만듭니다.
         BuddyCharacter newCharacter = characterService.getCharacterProxy(request.characterId());
 
-        member.changeCharacter(newCharacter);
+        member.updateCharacter(newCharacter);
 
     }
 
@@ -266,7 +266,7 @@ public class MemberService {
      * @throws BaseException 이미 존재하는 이메일인 경우 {@link ResultCode#EMAIL_DUPLICATED} 발생
      */
     @Transactional(readOnly = true)
-    public void checkEmailDuplicate(String email) {
+    public void validateEmailDuplicate(String email) {
         if(memberRepository.existsByEmail(email)) {
             throw new BaseException(ResultCode.EMAIL_DUPLICATED);
         }

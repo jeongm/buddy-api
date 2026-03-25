@@ -22,6 +22,7 @@ import java.util.List;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class InsightService {
 
     private final InsightRepository insightRepository;
@@ -37,7 +38,7 @@ public class InsightService {
      * 주간 아이덴티티(칭호) 조회 및 생성 (Lazy Evaluation)
      */
     @Transactional
-    public WeeklyIdentityResponse getWeeklyInsight(Long memberId) {
+    public WeeklyIdentityResponse getOrUpdateWeeklyInsight(Long memberId) {
         Member member = memberService.getMemberById(memberId);
 
         // 유저의 통계 테이블 조회 (없으면 null)
@@ -122,7 +123,7 @@ public class InsightService {
                 throw new BaseException(ResultCode.AI_PARSE_ERROR);
             }
 
-            String cleanedJson = rawJsonResponse.substring(rawJsonResponse.indexOf("{"), rawJsonResponse.lastIndexOf("}") + 1);
+            String cleanedJson = rawJsonResponse.substring(startIndex, endIndex + 1);
 
             return objectMapper.readValue(cleanedJson,ParsedInsightDto.class);
 

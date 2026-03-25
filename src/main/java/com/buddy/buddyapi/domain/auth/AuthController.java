@@ -40,7 +40,7 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<LoginResponse>> login(
             @Valid @RequestBody LoginWithEmailRequest request) {
-        LoginResponse result = authService.localLogin(request);
+        LoginResponse result = authService.loginWithEmail(request);
         return ResponseEntity.ok(ApiResponse.ok("로그인 성공", result));
     }
 
@@ -61,7 +61,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<LoginResponse>> socialLogin(
             @Valid @RequestBody SocialLoginRequest request
     ) throws JsonProcessingException {
-        LoginResponse result = authService.socialLogin(request);
+        LoginResponse result = authService.loginWithSocial(request);
 
         return ResponseEntity.ok(ApiResponse.ok("소셜 로그인 처리 완료", result));
     }
@@ -102,7 +102,7 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> sendCode(
             @Valid @RequestBody SendEmailRequest request
     ) {
-        emailService.checkSendRateLimit(request.email());
+        emailService.validateSendRateLimit(request.email());
         authService.validateEmailForPurpose(request.email(), request.purpose());
         emailService.sendCode(request.email(),request.purpose());
         return ResponseEntity.ok(ApiResponse.ok("인증 코드가 발송되었습니다.", null));

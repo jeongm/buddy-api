@@ -45,7 +45,7 @@ public class ChatService {
      * sessionId, memberId를 통해 해당 맴버의 해당 챗세션을 가져옴
      */
     @Transactional(readOnly = true)
-    public ChatSession getChatSessionEntity(Long sessionId, Long memberId) {
+    public ChatSession getSession(Long sessionId, Long memberId) {
         return chatSessionRepository.findBySessionIdAndMember_MemberId(sessionId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
     }
@@ -84,7 +84,7 @@ public class ChatService {
      * 문자열 형태로 포맷팅하여 제공합니다.
      * @return "USER: 내용 \n ASSISTANT: 내용" 형태의 문자열
      */
-    public String getFormattedChatHistory(Long sessionId, Long memberId) {
+    public String formatChatHistory(Long sessionId, Long memberId) {
         // 세션 조회 (내 세션인지, 종료된 세션인지 확인)
         ChatSession session = chatSessionRepository.findBySessionIdAndMember_MemberId(sessionId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
@@ -175,13 +175,13 @@ public class ChatService {
             redisTemplate.opsForList().trim(key, -10,-1);
 
         }catch (Exception e) {
-            log.error("Redis 저장 중 에러 발생: {}", e.getMessage());
-
+            log.warn("Redis 컨텍스트 저장 실패 - 다음 대화에서 컨텍스트 유실 가능: {}", e.getMessage());
         }
     }
 
     /**
      * 기존 대화 세션을 조회하거나, 없을 경우 새로운 세션을 생성합니다.
+     * 종료된 세션(is_ended = true)이 전달된 경우 새 세션을 생성합니다. (의도된 동작)
      * @param memberId    현재 로그인한 회원 정보
      * @param sessionId 조회할 세션의 고유 식별자 (null 가능)
      * @return 활성화된 대화 세션 엔티티

@@ -44,6 +44,7 @@ public class OauthService {
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
+    private final RestTemplate restTemplate;
 
     private final GoogleTokenVerifier googleTokenVerifier;
     private final KakaoTokenVerifier kakaoTokenVerifier;
@@ -159,7 +160,7 @@ public class OauthService {
      */
     @EventListener
     @Transactional(readOnly = true)
-    public void onMemberWithdraw(MemberWithdrawEvent event) {
+    public void handleMemberWithdraw(MemberWithdrawEvent event) {
         List<OauthAccount> accounts = oauthAccountRepository.findByMember_MemberId(event.memberId());
 
         if (accounts.isEmpty()) {
@@ -214,7 +215,6 @@ public class OauthService {
      */
     private void unlinkKakao(String oauthId) {
         try {
-            RestTemplate restTemplate = new RestTemplate();
             String reqURL = "https://kapi.kakao.com/v1/user/unlink";
 
             // 1. 헤더 설정 (Admin Key 필수)

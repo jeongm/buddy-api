@@ -21,6 +21,8 @@ public class DailyPushScheduler {
 
     private final FcmService fcmService;
 
+    private static final Random RANDOM = new Random();
+
     private final List<String> pushMessages = Arrays.asList(
             "오늘 하루도 정말 고생 많았어요! 버디가 이야기 들을 준비하고 있어요 🌙",
             "문득 생각나서 연락했어요. 오늘 하루, 특별한 일은 없었나요? 💭",
@@ -40,11 +42,12 @@ public class DailyPushScheduler {
 
         List<String> targetTokens = targetSettings.stream()
                 .map(setting -> setting.getMember().getPushToken())
+                .filter(token -> token != null && !token.isBlank()) // ✅
                 .toList();
 
         log.info("🌙 발송 대상자 수: {}명", targetTokens.size());
 
-        String randomMessage = pushMessages.get(new Random().nextInt(pushMessages.size()));
+        String randomMessage = pushMessages.get(RANDOM.nextInt(pushMessages.size()));
 
         log.info("🌙 데일리 안부 푸시 발송! 대상: {}명, 멘트: {}", targetTokens.size(), randomMessage);
         fcmService.sendPushBulk(targetTokens, "버디 🐶", randomMessage);

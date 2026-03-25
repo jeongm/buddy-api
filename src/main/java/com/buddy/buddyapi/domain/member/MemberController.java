@@ -24,7 +24,7 @@ public class MemberController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<MemberResponse>> getMyInfo(
             @AuthenticationPrincipal CustomUserDetails member) {
-        return ResponseEntity.ok(ApiResponse.ok("내 정보 조회 성공", memberService.getUserDetails(member.memberId())));
+        return ResponseEntity.ok(ApiResponse.ok("내 정보 조회 성공", memberService.getMemberProfile(member.memberId())));
     }
 
     @Operation(summary = "회원가입 직후 온보딩", description = "초기 닉네임, 캐릭터, 알림 설정을 한 번에 완료합니다.")
@@ -70,10 +70,10 @@ public class MemberController {
 
     @Operation(summary = "내 캐릭터 변경", description = "현재 사용자의 버디 캐릭터를 변경합니다.")
     @PatchMapping("/me/character")
-    public ResponseEntity<ApiResponse<String>> changeCharacter(
+    public ResponseEntity<ApiResponse<String>> updateCharacter(
             @AuthenticationPrincipal CustomUserDetails member ,
             @Valid @RequestBody ChangeCharacterRequest request) {
-        memberService.changeMyCharacter(member.memberId(), request);
+        memberService.updateCharacter(member.memberId(), request);
         return ResponseEntity.ok(ApiResponse.ok("캐릭터 변경 성공"));
     }
 

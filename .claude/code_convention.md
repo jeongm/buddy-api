@@ -29,20 +29,15 @@ Package   : lowercase singular (e.g. com.buddy.buddyapi.domain.chat)
 
 
 ### Method Prefix
-| Prefix | Meaning | Return Type | Example |
-|--------|---------|-------------|---------|
-| `create` | Create and save | Response DTO | `createDiary()` |
-| `get` | Single lookup — throws exception if not found | Response DTO | `getDiary()` |
-| `find` | Single lookup — returns Optional if not found | `Optional<T>` | `findDiaryByDate()` |
-| `get{Plural}` | List lookup | `List<T>` | `getDiaries()`, `getMonthlyDiaries()` |
-| `update` | Update | Response DTO | `updateDiary()` |
-| `delete` | Delete | `void` | `deleteDiary()` |
-| `save` | Upsert (update if exists, create if not) | Response DTO | `saveDraft()` |
+
+- Method names should clearly express intent.
+- `get` throws exception if not found. `find` returns Optional.
+- Domain-specific verbs (`generate`, `reset`, `refresh`, `end`, `complete` etc.) are allowed when they better express business intent than CRUD prefixes.
+- Internal helper methods (private or package-level) may return Entity instead of Response DTO.
 
 > **`get` vs `find` distinction is mandatory.**
 > `get` assumes the resource must exist → throws exception if not found.
 > `find` assumes the resource may not exist → returns Optional.
-
  
 ---
 
@@ -123,13 +118,13 @@ All responses must use the `ApiResponse<T>` wrapper.
 return ResponseEntity.ok(ApiResponse.ok(response));
 
 // 201 Created
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
+return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(response));
 
 // 200 OK with no data (e.g. delete)
-        return ResponseEntity.ok(ApiResponse.ok());
+return ResponseEntity.ok(ApiResponse.ok());
 
 // ❌ never return Entity directly
-        return ResponseEntity.ok(diary);
+return ResponseEntity.ok(diary);
 ```
 
 ---

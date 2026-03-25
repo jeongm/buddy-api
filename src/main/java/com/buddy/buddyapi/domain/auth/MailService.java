@@ -80,7 +80,7 @@ public class MailService {
     }
 
     // 발송 가능 여부 확인 (동기 메서드) - 연속으로 이메일인증코드 요청하지 않도록 시간에 제한을 둔다
-    public void checkSendRateLimit(String email) {
+    public void validateSendRateLimit(String email) {
         if (redisTemplate.hasKey(LIMIT_PREFIX + email)) {
             // 1분 내에 이미 보낸 기록이 있으면 에러 뱉기
             throw new BaseException(ResultCode.TOO_MANY_REQUESTS); // 또는 429 에러

@@ -5,11 +5,13 @@ import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class BuddyCharacterService {
 
     private final BuddyCharacterRepository characterRepository;
@@ -19,7 +21,7 @@ public class BuddyCharacterService {
      *
      * @return 캐릭터 정보(ID, 이름, 설명 등) 리스트
      */
-    public List<CharacterResponse> getAllCharacters() {
+    public List<CharacterResponse> getCharacters() {
         return characterRepository.findAll().stream()
                 .map(CharacterResponse::from)
                 .toList();
