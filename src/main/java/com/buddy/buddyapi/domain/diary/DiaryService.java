@@ -2,20 +2,18 @@ package com.buddy.buddyapi.domain.diary;
 
 import com.buddy.buddyapi.domain.chat.*;
 import com.buddy.buddyapi.domain.diary.dto.*;
+import com.buddy.buddyapi.domain.diary.event.DiaryImageUpdateEvent;
 import com.buddy.buddyapi.domain.diary.event.DiaryImagesCleanupEvent;
 import com.buddy.buddyapi.domain.member.Member;
 import com.buddy.buddyapi.domain.member.MemberService;
-import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;
 import com.buddy.buddyapi.global.aspect.Timer;
 import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.buddy.buddyapi.domain.ai.AiService;
-import com.buddy.buddyapi.global.infra.ImageService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.stereotype.Service;
@@ -39,7 +37,6 @@ public class DiaryService {
     private final MemberService memberService;
     private final AiService aiService;
     private final ChatService chatService;
-    private final ImageService imageService;
 
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
@@ -118,28 +115,33 @@ public class DiaryService {
             chatSession = chatService.getSession(request.sessionId(), memberId);
         }
 
-        // 이미지 파일이 있으면 저장하고 경로 반환받기
-        String savedImageUrl = null;
-        if(image != null && !image.isEmpty()) {
-            savedImageUrl = imageService.uploadImage(image);
-        }
-
+        // 이미지 없이 DB 먼저 저장
         Diary diary = Diary.builder()
                 .title(request.title())
                 .content(request.content())
                 .diaryDate(request.diaryDate())
-                .imageUrl(savedImageUrl)
+                .imageUrl(null)
                 .member(member)
                 .chatSession(chatSession)
                 .build();
 
-        // 2. 태그 리스트가 있다면 조회 후 연결
+        // 태그 리스트가 있다면 조회 후 연결
         if (request.tags() != null && !request.tags().isEmpty()) {
             List<Tag> tags = getOrCreateTags(request.tags());
             diary.addTags(tags);
         }
 
-        return diaryRepository.save(diary).getDiaryId();
+        Diary savedDiary = diaryRepository.save(diary);
+
+        if (image != null && !image.isEmpty()) {
+            eventPublisher.publishEvent(
+                    new DiaryImageUpdateEvent(savedDiary.getDiaryId(), null, image)
+            );
+        }
+
+
+
+        return savedDiary.getDiaryId();
     }
 
     /**
@@ -156,14 +158,8 @@ public class DiaryService {
         Diary diary = diaryRepository.findByDiaryIdAndMember_MemberId(diaryId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
-        String oldImageUrl = diary.getImageUrl();
-        String newImageUrl = oldImageUrl;
+        diary.updateDiary(request.title(), request.content(), request.diaryDate(), diary.getImageUrl());
 
-        if(newImage != null && !newImage.isEmpty()) {
-            newImageUrl = imageService.uploadImage(newImage);
-        }
-
-        diary.updateDiary(request.title(), request.content(), request.diaryDate(), newImageUrl);
 
         // 태그 교체
         if (request.tags() != null) {
@@ -171,11 +167,19 @@ public class DiaryService {
             diary.updateTags(tags);
         }
 
-        diaryRepository.flush();
-
-        if(newImage != null && !newImage.isEmpty() && oldImageUrl != null) {
-            imageService.deleteImage(oldImageUrl);
+        if (newImage != null && !newImage.isEmpty()) {
+            eventPublisher.publishEvent(
+                    new DiaryImageUpdateEvent(diaryId, diary.getImageUrl(), newImage)
+            );
+        } else if (Boolean.TRUE.equals(request.deleteImage())) {
+            if (diary.getImageUrl() != null) {
+                eventPublisher.publishEvent(
+                        new DiaryImagesCleanupEvent(List.of(diary.getImageUrl()))
+                );
+                diary.updateDiary(request.title(), request.content(), request.diaryDate(), null);
+            }
         }
+
 
     }
 
@@ -190,12 +194,12 @@ public class DiaryService {
         Diary diary = diaryRepository.findByDiaryIdAndMember_MemberId(diaryId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
+        String imageUrl = diary.getImageUrl();
+
         diaryRepository.delete(diary);
-        diaryRepository.flush();
-        // diary_tag 테이블의 데이터도 알아서 같이 지워집니다!
 
         if(diary.getImageUrl() != null) {
-            imageService.deleteImage(diary.getImageUrl());
+            eventPublisher.publishEvent(new DiaryImagesCleanupEvent(List.of(imageUrl)));
         }
     }
 
@@ -246,27 +250,6 @@ public class DiaryService {
 
     }
 
-    /**
-     * [회원 탈퇴] DB 삭제 전 Cloudinary 이미지 URL을 수집하고 정리 이벤트를 예약합니다.
-     * @EventListener 는 즉시 동기 실행되므로, memberRepository.deleteById() 보다 먼저 실행됩니다.
-     * 덕분에 아직 살아있는 Diary에서 URL을 안전하게 읽을 수 있습니다.
-     * Diary의 DB 삭제는 Member 삭제 시 @OnDelete(CASCADE)가 처리합니다.
-     */
-    @EventListener
-    @Transactional(readOnly = true)
-    public void handleMemberWithdraw(MemberWithdrawEvent event) {
-        Long memberId = event.memberId();
-
-        List<String> imageUrls = diaryRepository.findImageUrlsByMemberId(memberId);
-
-        if (!imageUrls.isEmpty()) {
-            // 트랜잭션 커밋 후 Cloudinary 삭제를 위해 이벤트 예약
-            eventPublisher.publishEvent(new DiaryImagesCleanupEvent(imageUrls));
-        }
-
-        log.info("📢 [DiaryService] 탈퇴 유저(Id: {})의 Cloudinary 이미지 {}개 삭제 예약",
-                memberId, imageUrls.size());
-    }
 
     /**
      * 태그 이름 리스트를 바탕으로 기존 태그를 조회하거나 신규 태그를 생성합니다.
