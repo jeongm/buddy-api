@@ -2,6 +2,7 @@ package com.buddy.buddyapi.domain.auth;
 
 import com.buddy.buddyapi.domain.auth.component.*;
 import com.buddy.buddyapi.domain.auth.dto.LoginResponse;
+import com.buddy.buddyapi.domain.auth.dto.OAuthLinkInfo;
 import com.buddy.buddyapi.domain.auth.enums.AuthStatus;
 import com.buddy.buddyapi.domain.member.*;
 import com.buddy.buddyapi.domain.member.event.MemberWithdrawEvent;

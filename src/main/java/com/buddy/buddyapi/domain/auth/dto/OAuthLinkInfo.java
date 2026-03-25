@@ -1,4 +1,4 @@
-package com.buddy.buddyapi.domain.auth;
+package com.buddy.buddyapi.domain.auth.dto;
 
 import lombok.Builder;
 
