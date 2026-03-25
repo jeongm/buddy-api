@@ -167,10 +167,17 @@ public class DiaryService {
             diary.updateTags(tags);
         }
 
-        if(newImage != null && !newImage.isEmpty()) {
+        if (newImage != null && !newImage.isEmpty()) {
             eventPublisher.publishEvent(
                     new DiaryImageUpdateEvent(diaryId, diary.getImageUrl(), newImage)
             );
+        } else if (Boolean.TRUE.equals(request.deleteImage())) {
+            if (diary.getImageUrl() != null) {
+                eventPublisher.publishEvent(
+                        new DiaryImagesCleanupEvent(List.of(diary.getImageUrl()))
+                );
+                diary.updateDiary(request.title(), request.content(), request.diaryDate(), null);
+            }
         }
 
 

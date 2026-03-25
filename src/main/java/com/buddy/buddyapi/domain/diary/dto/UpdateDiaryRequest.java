@@ -14,6 +14,7 @@ public record UpdateDiaryRequest(
         @NotNull(message = "일기 날짜를 입력해주세요")
         @DateTimeFormat(pattern = "yyyy-MM-dd")
         LocalDate diaryDate,
-        List<String> tags
+        List<String> tags,
+        Boolean deleteImage
 ) {
 }
