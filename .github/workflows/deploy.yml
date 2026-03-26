@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - '.gitignore'
+      - '**.md'
+      - '.github/**'
 
 jobs:
   deploy:
@@ -42,6 +46,7 @@ jobs:
             # 새 컨테이너 실행 (모든 환경 변수 주입)
             docker run -d --name buddy-api \
               -p 8080:8080 \
+              -v /var/log/buddy:/var/log/buddy \
               -e SPRING_PROFILES_ACTIVE=prod \
               -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
               -e DB_URL=${{ secrets.DB_URL }} \
