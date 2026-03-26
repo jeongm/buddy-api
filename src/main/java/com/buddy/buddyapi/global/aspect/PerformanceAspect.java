@@ -18,15 +18,19 @@ public class PerformanceAspect {
         stopWatch.start();
 
         // 실제 타겟 메서드 실행
-        Object proceed = joinPoint.proceed();
+        try {
+            return joinPoint.proceed();
+        } finally {
+            stopWatch.stop();
+            long elapsed = stopWatch.getTotalTimeMillis();
+            String method = joinPoint.getSignature().toShortString();
 
-        stopWatch.stop();
-
-        log.info("[Performance] Method: {} | Execution Time: {} ms",
-                joinPoint.getSignature().toShortString(),
-                stopWatch.getTotalTimeMillis());
-
-        return proceed;
+            if (elapsed >= 100) {
+                log.warn("[Performance] ⚠️ SLOW | Method: {} | {}ms", method, elapsed);
+            } else {
+                log.info("[Performance] Method: {} | {}ms", method, elapsed);
+            }
+        }
 
     }
 }

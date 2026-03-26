@@ -24,18 +24,20 @@ spring:
 # =================================================================
 # Logging Configuration
 # =================================================================
+
 logging:
   level:
     root: INFO
-    com.buddy.buddyapi: DEBUG
-    org.springframework.security: DEBUG
-    org.springframework.web: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    com.buddy.buddyapi: INFO
+    org.hibernate.SQL: OFF
+    org.hibernate.type.descriptor.sql.BasicBinder: OFF
 
-#logging:
-#  level:
-#    root: INFO
-#    com.buddy.buddyapi: INFO
-#    org.hibernate.SQL: OFF
-#    org.hibernate.type.descriptor.sql.BasicBinder: OFF
+  file:
+    name: /var/log/buddy/application.log
+
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB        # 파일 하나당 최대 50MB
+      max-history: 7            # 30일치 보관
+      total-size-cap: 100MB        # 전체 로그 최대 3GB
+      file-name-pattern: /var/log/buddy/application.%d{yyyy-MM-dd}.%i.log
