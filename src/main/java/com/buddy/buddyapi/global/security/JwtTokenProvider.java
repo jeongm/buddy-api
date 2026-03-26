@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.List;
 
 @Slf4j
 @Component
@@ -63,14 +64,14 @@ public class JwtTokenProvider {
                 .parseClaimsJws(token)
                 .getBody();
 
-        // 이전에 구현한 UserServiceImpl의 loadUserByUsername을 호츌하여 유저 정보를 가져옵니다.
-        // 여기서는 간단하게 memberId(Subject)만 추출하여 사용하거나
-        // UserDetailsService를 주입받아 사용하도록 구성할 수 있습니다.
-        String memberIdStr = claims.getSubject();
-        UserDetails userDetails = userDetailsService.loadUserByMemberId(Long.parseLong(memberIdStr));
-        // UserDetailsService를 주입받아 처리
+        // 여기서는 간단하게 memberId(Subject)만 추출하여 사용
+        Long memberId = Long.parseLong(claims.getSubject());
 
-        return new UsernamePasswordAuthenticationToken(userDetails, "", userDetails.getAuthorities());
+        return new UsernamePasswordAuthenticationToken(
+                memberId,
+                null,
+                List.of()
+        );
     }
 
     // 토큰 유효성 검증

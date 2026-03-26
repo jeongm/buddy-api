@@ -3,7 +3,6 @@ package com.buddy.buddyapi.domain.insight;
 import com.buddy.buddyapi.domain.insight.dto.TagNameCountResponse;
 import com.buddy.buddyapi.domain.insight.dto.WeeklyIdentityResponse;
 import com.buddy.buddyapi.global.common.ApiResponse;
-import com.buddy.buddyapi.global.security.CustomUserDetails;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -26,9 +25,9 @@ public class InsightController {
     @Operation(summary = "최다 빈도 태그 조회", description = "최근 7일 동안 사용자가 가장 많이 사용한 태그 TOP 5을 조회합니다.")
     @GetMapping("/weekly/tags")
     public ResponseEntity<ApiResponse<List<TagNameCountResponse>>> getLastWeekTopTags(
-            @AuthenticationPrincipal CustomUserDetails member
+            @AuthenticationPrincipal Long memberId
     ) {
-        List<TagNameCountResponse> result = insightService.getLastWeekTopTags(member.memberId());
+        List<TagNameCountResponse> result = insightService.getLastWeekTopTags(memberId);
 
         return ResponseEntity.ok(ApiResponse.ok("태그 조회 성공",result));
     }
@@ -39,9 +38,9 @@ public class InsightController {
     )
     @GetMapping("/weekly/identity")
     public ResponseEntity<ApiResponse<WeeklyIdentityResponse>> getMyWeeklyIdentity(
-            @AuthenticationPrincipal CustomUserDetails member) {
+            @AuthenticationPrincipal Long memberId) {
 
-        WeeklyIdentityResponse response = insightService.getOrUpdateWeeklyInsight(member.memberId());
+        WeeklyIdentityResponse response = insightService.getOrUpdateWeeklyInsight(memberId);
 
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
