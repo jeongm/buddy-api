@@ -2,7 +2,6 @@ package com.buddy.buddyapi.domain.auth;
 
 import com.buddy.buddyapi.domain.auth.dto.*;
 import com.buddy.buddyapi.global.common.ApiResponse;
-import com.buddy.buddyapi.global.security.CustomUserDetails;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -88,8 +87,8 @@ public class AuthController {
     @Operation(summary = "로그아웃", description = "서버(Redis)에 저장된 사용자의 리프레시 토큰을 삭제하여 로그아웃 처리합니다.")
     @PostMapping("/logout")
     public ResponseEntity<ApiResponse<Void>> logout(
-            @AuthenticationPrincipal CustomUserDetails member) {
-        authService.logout(member.memberId());
+            @AuthenticationPrincipal Long memberId) {
+        authService.logout(memberId);
 
         return ResponseEntity.ok(ApiResponse.ok("로그아웃 성공", null));
     }
