@@ -35,14 +35,10 @@ spring:
 # =================================================================
   data:
     redis:
-      host: ${REDIS_HOST:host.docker.internal}
+      host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
       ssl:
-        enabled: true
-      lettuce:
-        extension:
-          ssl:
-            enabled: true
+        enabled: false
 
 # =================================================================
 # File Upload Settings
