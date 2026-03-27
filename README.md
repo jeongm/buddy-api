@@ -116,3 +116,8 @@ com.buddy.api
 1. `application-dev.yml.example` → `application-dev.yml` 으로 복사
 2. 본인 로컬 DB 정보로 수정
 3. IntelliJ Run Configuration → Active profiles: `dev`
+
+## 서버 초기 설정
+# 로그 디렉토리 생성 (최초 1회)
+sudo mkdir -p /var/log/buddy
+sudo chown -R ubuntu:ubuntu /var/log/buddy

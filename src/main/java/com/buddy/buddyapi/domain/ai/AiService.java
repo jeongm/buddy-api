@@ -7,7 +7,6 @@ import com.buddy.buddyapi.global.exception.BaseException;
 import com.buddy.buddyapi.global.exception.ResultCode;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
@@ -56,15 +55,15 @@ public class AiService {
      */
     @Timer
     public String getDiaryDraft(String conversations) {
-        String systemMessage = AiPrompt.DIARY_SYSTEM_PROMPT;
+        String systemMessage = AiPrompt.DIARY_SYSTEM_PROMPT_RAW;
 
         List<OpenAiRequest.Message> messages = List.of(
                 new OpenAiRequest.Message("system", systemMessage),
                 new OpenAiRequest.Message("user", conversations)
         );
 
-        // 일기는 퀄리티가 생명이므로 gpt-4o 사용, 온도를 0.85로 높여 감수성 폭발!
-        // (만약 비용이 부담되시면 여기도 "gpt-4o-mini"로 하되, 온도만 0.85로 유지하셔도 좋습니다)
+        // 일기는 퀄리티가 생명이므로 gpt-4o 사용, 온도를 0.85로 높여 감수성 높임
+        // 비용문제로 일단 gpt-4o-mini 0.85 사용
         return callOpenAi(messages, true, "gpt-4o-mini", 0.85);
     }
 
