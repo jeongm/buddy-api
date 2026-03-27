@@ -60,19 +60,19 @@ public class ChatService {
     @Transactional
     public ChatSendResponse sendMessage(Long memberId, SendChatRequest request) {
 
-        // 1. 세션 조회 또는 생성 (세션 ID가 없거나 종료된 세션이면 새로 생성)
+        // 세션 조회 또는 생성 (세션 ID가 없거나 종료된 세션이면 새로 생성)
         ChatSession session = getOrCreateSession(memberId, request.sessionId());
 
-        // 2. 사용자 메시지 저장
+        // 사용자 메시지 저장
         saveMessage(session, SenderRole.USER, request.content());
 
-        // 3. AI 답변 생성
+        // AI 답변 생성
         String aiContent = generateAiResponse(session, request.content());
 
-        // 4. AI 메시지 저장(DB)
+        // AI 메시지 저장(DB)
         ChatMessage aiMessage = saveMessage(session, SenderRole.ASSISTANT, aiContent);
 
-        // 5. Redis에 대화내용 저장
+        // Redis에 대화내용 저장
         saveContextToRedis(session.getSessionId(), request.content(), aiContent);
 
         return ChatSendResponse.of(session.getSessionId(), ChatMessageResponse.from(aiMessage));
@@ -90,7 +90,7 @@ public class ChatService {
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
         // 해당 세션의 모든 메시지 시간순 조회
-        // TODO user의 내용으로만 작성할지 캐릭터까지 들어가게 작성할지 -> 일단 user내용으로만 작성하도록 수정해보자
+        // USER + ASSISTANT 내용 전부 포함. 단, ASSISTANT는 대화의 맥락을 파악하는 용도로 사용하도록 한다.
         List<ChatMessage> messages = chatMessageRepository.findAllByChatSessionOrderByCreatedAtAsc(session);
 
         if (messages.isEmpty()) {
@@ -112,7 +112,6 @@ public class ChatService {
      */
     private String generateAiResponse(ChatSession session, String userContent) {
         // OpenAI API 연동 지점
-        // 1. 조립할 리스트 생성
         List<OpenAiRequest.Message> fullMessages = new ArrayList<>();
 
         String characterName = session.getMember().getCharacterNickname();
@@ -273,7 +272,7 @@ public class ChatService {
         ChatSession session = chatSessionRepository.findBySessionIdAndMember_MemberId(sessionId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
-        // 2. 이미 종료된 세션인지 체크 (선택 사항)
+        // 이미 종료된 세션인지 체크 (선택 사항)
         if (session.isEnded()) {
             throw new BaseException(ResultCode.SESSION_ALREADY_ENDED);
         }

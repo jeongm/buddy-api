@@ -6,7 +6,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
@@ -20,18 +19,15 @@ public class JwtTokenProvider {
     private final Key key;
     private final long accessTokenValidity;
     private final long refreshTokenValidity;
-    private final CustomUserDetailsService userDetailsService;
 
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
             @Value("${jwt.access-token-validity}") long accessTokenValidity,
-            @Value("${jwt.refresh-token-validity}") long refreshTokenValidity,
-            CustomUserDetailsService userDetailsService
+            @Value("${jwt.refresh-token-validity}") long refreshTokenValidity
     ) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
         this.accessTokenValidity = accessTokenValidity;
         this.refreshTokenValidity = refreshTokenValidity;
-        this.userDetailsService = userDetailsService;
     }
 
     // Access Token 생성

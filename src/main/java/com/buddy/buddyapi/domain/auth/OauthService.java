@@ -218,17 +218,14 @@ public class OauthService {
         try {
             String reqURL = "https://kapi.kakao.com/v1/user/unlink";
 
-            // 1. 헤더 설정 (Admin Key 필수)
             HttpHeaders headers = new HttpHeaders();
             headers.add("Authorization", "KakaoAK " + kakaoAdminKey);
             headers.add("Content-Type", "application/x-www-form-urlencoded;charset=utf-8");
 
-            // 2. 바디 설정 (누구의 연결을 끊을 것인가?)
             MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
             body.add("target_id_type", "user_id");
             body.add("target_id", oauthId);
 
-            // 3. 요청 쏘기
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
             ResponseEntity<String> response = restTemplate.postForEntity(reqURL, request, String.class);
 
@@ -248,16 +245,16 @@ public class OauthService {
         }
 
         try {
-            // 1. 일단 가지고 있는 Access Token으로 끊어봅니다.
+            // 일단 가지고 있는 Access Token으로 끊어봅니다.
             boolean isSuccess = sendNaverDeleteRequest(accessToken);
 
-            // 2. 만약 실패했다면? (아마 토큰 만료일 확률이 99%) -> 리프레시 토큰으로 심폐소생술!
+            // 만약 실패했다면? (아마 토큰 만료일 확률이 99%) -> 리프레시 토큰으로 심폐소생술
             if (!isSuccess && refreshToken != null && !refreshToken.isBlank()) {
                 log.info("🟡 네이버 Access Token 만료 추정. Refresh Token으로 갱신을 시도합니다.");
                 String newAccessToken = refreshNaverToken(refreshToken);
 
                 if (newAccessToken != null) {
-                    sendNaverDeleteRequest(newAccessToken); // 새 토큰으로 다시 끊기 요청!
+                    sendNaverDeleteRequest(newAccessToken); // 새 토큰으로 다시 끊기 요청
                 }
             }
         } catch (Exception e) {
@@ -286,7 +283,6 @@ public class OauthService {
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
             ResponseEntity<String> response = restTemplate.postForEntity(reqURL, request, String.class);
 
-            // HTTP 200 이면 성공!
             if (response.getStatusCode().is2xxSuccessful()) {
                 log.info("🟢 네이버 연결 끊기 성공!");
                 return true;
@@ -317,7 +313,7 @@ public class OauthService {
             HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
             ResponseEntity<JsonNode> response = restTemplate.postForEntity(reqURL, request, JsonNode.class);
 
-            // 갱신된 따끈따끈한 새 액세스 토큰 반환!
+            // 갱신된 새 액세스 토큰 반환
             return response.getBody().path("access_token").asText(null);
         } catch (Exception e) {
             log.error("🔴 네이버 토큰 갱신 실패: {}", e.getMessage());
