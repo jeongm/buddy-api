@@ -1,10 +1,11 @@
 package com.buddy.buddyapi.global.scheduler;
 
-import com.buddy.buddyapi.domain.chat.ChatSession;
 import com.buddy.buddyapi.domain.chat.ChatSessionRepository;
+import com.buddy.buddyapi.domain.chat.dto.PushTargetDto;
 import com.buddy.buddyapi.global.infra.FcmService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,31 +29,46 @@ public class ChatRetentionScheduler {
     @Transactional
     public void sendWarningPushNotifications() {
         LocalDateTime tenHoursAgo = LocalDateTime.now().minusHours(10);
+        int totalPushed = 0;
 
-        List<ChatSession> warningTargets = chatSessionRepository.findWarningTargets(tenHoursAgo);
+        while (true) {
+            List<PushTargetDto> targets = chatSessionRepository.findWarningTargets(
+                    tenHoursAgo, PageRequest.of(0,100)
+            );
 
-        if (warningTargets.isEmpty()) {
-            return;
+            if (targets.isEmpty()) {
+                break;
+            }
+
+            List<Long> targetSessionIds = targets.stream()
+                    .map(PushTargetDto::sessionId)
+                    .toList();
+
+            List<String> targetTokens = targets.stream()
+                    .map(PushTargetDto::pushToken)
+                    .filter(token -> token != null && !token.isBlank())
+                    .toList();
+
+            // 발송 시간 업데이트
+            if (!targetSessionIds.isEmpty()) {
+                chatSessionRepository.bulkMarkAsNotified(targetSessionIds);
+            }
+
+            // 알림 발송
+            if (!targetTokens.isEmpty()) {
+                try {
+                    fcmService.sendPushBulk(targetTokens, "버디가 기다리고 있어요", "대화가 곧 지워질 예정이에요 일기로 남겨볼까요?");
+                    totalPushed += targetTokens.size();
+                } catch (Exception e) {
+                    // FCM이 터져도 서버가 죽지 않게 에러만 로그로 남김
+                    log.error("FCM 푸시 발송 실패 (대상 수: {})", targetTokens.size(), e);
+                }
+            }
+
         }
 
-        List<String> targetTokens = warningTargets.stream()
-                .map(session -> session.getMember().getPushToken())
-                .filter(token -> token != null && !token.isBlank())
-                .toList();
-
-        List<Long> targetSessionIds = warningTargets.stream()
-                .map(ChatSession::getSessionId)
-                .toList();
-
-        if(!targetTokens.isEmpty()) {
-            fcmService.sendPushBulk(targetTokens, "버디가 기다리고 있어요", "대화가 곧 지워질 예정이에요 일기로 남겨볼까요?");
-            log.info("PUSH 알림 발송 대상 유저 수: {}명", targetTokens.size());
-        }
-
-
-        // 알림 발송 완료 처리 - 발송 시간 업데이트
-        if(!targetSessionIds.isEmpty()) {
-            chatSessionRepository.bulkMarkAsNotified(targetSessionIds);
+        if (totalPushed > 0) {
+            log.info("PUSH 알림 발송 완료 - 총 발송 유저 수: {}명", totalPushed);
         }
     }
 
