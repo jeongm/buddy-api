@@ -24,51 +24,42 @@ public class ChatRetentionScheduler {
     /**
      * 1. 알림 스케줄러: 매시간 30분마다 실행 (예: 1시 30분, 2시 30분)
      * - 10시간 경과 & 일기 미생성 & 알림 안 보낸 세션 찾아서 알림 발송
+     * - 추후 사용자 증가 시 Spring Batch 도입할 것 (현재는 소규모이므로 100개씩만 처리하도록 함)
      */
     @Scheduled(cron = "0 30 * * * *")
     @Transactional
     public void sendWarningPushNotifications() {
         LocalDateTime tenHoursAgo = LocalDateTime.now().minusHours(10);
-        int totalPushed = 0;
 
-        while (true) {
-            List<PushTargetDto> targets = chatSessionRepository.findWarningTargets(
-                    tenHoursAgo, PageRequest.of(0,100)
-            );
+        List<PushTargetDto> targets = chatSessionRepository.findWarningTargets(
+                tenHoursAgo, PageRequest.of(0,100)
+        );
 
-            if (targets.isEmpty()) {
-                break;
+        if (targets.isEmpty()) return;
+
+        List<Long> targetSessionIds = targets.stream()
+                .map(PushTargetDto::sessionId)
+                .toList();
+
+        List<String> targetTokens = targets.stream()
+                .map(PushTargetDto::pushToken)
+                .filter(token -> token != null && !token.isBlank())
+                .toList();
+
+        // 발송 시간 업데이트
+        chatSessionRepository.bulkMarkAsNotified(targetSessionIds);
+
+        // 알림 발송
+        if (!targetTokens.isEmpty()) {
+            try {
+                fcmService.sendPushBulk(targetTokens,
+                        "버디가 기다리고 있어요",
+                        "대화가 곧 지워질 예정이에요 일기로 남겨볼까요?");
+                log.info("PUSH 알림 발송 완료 - 총 발송 유저 수: {}명", targetTokens.size());
+
+            } catch (Exception e) {
+                log.error("FCM 푸시 발송 실패 (대상 수: {})", targetTokens.size(), e);
             }
-
-            List<Long> targetSessionIds = targets.stream()
-                    .map(PushTargetDto::sessionId)
-                    .toList();
-
-            List<String> targetTokens = targets.stream()
-                    .map(PushTargetDto::pushToken)
-                    .filter(token -> token != null && !token.isBlank())
-                    .toList();
-
-            // 발송 시간 업데이트
-            if (!targetSessionIds.isEmpty()) {
-                chatSessionRepository.bulkMarkAsNotified(targetSessionIds);
-            }
-
-            // 알림 발송
-            if (!targetTokens.isEmpty()) {
-                try {
-                    fcmService.sendPushBulk(targetTokens, "버디가 기다리고 있어요", "대화가 곧 지워질 예정이에요 일기로 남겨볼까요?");
-                    totalPushed += targetTokens.size();
-                } catch (Exception e) {
-                    // FCM이 터져도 서버가 죽지 않게 에러만 로그로 남김
-                    log.error("FCM 푸시 발송 실패 (대상 수: {})", targetTokens.size(), e);
-                }
-            }
-
-        }
-
-        if (totalPushed > 0) {
-            log.info("PUSH 알림 발송 완료 - 총 발송 유저 수: {}명", totalPushed);
         }
     }
 
