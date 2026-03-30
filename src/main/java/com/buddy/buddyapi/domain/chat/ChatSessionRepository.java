@@ -1,6 +1,8 @@
 package com.buddy.buddyapi.domain.chat;
 
+import com.buddy.buddyapi.domain.chat.dto.PushTargetDto;
 import com.buddy.buddyapi.domain.member.Member;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -21,15 +23,15 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
 
     // 알림 발송용 : 10시간 지남, 알림 안보냄, 일기로 안 만들어진 채팅방
     @Query("""
-        SELECT c FROM ChatSession c 
-        JOIN FETCH c.member 
+        SELECT new com.buddy.buddyapi.domain.chat.dto.PushTargetDto(c.sessionId, m.pushToken) 
+        FROM ChatSession c 
+        JOIN c.member m 
         WHERE c.createdAt <= :tenHoursAgo 
           AND c.deletionNotifiedAt IS NULL 
-          AND NOT EXISTS (SELECT 1 FROM Diary d WHERE d.chatSession = c)
+          AND c.ended = false
         """)
-    List<ChatSession> findWarningTargets(@Param("tenHoursAgo") LocalDateTime tenHoursAgo);
+    List<PushTargetDto> findWarningTargets(@Param("tenHoursAgo") LocalDateTime tenHoursAgo, Pageable pageable);
 
-    // TODO 생각해보니까...ended 보고 결정하면 될듯 ended = false인 친구들만 삭제하면 되는거아냐?
     // 쓰레기 청소용 : 12시간 지남, 일기로 안 만들어진 채팅방 삭제
     // 벌크연산(Bulk Delete)으로 최적화(N+1)문제 방지
     // 쓰레기 청소 1단계: 자식(메시지) 먼저 삭제 (FK 에러 방지용)
@@ -39,7 +41,7 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
         WHERE m.chatSession.sessionId IN (
             SELECT c.sessionId FROM ChatSession c 
             WHERE c.createdAt <= :twelveHoursAgo 
-              AND NOT EXISTS (SELECT 1 FROM Diary d WHERE d.chatSession = c)
+              AND c.ended = false
         )
         """)
     int deleteOrphanMessages(@Param("twelveHoursAgo") LocalDateTime twelveHoursAgo);
@@ -49,7 +51,7 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
     @Query("""
         DELETE FROM ChatSession c 
         WHERE c.createdAt <= :twelveHoursAgo 
-          AND NOT EXISTS (SELECT 1 FROM Diary d WHERE d.chatSession = c)
+          AND c.ended = false
         """)
     int deleteOrphanSessions(@Param("twelveHoursAgo") LocalDateTime twelveHoursAgo);
 

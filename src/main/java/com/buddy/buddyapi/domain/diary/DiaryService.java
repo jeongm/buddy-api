@@ -113,6 +113,7 @@ public class DiaryService {
         ChatSession chatSession = null;
         if(request.sessionId() != null) {
             chatSession = chatService.getSession(request.sessionId(), memberId);
+            chatSession.endSession();
         }
 
         // 이미지 없이 DB 먼저 저장
@@ -138,8 +139,6 @@ public class DiaryService {
                     new DiaryImageUpdateEvent(savedDiary.getDiaryId(), null, image)
             );
         }
-
-
 
         return savedDiary.getDiaryId();
     }

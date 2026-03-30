@@ -272,14 +272,12 @@ public class ChatService {
         ChatSession session = chatSessionRepository.findBySessionIdAndMember_MemberId(sessionId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.SESSION_NOT_FOUND));
 
-        // 이미 종료된 세션인지 체크 (선택 사항)
         if (session.isEnded()) {
             throw new BaseException(ResultCode.SESSION_ALREADY_ENDED);
         }
 
         session.endSession();
 
-        chatSessionRepository.save(session);
     }
 
 }

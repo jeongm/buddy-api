@@ -9,7 +9,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 # 2. 실행 스테이지
-FROM eclipse-temurin:17-jdk-jammy
+FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
 # 타임존 설정 (로그 시간이 한국 시간으로 나오게 함)
@@ -19,6 +19,16 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 COPY --from=build /app/target/*.jar app.jar
 
 # JVM 옵션 추가 (메모리 효율화)
-ENTRYPOINT ["java", "-Xmx400M", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
+ENTRYPOINT ["java", \
+  "-Xms128m", \
+  "-Xmx400m", \
+  "-XX:MaxMetaspaceSize=128m", \
+  "-XX:ReservedCodeCacheSize=64m", \
+  "-XX:+UseG1GC", \
+  "-XX:+UseStringDeduplication", \
+  "-XX:+HeapDumpOnOutOfMemoryError", \
+  "-XX:HeapDumpPath=/var/log/buddy/heap-dump.hprof", \
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "-jar", "app.jar"]
 
 EXPOSE 8080
