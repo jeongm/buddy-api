@@ -43,17 +43,16 @@ public class Member {
 
     // -------- relation --------
 
-    // TODO 캐릭터 세계관 확장 시 분리하여 관리
+    // 캐릭터 세계관 확장 시 분리하여 관리
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "character_id")
     private BuddyCharacter buddyCharacter;
 
     @Builder
-    public Member(String email, String password, String nickname, BuddyCharacter buddyCharacter) {
+    public Member(String email, String password, String nickname) {
         this.email = email;
         this.password = password;
         this.nickname = nickname;
-        this.buddyCharacter = buddyCharacter;
     }
 
     public void updatePassword(String password) {
