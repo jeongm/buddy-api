@@ -23,9 +23,16 @@ jwt:
 # =================================================================
 spring:
   jpa:
+    open-in-view: false
     properties:
       hibernate:
         default_batch_fetch_size: 100
+  datasource:
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      idle-timeout: 30000
+      leak-detection-threshold: 60000
   sql:
     init:
       mode: never
