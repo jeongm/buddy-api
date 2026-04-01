@@ -114,7 +114,7 @@ public class LocalDataInitializer implements ApplicationRunner {
                 .member(member)
                 .weeklyIdentity(null)
                 .weeklyKeyword(null)
-                .updatedAt(null)
+                .weeklyUpdatedAt(null)
                 .build());
     }
 
