@@ -22,7 +22,7 @@ COPY --from=build /app/target/*.jar app.jar
 ENTRYPOINT ["java", \
   "-Xms128m", \
   "-Xmx400m", \
-  "-XX:MaxMetaspaceSize=128m", \
+  "-XX:MaxMetaspaceSize=256m", \
   "-XX:ReservedCodeCacheSize=64m", \
   "-XX:+UseG1GC", \
   "-XX:+UseStringDeduplication", \
