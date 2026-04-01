@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,5 +20,9 @@ public interface DiaryRepository extends JpaRepository<Diary, Long>, DiaryReposi
     @Modifying
     @Query("UPDATE Diary d SET d.imageUrl = :imageUrl WHERE d.diaryId = :diaryId")
     void updateImageUrl(@Param("diaryId") Long diaryId, @Param("imageUrl") String imageUrl);
+
+    // 스트릭 재계산용: 무거운 일기 본문은 버리고, 날짜만 중복 없이 최신순으로 가져옴
+    @Query("SELECT DISTINCT d.diaryDate FROM Diary d WHERE d.member.memberId = :memberId ORDER BY d.diaryDate DESC")
+    List<LocalDate> findDistinctDiaryDatesDescByMemberId(@Param("memberId") Long memberId);
 
 }

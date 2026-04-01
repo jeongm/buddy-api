@@ -4,6 +4,7 @@ import com.buddy.buddyapi.domain.chat.*;
 import com.buddy.buddyapi.domain.diary.dto.*;
 import com.buddy.buddyapi.domain.diary.event.DiaryImageUpdateEvent;
 import com.buddy.buddyapi.domain.diary.event.DiaryImagesCleanupEvent;
+import com.buddy.buddyapi.domain.insight.MemberInsightService;
 import com.buddy.buddyapi.domain.member.Member;
 import com.buddy.buddyapi.domain.member.MemberService;
 import com.buddy.buddyapi.global.aspect.Timer;
@@ -37,6 +38,7 @@ public class DiaryService {
     private final MemberService memberService;
     private final AiService aiService;
     private final ChatService chatService;
+    private final MemberInsightService insightService;
 
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
@@ -134,6 +136,8 @@ public class DiaryService {
 
         Diary savedDiary = diaryRepository.save(diary);
 
+        insightService.updateStreakOnCreate(memberId, request.diaryDate());
+
         if (image != null && !image.isEmpty()) {
             eventPublisher.publishEvent(
                     new DiaryImageUpdateEvent(savedDiary.getDiaryId(), null, image)
@@ -157,6 +161,8 @@ public class DiaryService {
         Diary diary = diaryRepository.findByDiaryIdAndMember_MemberId(diaryId, memberId)
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
+        boolean isDateChanged = !diary.getDiaryDate().equals(request.diaryDate());
+
         diary.updateDiary(request.title(), request.content(), request.diaryDate(), diary.getImageUrl());
 
 
@@ -179,6 +185,9 @@ public class DiaryService {
             }
         }
 
+        if (isDateChanged) {
+            insightService.syncStreakOnDelete(memberId);
+        }
 
     }
 
@@ -196,6 +205,8 @@ public class DiaryService {
         String imageUrl = diary.getImageUrl();
 
         diaryRepository.delete(diary);
+
+        insightService.syncStreakOnDelete(memberId);
 
         if(diary.getImageUrl() != null) {
             eventPublisher.publishEvent(new DiaryImagesCleanupEvent(List.of(imageUrl)));
