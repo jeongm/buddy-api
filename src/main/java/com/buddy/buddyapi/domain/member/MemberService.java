@@ -47,7 +47,6 @@ public class MemberService {
                 .email(request.email())
                 .password(encodedPassword)
                 .nickname(tempNickname)
-                .buddyCharacter(null)
                 .build();
 
         return memberRepository.save(newMember);

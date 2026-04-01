@@ -1,5 +1,6 @@
 package com.buddy.buddyapi.domain.insight;
 
+import com.buddy.buddyapi.domain.insight.dto.StreakResponse;
 import com.buddy.buddyapi.domain.insight.dto.TagNameCountResponse;
 import com.buddy.buddyapi.domain.insight.dto.WeeklyIdentityResponse;
 import com.buddy.buddyapi.global.common.ApiResponse;
@@ -18,9 +19,9 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/insight")
 @RequiredArgsConstructor
-public class InsightController {
+public class MemberInsightController {
 
-    private final InsightService insightService;
+    private final MemberInsightService insightService;
 
     @Operation(summary = "최다 빈도 태그 조회", description = "최근 7일 동안 사용자가 가장 많이 사용한 태그 TOP 5을 조회합니다.")
     @GetMapping("/weekly/tags")
@@ -43,5 +44,18 @@ public class InsightController {
         WeeklyIdentityResponse response = insightService.getOrUpdateWeeklyInsight(memberId);
 
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @Operation(
+            summary = "연속 기록(스트릭) 조회",
+            description = "유저의 현재 연속 일기 작성 기록(currentStreak)과 역대 최고 연속 기록(bestStreak)을 조회합니다. 오늘 또는 어제 일기를 쓰지 않았다면 현재 기록은 0으로 반환됩니다."
+    )
+    @GetMapping("/streak")
+    public ResponseEntity<ApiResponse<StreakResponse>> getStreak(
+            @AuthenticationPrincipal Long memberId) {
+
+        StreakResponse response = insightService.getStreak(memberId);
+
+        return ResponseEntity.ok(ApiResponse.ok("연속 기록 조회 성공", response));
     }
 }

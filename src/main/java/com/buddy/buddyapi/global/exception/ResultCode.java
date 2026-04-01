@@ -61,7 +61,10 @@ public enum ResultCode {
 
     // --- 알림 설정 관련 (N) ---
     NOTIFICATION_SETTING_NOT_FOUND(HttpStatus.NOT_FOUND, "N001", "알림 설정 정보를 찾을 수 없습니다."),
-    NIGHT_ALERT_REQUIRED(HttpStatus.BAD_REQUEST, "N002", "데일리 안부 알림은 야간 알림 수신 동의 후 사용할 수 있습니다.");
+    NIGHT_ALERT_REQUIRED(HttpStatus.BAD_REQUEST, "N002", "데일리 안부 알림은 야간 알림 수신 동의 후 사용할 수 있습니다."),
+
+    // -- 멤버 통계 관련 (I) --
+    MEMBER_INSIGHT_NOT_FOUND(HttpStatus.NOT_FOUND, "I001", "인사이트 정보를 찾을 수 없습니다.");
 
 
 

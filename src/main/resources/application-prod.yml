@@ -19,7 +19,7 @@ spring:
     baseline-on-migrate: true
     baseline-version: 1
     out-of-order: false
-    target: 2
+    target: 3
 
 # =================================================================
 # Logging Configuration
