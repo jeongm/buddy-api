@@ -203,8 +203,18 @@ public class DiaryService {
                 .orElseThrow(() -> new BaseException(ResultCode.DIARY_NOT_FOUND));
 
         String imageUrl = diary.getImageUrl();
+        ChatSession linkedSession = diary.getChatSession();
+
+        if (linkedSession != null) {
+            diaryRepository.detachSession(diaryId);
+            diaryRepository.flush();
+        }
 
         diaryRepository.delete(diary);
+
+        if (linkedSession != null) {
+            chatService.deleteSession(linkedSession);
+        }
 
         insightService.syncStreakOnDelete(memberId);
 

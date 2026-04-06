@@ -72,11 +72,10 @@ public class ChatRetentionScheduler {
     public void cleanUpOrphanChatSessions(){
         LocalDateTime twelveHoursAgo = LocalDateTime.now().minusHours(12);
 
-        int deletedMessages = chatSessionRepository.deleteOrphanMessages(twelveHoursAgo);
         int deletedSessions = chatSessionRepository.deleteOrphanSessions(twelveHoursAgo);
 
         if(deletedSessions > 0) {
-            log.info("잉여 메시지 청소 완료: 12시간이 경과된 채팅 메시지{}개, 세션 {}개를 영구 삭제했습니다.", deletedMessages, deletedSessions);
+            log.info("잉여 메시지 청소 완료: 12시간이 경과된 세션 {}개를 영구 삭제했습니다.", deletedSessions);
         }
     }
 

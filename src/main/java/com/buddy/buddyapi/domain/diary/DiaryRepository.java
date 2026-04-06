@@ -25,4 +25,14 @@ public interface DiaryRepository extends JpaRepository<Diary, Long>, DiaryReposi
     @Query("SELECT DISTINCT d.diaryDate FROM Diary d WHERE d.member.memberId = :memberId ORDER BY d.diaryDate DESC")
     List<LocalDate> findDistinctDiaryDatesDescByMemberId(@Param("memberId") Long memberId);
 
+    /**
+     * 특정 일기의 session_id를 NULL로 업데이트합니다.
+     * 일기 삭제 전 FK 제약조건 위반 방지를 위해 호출합니다.
+     *
+     * @param diaryId 대상 일기 PK
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("UPDATE Diary d SET d.chatSession = NULL WHERE d.diaryId = :diaryId")
+    void detachSession(@Param("diaryId") Long diaryId);
+
 }

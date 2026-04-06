@@ -23,36 +23,26 @@ public interface ChatSessionRepository extends JpaRepository<ChatSession, Long> 
 
     // 알림 발송용 : 10시간 지남, 알림 안보냄, 일기로 안 만들어진 채팅방
     @Query("""
-        SELECT new com.buddy.buddyapi.domain.chat.dto.PushTargetDto(c.sessionId, m.pushToken) 
-        FROM ChatSession c 
-        JOIN c.member m 
-        WHERE c.createdAt <= :tenHoursAgo 
-          AND c.deletionNotifiedAt IS NULL 
-          AND c.ended = false
-        """)
+        SELECT new com.buddy.buddyapi.domain.chat.dto.PushTargetDto(c.sessionId, m.pushToken)
+        FROM ChatSession c
+        JOIN c.member m
+        WHERE c.createdAt <= :tenHoursAgo
+          AND c.deletionNotifiedAt IS NULL
+          AND NOT EXISTS (
+              SELECT 1 FROM Diary d WHERE d.chatSession.sessionId = c.sessionId
+          )
+    """)
     List<PushTargetDto> findWarningTargets(@Param("tenHoursAgo") LocalDateTime tenHoursAgo, Pageable pageable);
 
-    // 쓰레기 청소용 : 12시간 지남, 일기로 안 만들어진 채팅방 삭제
-    // 벌크연산(Bulk Delete)으로 최적화(N+1)문제 방지
-    // 쓰레기 청소 1단계: 자식(메시지) 먼저 삭제 (FK 에러 방지용)
+    // 쓰레기 청소
     @Modifying(clearAutomatically = true)
     @Query("""
-        DELETE FROM ChatMessage m 
-        WHERE m.chatSession.sessionId IN (
-            SELECT c.sessionId FROM ChatSession c 
-            WHERE c.createdAt <= :twelveHoursAgo 
-              AND c.ended = false
-        )
-        """)
-    int deleteOrphanMessages(@Param("twelveHoursAgo") LocalDateTime twelveHoursAgo);
-
-    // 쓰레기 청소 2단계: 부모(세션) 삭제
-    @Modifying(clearAutomatically = true)
-    @Query("""
-        DELETE FROM ChatSession c 
-        WHERE c.createdAt <= :twelveHoursAgo 
-          AND c.ended = false
-        """)
+    DELETE FROM ChatSession c
+    WHERE c.createdAt <= :twelveHoursAgo
+      AND NOT EXISTS (
+          SELECT 1 FROM Diary d WHERE d.chatSession.sessionId = c.sessionId
+      )
+    """)
     int deleteOrphanSessions(@Param("twelveHoursAgo") LocalDateTime twelveHoursAgo);
 
     @Modifying(clearAutomatically = true)

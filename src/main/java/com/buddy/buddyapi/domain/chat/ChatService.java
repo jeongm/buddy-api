@@ -105,6 +105,18 @@ public class ChatService {
     }
 
     /**
+     * 채팅 세션을 즉시 삭제합니다.
+     * 일기 삭제 시 연결된 세션을 함께 제거할 때 사용합니다.
+     * chat_message는 ON DELETE CASCADE로 자동 삭제됩니다.
+     *
+     * @param session 삭제할 채팅 세션 엔티티
+     */
+    @Transactional
+    public void deleteSession(ChatSession session) {
+        chatSessionRepository.delete(session);
+    }
+
+    /**
      * AI 서비스를 호출하여 캐릭터의 성격이 반영된 답변을 생성합니다.
      * @param session     현재 대화 세션 (캐릭터 정보 포함)
      * @param userContent 사용자가 입력한 메시지 내용
