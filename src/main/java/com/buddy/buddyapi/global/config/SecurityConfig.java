@@ -1,7 +1,7 @@
 package com.buddy.buddyapi.global.config;
 
 import com.buddy.buddyapi.global.security.*;
-import org.springframework.beans.factory.annotation.Qualifier;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -15,21 +15,14 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.servlet.HandlerExceptionResolver;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
-    private final HandlerExceptionResolver exceptionResolver;
-
-    public SecurityConfig (
-            JwtTokenProvider jwtTokenProvider,
-            @Qualifier("handlerExceptionResolver") HandlerExceptionResolver exceptionResolver) {
-        this.jwtTokenProvider = jwtTokenProvider;
-        this.exceptionResolver = exceptionResolver;
-    }
+    private final JwtExceptionFilter jwtExceptionFilter;
 
 
 
@@ -44,6 +37,7 @@ public class SecurityConfig {
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .exceptionHandling(exception -> exception
+                        // 인증되지 않은 사용자의 접근 시 401 반환 (기본값 설정)
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
                 )
                 .authorizeHttpRequests(auth -> auth
@@ -55,8 +49,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
                 )
                 // UsernamePasswordAuthenticationFilter 이전에 JWT 필터 실행
-                .addFilterBefore(new JwtAuthenticationFilter(jwtTokenProvider, exceptionResolver),
-                        UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtExceptionFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new JwtAuthenticationFilter(jwtTokenProvider), JwtExceptionFilter.class);
 
         return http.build();
     }
