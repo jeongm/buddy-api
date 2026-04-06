@@ -38,7 +38,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleExpiredJwtException(io.jsonwebtoken.ExpiredJwtException e) {
         log.warn("JWT Token Expired: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.fail(ResultCode.EXPIRED_TOKEN, "토큰이 만료되었습니다. 다시 로그인해주세요."));
+                .body(ApiResponse.error(ResultCode.EXPIRED_TOKEN, "토큰이 만료되었습니다. 다시 로그인해주세요."));
     }
 
     /**
@@ -52,7 +52,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleSignatureException(io.jsonwebtoken.security.SignatureException e) {
         log.warn("JWT Signature Error: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.fail(ResultCode.TOKEN_SIGNATURE_ERROR));
+                .body(ApiResponse.error(ResultCode.TOKEN_SIGNATURE_ERROR));
     }
 
     /**
@@ -66,7 +66,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleMalformedJwtException(io.jsonwebtoken.MalformedJwtException e) {
         log.warn("JWT Malformed Error: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.fail(ResultCode.INVALID_TOKEN));
+                .body(ApiResponse.error(ResultCode.INVALID_TOKEN));
     }
 
     /**
@@ -80,7 +80,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleUnsupportedJwtException(io.jsonwebtoken.UnsupportedJwtException e) {
         log.warn("JWT Unsupported Error: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.fail(ResultCode.UNSUPPORTED_TOKEN));
+                .body(ApiResponse.error(ResultCode.UNSUPPORTED_TOKEN));
     }
 
     /**
@@ -96,7 +96,7 @@ public class GlobalExceptionHandler {
             org.springframework.security.access.AccessDeniedException e) {
         log.warn("Access Denied: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.fail(ResultCode.FORBIDDEN));
+                .body(ApiResponse.error(ResultCode.FORBIDDEN));
     }
 
     /**
@@ -115,7 +115,7 @@ public class GlobalExceptionHandler {
 
         log.warn("Validation Exception: {}", errorMessage);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.fail(ResultCode.INVALID_INPUT, errorMessage));
+                .body(ApiResponse.error(ResultCode.INVALID_INPUT, errorMessage));
     }
 
     /**
@@ -130,7 +130,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleHttpMessageNotReadableException(HttpMessageNotReadableException e) {
         log.warn("JSON Parse Exception: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.fail(ResultCode.INVALID_INPUT, "요청 데이터 형식이 올바르지 않습니다."));
+                .body(ApiResponse.error(ResultCode.INVALID_INPUT, "요청 데이터 형식이 올바르지 않습니다."));
     }
 
     /**
@@ -144,7 +144,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleMethodArgumentTypeMismatchException(MethodArgumentTypeMismatchException e) {
         log.warn("Type Mismatch Exception: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.fail(ResultCode.INVALID_INPUT, "파라미터의 타입이 올바르지 않습니다."));
+                .body(ApiResponse.error(ResultCode.INVALID_INPUT, "파라미터의 타입이 올바르지 않습니다."));
     }
 
     /**
@@ -158,7 +158,7 @@ public class GlobalExceptionHandler {
     protected ResponseEntity<ApiResponse<Void>> handleHttpRequestMethodNotSupportedException(HttpRequestMethodNotSupportedException e) {
         log.warn("Method Not Supported: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
-                .body(ApiResponse.fail(ResultCode.METHOD_NOT_ALLOWED));
+                .body(ApiResponse.error(ResultCode.METHOD_NOT_ALLOWED));
     }
 
     /**
@@ -176,7 +176,7 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.joining(", "));
         log.warn("Constraint Violation Exception: {}", errorMessage);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.fail(ResultCode.INVALID_INPUT, errorMessage));
+                .body(ApiResponse.error(ResultCode.INVALID_INPUT, errorMessage));
     }
 
     /**
@@ -192,7 +192,7 @@ public class GlobalExceptionHandler {
         ResultCode rc = e.getResultCode();
         log.warn("BaseException [{}]: {}", rc.getCode(), e.getResponseMessage());
         return ResponseEntity.status(rc.getHttpStatus())
-                .body(ApiResponse.fail(rc, e.getResponseMessage()));
+                .body(ApiResponse.error(rc, e.getResponseMessage()));
     }
 
     /**
@@ -207,7 +207,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleDataIntegrityViolationException(DataIntegrityViolationException e) {
         log.error("Data Integrity Violation: ", e);
         return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(ApiResponse.fail(ResultCode.DATA_INTEGRITY_VIOLATION, "데이터 제약 조건 위반이 발생했습니다."));
+                .body(ApiResponse.error(ResultCode.DATA_INTEGRITY_VIOLATION, "데이터 제약 조건 위반이 발생했습니다."));
     }
 
     /**

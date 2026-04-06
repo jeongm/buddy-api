@@ -1,15 +1,18 @@
 package com.buddy.buddyapi.global.common;
 
 import com.buddy.buddyapi.global.exception.ResultCode;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 @Getter
-@AllArgsConstructor
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse<T> {
-    private String code;
-    private String message;
-    private T result;
+    private final String code;
+    private final String message;
+    private final T result;
 
     // 1. 단순 성공 응답 (데이터 포함)
     public static <T> ApiResponse<T> ok(T result) {
@@ -22,7 +25,7 @@ public class ApiResponse<T> {
     }
 
     // 3. 성공 응답 (데이터 없음 - 주로 삭제나 단순 성공 알림)
-    public static <T> ApiResponse<Void> ok() {
+    public static ApiResponse<Void> ok() {
         return new ApiResponse<>(ResultCode.SUCCESS.getCode(), ResultCode.SUCCESS.getMessage(), null);
     }
 
@@ -31,24 +34,20 @@ public class ApiResponse<T> {
         return new ApiResponse<>(resultCode.getCode(), resultCode.getMessage(), null);
     }
 
-    // 5. 에러 응답 (상세 정보 포함 - Validation 에러 등 전달 시 유용)
-    public static <T> ApiResponse<T> error(ResultCode resultCode, T errorDetail) {
-        return new ApiResponse<>(resultCode.getCode(), resultCode.getMessage(), errorDetail);
-    }
-
-    // 6. 실패 응답 (ResultCode 기반)
-    public static <T> ApiResponse<T> fail(ResultCode resultCode) {
-        return new ApiResponse<>(resultCode.getCode(), resultCode.getMessage(), null);
-    }
-
-    // 7. 실패 응답 (메시지 커스텀 - 예외 발생 시 상세 메시지 전달용)
-    public static <T> ApiResponse<T> fail(ResultCode resultCode, String message) {
+    // 5. 에러 응답 (상세 정보 포함 - 예외 발생 시 상세 메시지 전달용)
+    public static <T> ApiResponse<T> error(ResultCode resultCode, String message) {
         return new ApiResponse<>(resultCode.getCode(), message, null);
     }
 
-    // 8. 실패 응답 (데이터 포함 - 실패 시에도 특정 데이터(예: 남은 인증 횟수 등)를 넘겨야 할 때)
-    public static <T> ApiResponse<T> fail(ResultCode resultCode, T result) {
+
+    // 6. 실패 응답 (데이터 포함 - 실패 시 특정 데이터나 Validation 에러 목록 등을 넘겨야 할 때)
+    public static <T> ApiResponse<T> error(ResultCode resultCode, T result) {
         return new ApiResponse<>(resultCode.getCode(), resultCode.getMessage(), result);
+    }
+
+    // 7. 실패 응답 (메시지 커스텀 + 데이터 포함)
+    public static <T> ApiResponse<T> error(ResultCode resultCode, String message, T result) {
+        return new ApiResponse<>(resultCode.getCode(), message, result);
     }
 
 }
